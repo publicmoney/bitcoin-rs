@@ -1,7 +1,7 @@
 use std::ops;
 use ser::Serializable;
 use chain::IndexedTransaction;
-use network::{ConsensusParams, ConsensusFork};
+use network::ConsensusParams;
 use deployments::BlockDeployments;
 use storage::NoopStore;
 use sigops::transaction_sigops;
@@ -50,7 +50,7 @@ impl<'a> MemoryPoolTransactionVerifier<'a> {
 			is_coinbase: TransactionMemoryPoolCoinbase::new(transaction),
 			size: TransactionSize::new(transaction, consensus),
 			premature_witness: TransactionPrematureWitness::new(transaction, &deployments),
-			sigops: TransactionSigops::new(transaction, ConsensusFork::absolute_maximum_block_sigops()),
+			sigops: TransactionSigops::new(transaction, ConsensusParams::absolute_maximum_block_sigops()),
 		}
 	}
 
@@ -164,7 +164,7 @@ impl<'a> TransactionSize<'a> {
 
 	fn check(&self) -> Result<(), TransactionError> {
 		let size = self.transaction.raw.serialized_size();
-		if size > self.consensus.fork.max_transaction_size() {
+		if size > self.consensus.max_transaction_size {
 			Err(TransactionError::MaxSize)
 		} else {
 			Ok(())
@@ -180,13 +180,13 @@ pub struct TransactionSigops<'a> {
 impl<'a> TransactionSigops<'a> {
 	fn new(transaction: &'a IndexedTransaction, max_sigops: usize) -> Self {
 		TransactionSigops {
-			transaction: transaction,
-			max_sigops: max_sigops,
+			transaction,
+			max_sigops,
 		}
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
-		let sigops = transaction_sigops(&self.transaction.raw, &NoopStore, false, false);
+		let sigops = transaction_sigops(&self.transaction.raw, &NoopStore, false);
 		if sigops > self.max_sigops {
 			Err(TransactionError::MaxSigops)
 		} else {

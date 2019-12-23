@@ -7,7 +7,7 @@ use v1::types::H256;
 use v1::helpers::errors::{execution, invalid_params, transaction_not_found, transaction_of_side_branch};
 use global_script::Script;
 use chain::{Transaction as GlobalTransaction, IndexedTransaction as GlobalIndexedTransaction};
-use network::{ConsensusFork, Network};
+use network::{Network, ConsensusParams};
 use primitives::bytes::Bytes as GlobalBytes;
 use primitives::hash::H256 as GlobalH256;
 use sync;
@@ -206,8 +206,8 @@ impl RawClientCoreApi for RawClientCore {
 			}).collect();
 
 		let tx_size = transaction.raw.serialized_size_with_flags(SERIALIZE_TRANSACTION_WITNESS);
-		let weight = transaction.raw.serialized_size() * (ConsensusFork::witness_scale_factor() - 1) + tx_size;
-		let tx_vsize = (weight + ConsensusFork::witness_scale_factor() - 1) / ConsensusFork::witness_scale_factor();
+		let weight = transaction.raw.serialized_size() * (self.network.magic() - 1) as usize + tx_size;
+		let tx_vsize = (weight + ConsensusParams::witness_scale_factor() - 1) / ConsensusParams::witness_scale_factor();
 
 		Transaction {
 			hex: None,

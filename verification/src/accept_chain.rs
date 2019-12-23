@@ -27,7 +27,6 @@ impl<'a> ChainAcceptor<'a> {
 		verification_level: VerificationLevel,
 		block: CanonBlock<'a>,
 		height: u32,
-		median_time_past: u32,
 		deployments: &'a BlockDeployments,
 	) -> Self {
 		trace!(target: "verification", "Block verification {}", block.hash().to_reversed_str());
@@ -39,7 +38,6 @@ impl<'a> ChainAcceptor<'a> {
 				consensus,
 				block,
 				height,
-				median_time_past,
 				deployments,
 				header_provider,
 			),
@@ -56,7 +54,6 @@ impl<'a> ChainAcceptor<'a> {
 						block.hash(),
 						height,
 						block.header.raw.time,
-						median_time_past,
 						tx_index,
 						deployments,
 				))

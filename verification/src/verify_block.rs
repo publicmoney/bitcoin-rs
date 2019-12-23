@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use chain::IndexedBlock;
-use network::ConsensusFork;
+use network::ConsensusParams;
 use sigops::transaction_sigops;
 use storage::NoopStore;
 use error::{Error, TransactionError};
@@ -20,10 +20,10 @@ impl<'a> BlockVerifier<'a> {
 		BlockVerifier {
 			empty: BlockEmpty::new(block),
 			coinbase: BlockCoinbase::new(block),
-			serialized_size: BlockSerializedSize::new(block, ConsensusFork::absolute_maximum_block_size()),
+			serialized_size: BlockSerializedSize::new(block, ConsensusParams::absolute_maximum_block_size()),
 			extra_coinbases: BlockExtraCoinbases::new(block),
 			transactions_uniqueness: BlockTransactionsUniqueness::new(block),
-			sigops: BlockSigops::new(block, ConsensusFork::absolute_maximum_block_sigops()),
+			sigops: BlockSigops::new(block, ConsensusParams::absolute_maximum_block_sigops()),
 			merkle_root: BlockMerkleRoot::new(block),
 		}
 	}
@@ -163,7 +163,7 @@ impl<'a> BlockSigops<'a> {
 	fn check(&self) -> Result<(), Error> {
 		// We cannot know if bip16 is enabled at this point so we disable it.
 		let sigops = self.block.transactions.iter()
-			.map(|tx| transaction_sigops(&tx.raw, &NoopStore, false, false))
+			.map(|tx| transaction_sigops(&tx.raw, &NoopStore, false))
 			.sum::<usize>();
 
 		if sigops > self.max_sigops {

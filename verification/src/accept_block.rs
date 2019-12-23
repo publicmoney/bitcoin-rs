@@ -1,7 +1,6 @@
-use network::{ConsensusParams, ConsensusFork, TransactionOrdering};
+use network::ConsensusParams;
 use crypto::dhash256;
-use storage::{transaction_index_for_output_check, DuplexTransactionOutputProvider,
-	TransactionOutputProvider, BlockHeaderProvider};
+use storage::{DuplexTransactionOutputProvider, TransactionOutputProvider, BlockHeaderProvider};
 use script;
 use ser::Stream;
 use sigops::{transaction_sigops, transaction_sigops_cost}	;
@@ -19,7 +18,6 @@ pub struct BlockAcceptor<'a> {
 	pub coinbase_claim: BlockCoinbaseClaim<'a>,
 	pub coinbase_script: BlockCoinbaseScript<'a>,
 	pub witness: BlockWitness<'a>,
-	pub ordering: BlockTransactionOrdering<'a>,
 }
 
 impl<'a> BlockAcceptor<'a> {
@@ -28,18 +26,16 @@ impl<'a> BlockAcceptor<'a> {
 		consensus: &'a ConsensusParams,
 		block: CanonBlock<'a>,
 		height: u32,
-		median_time_past: u32,
 		deployments: &'a BlockDeployments<'a>,
 		headers: &'a dyn BlockHeaderProvider,
 	) -> Self {
 		BlockAcceptor {
 			finality: BlockFinality::new(block, height, deployments, headers),
-			serialized_size: BlockSerializedSize::new(block, consensus, deployments, height, median_time_past),
+			serialized_size: BlockSerializedSize::new(block, consensus, deployments),
 			coinbase_script: BlockCoinbaseScript::new(block, consensus, height),
-			coinbase_claim: BlockCoinbaseClaim::new(block, consensus, store, height, median_time_past),
-			sigops: BlockSigops::new(block, store, consensus, height, median_time_past),
+			coinbase_claim: BlockCoinbaseClaim::new(block, store, height),
+			sigops: BlockSigops::new(block, store, consensus),
 			witness: BlockWitness::new(block, deployments),
-			ordering: BlockTransactionOrdering::new(block, consensus, median_time_past),
 		}
 	}
 
@@ -50,7 +46,6 @@ impl<'a> BlockAcceptor<'a> {
 		self.coinbase_claim.check()?;
 		self.coinbase_script.check()?;
 		self.witness.check()?;
-		self.ordering.check()?;
 		Ok(())
 	}
 }
@@ -67,10 +62,10 @@ impl<'a> BlockFinality<'a> {
 		let csv_active = deployments.csv();
 
 		BlockFinality {
-			block: block,
-			height: height,
-			csv_active: csv_active,
-			headers: headers,
+			block,
+			height,
+			csv_active,
+			headers,
 		}
 	}
 
@@ -92,21 +87,17 @@ impl<'a> BlockFinality<'a> {
 pub struct BlockSerializedSize<'a> {
 	block: CanonBlock<'a>,
 	consensus: &'a ConsensusParams,
-	height: u32,
-	median_time_past: u32,
 	segwit_active: bool,
 }
 
 impl<'a> BlockSerializedSize<'a> {
-	fn new(block: CanonBlock<'a>, consensus: &'a ConsensusParams, deployments: &'a BlockDeployments<'a>, height: u32, median_time_past: u32) -> Self {
+	fn new(block: CanonBlock<'a>, consensus: &'a ConsensusParams, deployments: &'a BlockDeployments<'a>) -> Self {
 		let segwit_active = deployments.segwit();
 
 		BlockSerializedSize {
-			block: block,
-			consensus: consensus,
-			height: height,
-			median_time_past: median_time_past,
-			segwit_active: segwit_active,
+			block,
+			consensus,
+			segwit_active,
 		}
 	}
 
@@ -116,17 +107,15 @@ impl<'a> BlockSerializedSize<'a> {
 		// block size (without witness) is valid for all forks:
 		// before SegWit: it is main check for size
 		// after SegWit: without witness data, block size should be <= 1_000_000
-		// after BitcoinCash fork: block size is increased to 8_000_000
-		if size < self.consensus.fork.min_block_size(self.height) ||
-			size > self.consensus.fork.max_block_size(self.height, self.median_time_past) {
+		if size > self.consensus.max_block_size {
 			return Err(Error::Size(size));
 		}
 
 		// there's no need to define weight for pre-SegWit blocks
 		if self.segwit_active {
 			let size_with_witness = self.block.size_with_witness();
-			let weight = size * (ConsensusFork::witness_scale_factor() - 1) + size_with_witness;
-			if weight > self.consensus.fork.max_block_weight(self.height) {
+			let weight = size * (self.consensus.witness_scale_factor - 1) + size_with_witness;
+			if weight > self.consensus.max_block_weight {
 				return Err(Error::Weight);
 			}
 		}
@@ -138,9 +127,7 @@ pub struct BlockSigops<'a> {
 	block: CanonBlock<'a>,
 	store: &'a dyn TransactionOutputProvider,
 	consensus: &'a ConsensusParams,
-	height: u32,
 	bip16_active: bool,
-	checkdatasig_active: bool,
 }
 
 impl<'a> BlockSigops<'a> {
@@ -148,22 +135,14 @@ impl<'a> BlockSigops<'a> {
 		block: CanonBlock<'a>,
 		store: &'a dyn TransactionOutputProvider,
 		consensus: &'a ConsensusParams,
-		height: u32,
-		median_time_past: u32,
 	) -> Self {
 		let bip16_active = block.header.raw.time >= consensus.bip16_time;
-		let checkdatasig_active = match consensus.fork {
-			ConsensusFork::BitcoinCash(ref fork) => median_time_past >= fork.magnetic_anomaly_time,
-			_ => false,
-		};
 
 		BlockSigops {
 			block: block,
 			store: store,
 			consensus: consensus,
-			height: height,
 			bip16_active,
-			checkdatasig_active,
 		}
 	}
 
@@ -171,7 +150,7 @@ impl<'a> BlockSigops<'a> {
 		let store = DuplexTransactionOutputProvider::new(self.store, &*self.block);
 		let (sigops, sigops_cost) = self.block.transactions.iter()
 			.map(|tx| {
-				let tx_sigops = transaction_sigops(&tx.raw, &store, self.bip16_active, self.checkdatasig_active);
+				let tx_sigops = transaction_sigops(&tx.raw, &store, self.bip16_active);
 				let tx_sigops_cost = transaction_sigops_cost(&tx.raw, &store, tx_sigops);
 				(tx_sigops, tx_sigops_cost)
 			})
@@ -180,17 +159,13 @@ impl<'a> BlockSigops<'a> {
 		// sigops check is valid for all forks:
 		// before SegWit: 20_000
 		// after SegWit: cost of sigops is sigops * 4 and max cost is 80_000 => max sigops is still 20_000
-		// after BitcoinCash fork: 20_000 sigops for each full/partial 1_000_000 bytes of block
-		let size = self.block.size();
-		if sigops > self.consensus.fork.max_block_sigops(self.height, size) {
+		if sigops > self.consensus.max_block_sigops {
 			return Err(Error::MaximumSigops);
 		}
 
-		// sigops check is valid for all forks:
 		// before SegWit: no witnesses => cost is sigops * 4 and max cost is 80_000
 		// after SegWit: it is main check for sigops
-		// after BitcoinCash fork: no witnesses => cost is sigops * 4 and max cost depends on block size
-		if sigops_cost > self.consensus.fork.max_block_sigops_cost(self.height, size) {
+		if sigops_cost > self.consensus.max_block_sigops_cost {
 			Err(Error::MaximumSigopsCost)
 		} else {
 			Ok(())
@@ -201,23 +176,19 @@ impl<'a> BlockSigops<'a> {
 pub struct BlockCoinbaseClaim<'a> {
 	block: CanonBlock<'a>,
 	store: &'a dyn TransactionOutputProvider,
-	height: u32,
-	transaction_ordering: TransactionOrdering,
+	height: u32
 }
 
 impl<'a> BlockCoinbaseClaim<'a> {
 	fn new(
 		block: CanonBlock<'a>,
-		consensus_params: &ConsensusParams,
 		store: &'a dyn TransactionOutputProvider,
 		height: u32,
-		median_time_past: u32
 	) -> Self {
 		BlockCoinbaseClaim {
 			block: block,
 			store: store,
-			height: height,
-			transaction_ordering: consensus_params.fork.transaction_ordering(median_time_past),
+			height: height
 		}
 	}
 
@@ -230,8 +201,7 @@ impl<'a> BlockCoinbaseClaim<'a> {
 			// (1) Total sum of all referenced outputs
 			let mut incoming: u64 = 0;
 			for input in tx.raw.inputs.iter() {
-				let prevout_tx_idx = transaction_index_for_output_check(self.transaction_ordering, tx_idx);
-				let prevout = store.transaction_output(&input.previous_output, prevout_tx_idx);
+				let prevout = store.transaction_output(&input.previous_output, tx_idx);
 				let (sum, overflow) = incoming.overflowing_add(prevout.map(|o| o.value).unwrap_or(0));
 				if overflow {
 					return Err(Error::ReferencedInputsSumOverflow);
@@ -363,43 +333,12 @@ impl<'a> BlockWitness<'a> {
 	}
 }
 
-pub struct BlockTransactionOrdering<'a> {
-	block: CanonBlock<'a>,
-	transaction_ordering: TransactionOrdering,
-}
-
-impl<'a> BlockTransactionOrdering<'a> {
-	fn new(block: CanonBlock<'a>, consensus: &'a ConsensusParams, median_time_past: u32) -> Self {
-		BlockTransactionOrdering {
-			block,
-			transaction_ordering: consensus.fork.transaction_ordering(median_time_past),
-		}
-	}
-
-	fn check(&self) -> Result<(), Error> {
-		match self.transaction_ordering {
-			// topological transaction ordering is checked in TransactionMissingInputs
-			TransactionOrdering::Topological => Ok(()),
-			// canonical transaction ordering means that transactions are ordered by
-			// their id (i.e. hash) in ascending order
-			TransactionOrdering::Canonical =>
-				if self.block.transactions.windows(2).skip(1).all(|w| w[0].hash < w[1].hash) {
-					Ok(())
-				} else {
-					Err(Error::NonCanonicalTransactionOrdering)
-				},
-		}
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	extern crate test_data;
 
-	use chain::{IndexedBlock, Transaction};
-	use network::{Network, ConsensusFork, ConsensusParams, BitcoinCashConsensusParams};
 	use {Error, CanonBlock};
-	use super::{BlockCoinbaseScript, BlockTransactionOrdering};
+	use super::BlockCoinbaseScript;
 
 	#[test]
 	fn test_block_coinbase_script() {
@@ -428,43 +367,5 @@ mod tests {
 		};
 
 		assert_eq!(coinbase_script_validator2.check(), Err(Error::CoinbaseScript));
-	}
-
-	#[test]
-	fn block_transaction_ordering_works() {
-		let tx1: Transaction = test_data::TransactionBuilder::with_output(1).into();
-		let tx2: Transaction = test_data::TransactionBuilder::with_output(2).into();
-		let tx3: Transaction = test_data::TransactionBuilder::with_output(3).into();
-		let bad_block: IndexedBlock = test_data::block_builder()
-			.with_transaction(tx1.clone())
-			.with_transaction(tx2.clone())
-			.with_transaction(tx3.clone())
-			.header().build()
-			.build()
-			.into();
-		let good_block: IndexedBlock = test_data::block_builder()
-			.with_transaction(tx1)
-			.with_transaction(tx3)
-			.with_transaction(tx2)
-			.header().build()
-			.build()
-			.into();
-
-		let bad_block = CanonBlock::new(&bad_block);
-		let good_block = CanonBlock::new(&good_block);
-
-		// when topological ordering is used => we don't care about tx ordering
-		let consensus = ConsensusParams::new(Network::Unitest, ConsensusFork::BitcoinCore);
-		let checker = BlockTransactionOrdering::new(bad_block, &consensus, 0);
-		assert_eq!(checker.check(), Ok(()));
-
-		// when topological ordering is used => we care about tx ordering
-		let mut bch = BitcoinCashConsensusParams::new(Network::Unitest);
-		bch.magnetic_anomaly_time = 0;
-		let consensus = ConsensusParams::new(Network::Unitest, ConsensusFork::BitcoinCash(bch));
-		let checker = BlockTransactionOrdering::new(bad_block, &consensus, 0);
-		assert_eq!(checker.check(), Err(Error::NonCanonicalTransactionOrdering));
-		let checker = BlockTransactionOrdering::new(good_block, &consensus, 0);
-		assert_eq!(checker.check(), Ok(()));
 	}
 }

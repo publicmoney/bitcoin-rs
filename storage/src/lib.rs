@@ -33,7 +33,7 @@ pub use block_iterator::BlockIterator;
 pub use block_origin::{BlockOrigin, SideChainOrigin};
 pub use block_provider::{BlockHeaderProvider, BlockProvider};
 pub use block_ref::BlockRef;
-pub use duplex_store::{DuplexTransactionOutputProvider, NoopStore, transaction_index_for_output_check};
+pub use duplex_store::{DuplexTransactionOutputProvider, NoopStore};
 pub use error::Error;
 pub use store::{AsSubstore, Store, SharedStore, CanonStore, ConfigStore};
 pub use transaction_meta::TransactionMeta;

@@ -12,7 +12,6 @@ use {Script, Builder};
 pub enum SignatureVersion {
 	Base,
 	WitnessV0,
-	ForkId,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -35,20 +34,13 @@ impl From<SighashBase> for u32 {
 pub struct Sighash {
 	pub base: SighashBase,
 	pub anyone_can_pay: bool,
-	pub fork_id: bool,
 }
 
 impl From<Sighash> for u32 {
 	fn from(s: Sighash) -> Self {
 		let base = s.base as u32;
-		let base = if s.anyone_can_pay {
+		if s.anyone_can_pay {
 			base | 0x80
-		} else {
-			base
-		};
-
-		if s.fork_id {
-			base | 0x40
 		} else {
 			base
 		}
@@ -56,21 +48,17 @@ impl From<Sighash> for u32 {
 }
 
 impl Sighash {
-	pub fn new(base: SighashBase, anyone_can_pay: bool, fork_id: bool) -> Self {
+	pub fn new(base: SighashBase, anyone_can_pay: bool) -> Self {
 		Sighash {
-			base: base,
-			anyone_can_pay: anyone_can_pay,
-			fork_id: fork_id,
+			base,
+			anyone_can_pay,
 		}
 	}
 
 	/// Used by SCRIPT_VERIFY_STRICTENC
-	pub fn is_defined(version: SignatureVersion, u: u32) -> bool {
-		// reset anyone_can_pay && fork_id (if applicable) bits
-		let u = match version {
-			SignatureVersion::ForkId => u & !(0x40 | 0x80),
-			_ => u & !(0x80),
-		};
+	pub fn is_defined(u: u32) -> bool {
+		// reset anyone_can_pay bits
+		let u = u & !0x80;
 
 		// Only exact All | None | Single values are passing this check
 		match u {
@@ -80,16 +68,15 @@ impl Sighash {
 	}
 
 	/// Creates Sighash from any u, even if is_defined() == false
-	pub fn from_u32(version: SignatureVersion, u: u32) -> Self {
+	pub fn from_u32(u: u32) -> Self {
 		let anyone_can_pay = (u & 0x80) == 0x80;
-		let fork_id = version == SignatureVersion::ForkId && (u & 0x40) == 0x40;
 		let base = match u & 0x1f {
 			2 => SighashBase::None,
 			3 => SighashBase::Single,
 			1 | _ => SighashBase::All,
 		};
 
-		Sighash::new(base, anyone_can_pay, fork_id)
+		Sighash::new(base, anyone_can_pay)
 	}
 }
 
@@ -131,10 +118,9 @@ impl From<Transaction> for TransactionInputSigner {
 
 impl TransactionInputSigner {
 	pub fn signature_hash(&self, input_index: usize, input_amount: u64, script_pubkey: &Script, sigversion: SignatureVersion, sighashtype: u32) -> H256 {
-		let sighash = Sighash::from_u32(sigversion, sighashtype);
+		let sighash = Sighash::from_u32(sighashtype);
 		match sigversion {
-			SignatureVersion::ForkId if sighash.fork_id => self.signature_hash_fork_id(input_index, input_amount, script_pubkey, sighashtype, sighash),
-			SignatureVersion::Base | SignatureVersion::ForkId => self.signature_hash_original(input_index, script_pubkey, sighashtype, sighash),
+			SignatureVersion::Base => self.signature_hash_original(input_index, script_pubkey, sighashtype, sighash),
 			SignatureVersion::WitnessV0 => self.signature_hash_witness0(input_index, input_amount, script_pubkey, sighashtype, sighash),
 		}
 	}
@@ -253,18 +239,6 @@ impl TransactionInputSigner {
 		let out = stream.out();
 		dhash256(&out)
 	}
-
-	fn signature_hash_fork_id(&self, input_index: usize, input_amount: u64, script_pubkey: &Script, sighashtype: u32, sighash: Sighash) -> H256 {
-		if input_index >= self.inputs.len() {
-			return 1u8.into();
-		}
-
-		if sighash.base == SighashBase::Single && input_index >= self.outputs.len() {
-			return 1u8.into();
-		}
-
-		self.signature_hash_witness0(input_index, input_amount, script_pubkey, sighashtype, sighash)
-	}
 }
 
 fn compute_hash_prevouts(sighash: Sighash, inputs: &[UnsignedTransactionInput]) -> H256 {
@@ -376,7 +350,7 @@ mod tests {
 		let script: Script = script.into();
 		let expected = H256::from_reversed_str(result);
 
-		let sighash = Sighash::from_u32(SignatureVersion::Base, hash_type as u32);
+		let sighash = Sighash::from_u32(hash_type as u32);
 		let hash = signer.signature_hash_original(input_index, &script, hash_type as u32, sighash);
 		assert_eq!(expected, hash);
 	}
@@ -888,18 +862,12 @@ mod tests {
 	}
 
 	#[test]
-	fn test_sighash_forkid_from_u32() {
-		assert!(!Sighash::is_defined(SignatureVersion::Base, 0xFFFFFF82));
-		assert!(!Sighash::is_defined(SignatureVersion::Base, 0x00000182));
-		assert!(!Sighash::is_defined(SignatureVersion::Base, 0x00000080));
-		assert!( Sighash::is_defined(SignatureVersion::Base, 0x00000001));
-		assert!( Sighash::is_defined(SignatureVersion::Base, 0x00000082));
-		assert!( Sighash::is_defined(SignatureVersion::Base, 0x00000003));
-
-		assert!(!Sighash::is_defined(SignatureVersion::ForkId, 0xFFFFFFC2));
-		assert!(!Sighash::is_defined(SignatureVersion::ForkId, 0x000001C2));
-		assert!( Sighash::is_defined(SignatureVersion::ForkId, 0x00000081));
-		assert!( Sighash::is_defined(SignatureVersion::ForkId, 0x000000C2));
-		assert!( Sighash::is_defined(SignatureVersion::ForkId, 0x00000043));
+	fn test_sighash_from_u32() {
+		assert!(!Sighash::is_defined(0xFFFFFF82));
+		assert!(!Sighash::is_defined(0x00000182));
+		assert!(!Sighash::is_defined(0x00000080));
+		assert!( Sighash::is_defined(0x00000001));
+		assert!( Sighash::is_defined(0x00000082));
+		assert!( Sighash::is_defined(0x00000003));
 	}
 }
