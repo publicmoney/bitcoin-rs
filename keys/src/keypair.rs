@@ -1,10 +1,10 @@
 //! Bitcoin key pair.
 
-use std::fmt;
-use secp256k1::key;
 use hash::{H264, H520};
 use network::Network;
-use {Public, Error, SECP256K1, Address, Type, Private, Secret};
+use secp256k1::key;
+use std::fmt;
+use {Address, Error, Private, Public, Secret, Type, SECP256K1};
 
 pub struct KeyPair {
 	private: Private,
@@ -50,10 +50,7 @@ impl KeyPair {
 			Public::Normal(public)
 		};
 
-		let keypair = KeyPair {
-			private: private,
-			public: public,
-		};
+		let keypair = KeyPair { private, public };
 
 		Ok(keypair)
 	}
@@ -68,8 +65,8 @@ impl KeyPair {
 
 		KeyPair {
 			private: Private {
-				network: network,
-				secret: secret,
+				network,
+				secret,
 				compressed: false,
 			},
 			public: Public::Normal(public),
@@ -87,9 +84,9 @@ impl KeyPair {
 
 #[cfg(test)]
 mod tests {
+	use super::KeyPair;
 	use crypto::dhash256;
 	use Public;
-	use super::KeyPair;
 
 	/// Tests from:
 	/// https://github.com/bitcoin/bitcoin/blob/a6a860796a44a2805a58391a009ba22752f64e32/src/test/key_tests.cpp
@@ -105,10 +102,14 @@ mod tests {
 	const ADDRESS_2C: &'static str = "1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs";
 	const SIGN_1: &'static str = "304402205dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d022014ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
 	const SIGN_2: &'static str = "3044022052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd5022061d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d";
-	const SIGN_COMPACT_1: &'static str = "1c5dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d14ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
-	const SIGN_COMPACT_1C: &'static str = "205dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d14ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
-	const SIGN_COMPACT_2: &'static str = "1c52d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d";
-	const SIGN_COMPACT_2C: &'static str = "2052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d";
+	const SIGN_COMPACT_1: &'static str =
+		"1c5dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d14ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
+	const SIGN_COMPACT_1C: &'static str =
+		"205dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d14ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6";
+	const SIGN_COMPACT_2: &'static str =
+		"1c52d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d";
+	const SIGN_COMPACT_2C: &'static str =
+		"2052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d";
 
 	fn check_addresses(secret: &'static str, address: &'static str) -> bool {
 		let kp = KeyPair::from_private(secret.into()).unwrap();

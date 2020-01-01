@@ -1,7 +1,7 @@
-use std::io;
-use ser::{Stream, Reader};
 use common::InventoryVector;
-use {Payload, MessageResult};
+use ser::{Reader, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 pub const GETDATA_MAX_INVENTORY_LEN: usize = 50_000;
 
@@ -12,9 +12,7 @@ pub struct GetData {
 
 impl GetData {
 	pub fn with_inventory(inventory: Vec<InventoryVector>) -> Self {
-		GetData {
-			inventory: inventory,
-		}
+		GetData { inventory }
 	}
 }
 
@@ -27,7 +25,10 @@ impl Payload for GetData {
 		"getdata"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let inv = GetData {
 			inventory: reader.read_list_max(50_000)?,
 		};

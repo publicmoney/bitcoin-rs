@@ -1,18 +1,18 @@
-use std::{net, io};
-use std::time::Duration;
 use futures::{Future, Poll};
-use tokio_core::reactor::Handle;
-use tokio_core::net::TcpStream;
-use network::Magic;
-use message::{MessageResult};
-use io::{accept_handshake, AcceptHandshake, Deadline, deadline};
+use io::{accept_handshake, deadline, AcceptHandshake, Deadline};
+use message::MessageResult;
 use net::{Config, Connection};
+use network::Magic;
+use std::time::Duration;
+use std::{io, net};
+use tokio_core::net::TcpStream;
+use tokio_core::reactor::Handle;
 
 pub fn accept_connection(stream: TcpStream, handle: &Handle, config: &Config, address: net::SocketAddr) -> Deadline<AcceptConnection> {
 	let accept = AcceptConnection {
 		handshake: accept_handshake(stream, config.magic, config.version(&address), config.protocol_minimum),
 		magic: config.magic,
-		address: address,
+		address,
 	};
 
 	deadline(Duration::new(5, 0), handle, accept).expect("Failed to create timeout")
@@ -38,7 +38,7 @@ impl Future for AcceptConnection {
 			stream: stream.into(),
 			services: result.version.services(),
 			version: result.negotiated_version,
-			version_message: result.version, 
+			version_message: result.version,
 			magic: self.magic,
 			address: self.address,
 		};

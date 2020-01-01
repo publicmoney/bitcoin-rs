@@ -1,4 +1,4 @@
-use {syn, quote};
+use {quote, syn};
 
 pub fn impl_deserializable(ast: &syn::DeriveInput) -> quote::Tokens {
 	let body = match ast.body {
@@ -57,7 +57,7 @@ fn deserialize_field(index: usize, field: &syn::Field) -> quote::Tokens {
 			} else {
 				quote! { #id: reader.read()?, }
 			}
-		},
+		}
 		_ => panic!("serialization not supported"),
 	}
 }

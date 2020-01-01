@@ -12,11 +12,13 @@ mod codes {
 	pub const NODE_NOT_ADDED: i64 = -32151;
 }
 
-use std::fmt;
 use jsonrpc_core::{Error, ErrorCode, Value};
+use std::fmt;
 
 macro_rules! rpc_unimplemented {
-	() => (Err(::v1::helpers::errors::unimplemented(None)))
+	() => {
+		Err(::v1::helpers::errors::unimplemented(None))
+	};
 }
 
 pub fn unimplemented(details: Option<String>) -> Error {

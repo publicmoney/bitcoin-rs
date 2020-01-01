@@ -1,6 +1,6 @@
-use std::{str, net, io};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use ser::{Serializable, Stream, Deserializable, Reader, Error as ReaderError};
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::{io, net, str};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct IpAddress(net::IpAddr);
@@ -41,21 +41,22 @@ impl Serializable for IpAddress {
 	fn serialize(&self, stream: &mut Stream) {
 		match self.0 {
 			net::IpAddr::V4(address) => {
-				stream
-					.append_slice(&[0u8; 12])
-					.append_slice(&address.octets());
-			},
+				stream.append_slice(&[0u8; 12]).append_slice(&address.octets());
+			}
 			net::IpAddr::V6(address) => {
 				for segment in &address.segments() {
 					stream.write_u16::<BigEndian>(*segment).unwrap();
 				}
-			},
+			}
 		}
 	}
 }
 
 impl Deserializable for IpAddress {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let bytes: &mut [u8] = &mut [0u8; 12];
 		reader.read_slice(bytes)?;
 		if bytes == &[0u8; 12] {
@@ -74,7 +75,7 @@ impl Deserializable for IpAddress {
 				b.read_u16::<BigEndian>()?,
 				b.read_u16::<BigEndian>()?,
 				reader.read_u16::<BigEndian>()?,
-				reader.read_u16::<BigEndian>()?
+				reader.read_u16::<BigEndian>()?,
 			);
 			Ok(IpAddress(net::IpAddr::V6(address)))
 		}
@@ -83,23 +84,35 @@ impl Deserializable for IpAddress {
 
 #[cfg(test)]
 mod test {
-	use std::net;
-	use ser::{serialize, deserialize};
 	use super::IpAddress;
+	use ser::{deserialize, serialize};
+	use std::net;
 
 	#[test]
 	fn test_ip_serialize() {
 		let ip = IpAddress(net::IpAddr::V6("::ffff:a00:1".parse().unwrap()));
-		assert_eq!(serialize(&ip), vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x00, 0x00, 0x01].into());
+		assert_eq!(
+			serialize(&ip),
+			vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x00, 0x00, 0x01].into()
+		);
 		let ip = IpAddress(net::IpAddr::V4("10.0.0.1".parse().unwrap()));
-		assert_eq!(serialize(&ip), vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x01].into());
+		assert_eq!(
+			serialize(&ip),
+			vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x01].into()
+		);
 	}
 
 	#[test]
 	fn test_ip_deserialize() {
-		let ip: IpAddress = deserialize(&[0x00u8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x00, 0x00, 0x01] as &[u8]).unwrap();
+		let ip: IpAddress = deserialize(&[
+			0x00u8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x00, 0x00, 0x01,
+		] as &[u8])
+		.unwrap();
 		assert_eq!(ip, IpAddress(net::IpAddr::V6("::ffff:a00:1".parse().unwrap())));
-		let ip: IpAddress = deserialize(&[0x00u8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x01] as &[u8]).unwrap();
+		let ip: IpAddress = deserialize(&[
+			0x00u8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x01,
+		] as &[u8])
+		.unwrap();
 		assert_eq!(ip, IpAddress(net::IpAddr::V4("10.0.0.1".parse().unwrap())));
 	}
 }

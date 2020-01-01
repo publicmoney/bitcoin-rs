@@ -1,7 +1,7 @@
 //! Script numeric
 
-use std::ops;
 use bytes::Bytes;
+use std::ops;
 use Error;
 
 /// Script numeric
@@ -20,49 +20,37 @@ pub struct Num {
 impl From<bool> for Num {
 	fn from(i: bool) -> Self {
 		let v = if i { 1 } else { 0 };
-		Num {
-			value: v
-		}
+		Num { value: v }
 	}
 }
 
 impl From<u8> for Num {
 	fn from(i: u8) -> Self {
-		Num {
-			value: i as i64
-		}
+		Num { value: i as i64 }
 	}
 }
 
 impl From<u32> for Num {
 	fn from(i: u32) -> Self {
-		Num {
-			value: i as i64
-		}
+		Num { value: i as i64 }
 	}
 }
 
 impl From<usize> for Num {
 	fn from(i: usize) -> Self {
-		Num {
-			value: i as i64
-		}
+		Num { value: i as i64 }
 	}
 }
 
 impl From<i32> for Num {
 	fn from(i: i32) -> Self {
-		Num {
-			value: i as i64
-		}
+		Num { value: i as i64 }
 	}
 }
 
 impl From<i64> for Num {
 	fn from(i: i64) -> Self {
-		Num {
-			value: i
-		}
+		Num { value: i }
 	}
 }
 
@@ -104,7 +92,7 @@ impl Num {
 
 				// We are not minimally encoded. Create a vector so that we can trim the result. The last byte is not included,
 				// as we first trim all zeros. And then a conditional to decide what to do with the last byte.
-				let mut data: Vec<u8> = data[0..(data.len()-1)].iter().cloned().rev().skip_while(|x| *x == 0x00).collect();
+				let mut data: Vec<u8> = data[0..(data.len() - 1)].iter().cloned().rev().skip_while(|x| *x == 0x00).collect();
 				data.reverse();
 
 				if data.len() == 0 {
@@ -139,10 +127,8 @@ impl Num {
 		// If the most-significant-byte - excluding the sign bit - is zero
 		// then we're not minimal. Note how this test also rejects the
 		// negative-zero encoding, 0x80.
-		if require_minimal &&
-			(data.last().unwrap() & 0x7f) == 0 &&
-			(data.len() <= 1 || (data[data.len() - 2] & 0x80) == 0) {
-			return Err(Error::NumberNotMinimallyEncoded)
+		if require_minimal && (data.last().unwrap() & 0x7f) == 0 && (data.len() <= 1 || (data[data.len() - 2] & 0x80) == 0) {
+			return Err(Error::NumberNotMinimallyEncoded);
 		}
 
 		let mut result = 0i64;
@@ -166,11 +152,7 @@ impl Num {
 
 		let mut result = vec![];
 		let negative = self.value < 0;
-		let mut absvalue = if negative {
-			(-self.value) as u64
-		} else {
-			self.value as u64
-		};
+		let mut absvalue = if negative { (-self.value) as u64 } else { self.value as u64 };
 
 		while absvalue > 0 {
 			result.push(absvalue as u8 & 0xff);

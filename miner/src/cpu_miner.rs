@@ -1,13 +1,13 @@
-use byteorder::{WriteBytesExt, LittleEndian};
-use primitives::bytes::Bytes;
-use primitives::hash::H256;
-use primitives::bigint::{U256, Uint};
-use primitives::compact::Compact;
+use block_assembler::BlockTemplate;
+use byteorder::{LittleEndian, WriteBytesExt};
 use chain::{merkle_root, Transaction};
 use crypto::dhash256;
+use primitives::bigint::{Uint, U256};
+use primitives::bytes::Bytes;
+use primitives::compact::Compact;
+use primitives::hash::H256;
 use ser::Stream;
 use verification::is_valid_proof_of_work_hash;
-use block_assembler::BlockTemplate;
 
 /// Instead of serializing `BlockHeader` from scratch over and over again,
 /// let's keep it serialized in memory and replace needed bytes
@@ -31,9 +31,7 @@ impl BlockHeaderBytes {
 			.append(&bits)
 			.append(&nonce);
 
-		BlockHeaderBytes {
-			data: stream.out(),
-		}
+		BlockHeaderBytes { data: stream.out() }
 	}
 
 	/// Set merkle root hash
@@ -90,7 +88,10 @@ pub struct Solution {
 /// and solution still hasn't been found it returns None.
 /// It's possible to also experiment with time, but I find it pointless
 /// to implement on CPU.
-pub fn find_solution<T>(block: &BlockTemplate, mut coinbase_transaction_builder: T, max_extranonce: U256) -> Option<Solution> where T: CoinbaseTransactionBuilder {
+pub fn find_solution<T>(block: &BlockTemplate, mut coinbase_transaction_builder: T, max_extranonce: U256) -> Option<Solution>
+where
+	T: CoinbaseTransactionBuilder,
+{
 	let mut extranonce = U256::default();
 	let mut extranonce_bytes = [0u8; 32];
 
@@ -119,7 +120,7 @@ pub fn find_solution<T>(block: &BlockTemplate, mut coinbase_transaction_builder:
 			if is_valid_proof_of_work_hash(block.bits, &hash) {
 				let solution = Solution {
 					nonce: nonce as u32,
-					extranonce: extranonce,
+					extranonce,
 					time: block.time,
 					coinbase_transaction: coinbase_transaction_builder.finish(),
 				};
@@ -136,14 +137,14 @@ pub fn find_solution<T>(block: &BlockTemplate, mut coinbase_transaction_builder:
 
 #[cfg(test)]
 mod tests {
-	use primitives::bigint::{U256, Uint};
-	use primitives::bytes::Bytes;
-	use primitives::hash::H256;
+	use super::{find_solution, CoinbaseTransactionBuilder};
 	use block_assembler::BlockTemplate;
 	use chain::{Transaction, TransactionInput, TransactionOutput};
 	use keys::AddressHash;
+	use primitives::bigint::{Uint, U256};
+	use primitives::bytes::Bytes;
+	use primitives::hash::H256;
 	use script::Builder;
-	use super::{find_solution, CoinbaseTransactionBuilder};
 
 	pub struct P2shCoinbaseTransactionBuilder {
 		transaction: Transaction,
@@ -156,16 +157,11 @@ mod tests {
 			let transaction = Transaction {
 				version: 0,
 				inputs: vec![TransactionInput::coinbase(Bytes::default())],
-				outputs: vec![TransactionOutput {
-					value: value,
-					script_pubkey: script_pubkey,
-				}],
+				outputs: vec![TransactionOutput { value, script_pubkey }],
 				lock_time: 0,
 			};
 
-			P2shCoinbaseTransactionBuilder {
-				transaction: transaction,
-			}
+			P2shCoinbaseTransactionBuilder { transaction }
 		}
 	}
 
@@ -194,7 +190,7 @@ mod tests {
 			transactions: Vec::new(),
 			coinbase_value: 10,
 			size_limit: 1000,
-			sigop_limit: 100
+			sigop_limit: 100,
 		};
 
 		let hash = Default::default();

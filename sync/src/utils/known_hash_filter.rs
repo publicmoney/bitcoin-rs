@@ -42,22 +42,24 @@ impl KnownHashFilter {
 
 	/// Returns true if peer knows about this hash with this type
 	pub fn contains(&self, hash: &H256, hash_type: KnownHashType) -> bool {
-		self.known_hashes.get(hash)
+		self.known_hashes
+			.get(hash)
 			.map(|stored_hash_type| *stored_hash_type == hash_type)
 			.unwrap_or(false)
 	}
 
 	/// Filter block using its hash
 	pub fn filter_block(&self, hash: &H256) -> bool {
-		self.known_hashes.get(hash)
-			.map(|stored_hash_type| *stored_hash_type != KnownHashType::Block
-				&& *stored_hash_type != KnownHashType::CompactBlock)
+		self.known_hashes
+			.get(hash)
+			.map(|stored_hash_type| *stored_hash_type != KnownHashType::Block && *stored_hash_type != KnownHashType::CompactBlock)
 			.unwrap_or(true)
 	}
 
 	/// Filter transaction using its hash
 	pub fn filter_transaction(&self, hash: &H256) -> bool {
-		self.known_hashes.get(hash)
+		self.known_hashes
+			.get(hash)
 			.map(|stored_hash_type| *stored_hash_type != KnownHashType::Transaction)
 			.unwrap_or(true)
 	}
@@ -65,8 +67,8 @@ impl KnownHashFilter {
 
 #[cfg(test)]
 mod tests {
-	use primitives::hash::H256;
 	use super::{KnownHashFilter, KnownHashType, MAX_KNOWN_HASHES_LEN};
+	use primitives::hash::H256;
 
 	#[test]
 	fn known_hash_filter_empty() {
@@ -139,9 +141,11 @@ mod tests {
 		filter.insert(H256::from(hash_data.clone()), KnownHashType::Block);
 		assert_eq!(filter.len(), MAX_KNOWN_HASHES_LEN);
 		// check that oldest known hash has been removed
-		hash_data[0] = 0; hash_data[1] = 0;
+		hash_data[0] = 0;
+		hash_data[1] = 0;
 		assert!(!filter.contains(&H256::from(hash_data.clone()), KnownHashType::Block));
-		hash_data[0] = 1; hash_data[1] = 0;
+		hash_data[0] = 1;
+		hash_data[1] = 0;
 		assert!(filter.contains(&H256::from(hash_data.clone()), KnownHashType::Block));
 	}
 }

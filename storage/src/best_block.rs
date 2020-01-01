@@ -1,5 +1,5 @@
-use std::fmt;
 use hash::H256;
+use std::fmt;
 
 /// Best block information
 #[derive(Clone, PartialEq, Default)]

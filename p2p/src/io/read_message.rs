@@ -1,30 +1,28 @@
+use futures::{Async, Future, Poll};
+use io::{read_header, read_payload, ReadHeader, ReadPayload};
+use message::{Error, MessageResult, Payload};
+use network::Magic;
 use std::io;
 use std::marker::PhantomData;
-use futures::{Poll, Future, Async};
 use tokio_io::AsyncRead;
-use network::Magic;
-use message::{MessageResult, Error, Payload};
-use io::{read_header, ReadHeader, read_payload, ReadPayload};
 
 pub fn read_message<M, A>(a: A, magic: Magic, version: u32) -> ReadMessage<M, A>
-	where A: AsyncRead, M: Payload {
+where
+	A: AsyncRead,
+	M: Payload,
+{
 	ReadMessage {
 		state: ReadMessageState::ReadHeader {
-			version: version,
+			version,
 			future: read_header(a, magic),
 		},
-		message_type: PhantomData
+		message_type: PhantomData,
 	}
 }
 
 enum ReadMessageState<M, A> {
-	ReadHeader {
-		version: u32,
-		future: ReadHeader<A>,
-	},
-	ReadPayload {
-		future: ReadPayload<M, A>,
-	},
+	ReadHeader { version: u32, future: ReadHeader<A> },
+	ReadPayload { future: ReadPayload<M, A> },
 }
 
 pub struct ReadMessage<M, A> {
@@ -32,7 +30,11 @@ pub struct ReadMessage<M, A> {
 	message_type: PhantomData<M>,
 }
 
-impl<M, A> Future for ReadMessage<M, A> where A: AsyncRead, M: Payload {
+impl<M, A> Future for ReadMessage<M, A>
+where
+	A: AsyncRead,
+	M: Payload,
+{
 	type Item = (A, MessageResult<M>);
 	type Error = io::Error;
 
@@ -48,17 +50,13 @@ impl<M, A> Future for ReadMessage<M, A> where A: AsyncRead, M: Payload {
 					if header.command != M::command() {
 						return Ok((read, Err(Error::InvalidCommand)).into());
 					}
-					let future = read_payload(
-						read, version, header.len as usize, header.checksum,
-					);
-					ReadMessageState::ReadPayload {
-						future: future,
-					}
-				},
+					let future = read_payload(read, version, header.len as usize, header.checksum);
+					ReadMessageState::ReadPayload { future }
+				}
 				ReadMessageState::ReadPayload { ref mut future } => {
 					let (read, payload) = try_ready!(future.poll());
 					return Ok(Async::Ready((read, payload)));
-				},
+				}
 			};
 			self.state = next_state;
 		}
@@ -67,20 +65,26 @@ impl<M, A> Future for ReadMessage<M, A> where A: AsyncRead, M: Payload {
 
 #[cfg(test)]
 mod tests {
-	use futures::Future;
-	use bytes::Bytes;
-	use network::Network;
-	use message::Error;
-	use message::types::{Ping, Pong};
 	use super::read_message;
+	use bytes::Bytes;
+	use futures::Future;
+	use message::types::{Ping, Pong};
+	use message::Error;
+	use network::Network;
 
 	#[test]
 	fn test_read_message() {
 		let raw: Bytes = "f9beb4d970696e6700000000000000000800000083c00c765845303b6da97786".into();
 		let ping = Ping::new(u64::from_str_radix("8677a96d3b304558", 16).unwrap());
 		assert_eq!(read_message(raw.as_ref(), Network::Mainnet.magic(), 0).wait().unwrap().1, Ok(ping));
-		assert_eq!(read_message::<Ping, _>(raw.as_ref(), Network::Testnet.magic(), 0).wait().unwrap().1, Err(Error::InvalidMagic));
-		assert_eq!(read_message::<Pong, _>(raw.as_ref(), Network::Mainnet.magic(), 0).wait().unwrap().1, Err(Error::InvalidCommand));
+		assert_eq!(
+			read_message::<Ping, _>(raw.as_ref(), Network::Testnet.magic(), 0).wait().unwrap().1,
+			Err(Error::InvalidMagic)
+		);
+		assert_eq!(
+			read_message::<Pong, _>(raw.as_ref(), Network::Mainnet.magic(), 0).wait().unwrap().1,
+			Err(Error::InvalidCommand)
+		);
 	}
 
 	#[test]
@@ -89,10 +93,12 @@ mod tests {
 		assert!(read_message::<Ping, _>(raw.as_ref(), Network::Mainnet.magic(), 0).wait().is_err());
 	}
 
-
 	#[test]
 	fn test_read_message_with_invalid_checksum() {
 		let raw: Bytes = "f9beb4d970696e6700000000000000000800000083c01c765845303b6da97786".into();
-		assert_eq!(read_message::<Ping, _>(raw.as_ref(), Network::Mainnet.magic(), 0).wait().unwrap().1, Err(Error::InvalidChecksum));
+		assert_eq!(
+			read_message::<Ping, _>(raw.as_ref(), Network::Mainnet.magic(), 0).wait().unwrap().1,
+			Err(Error::InvalidChecksum)
+		);
 	}
 }

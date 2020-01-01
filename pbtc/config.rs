@@ -1,17 +1,17 @@
-use std::net;
 use clap;
-use storage;
 use message::Services;
-use network::{Network, ConsensusParams};
+use network::{ConsensusParams, Network};
 use p2p::InternetProtocol;
-use seednodes::{mainnet_seednodes, testnet_seednodes};
-use rpc_apis::ApiSet;
-use {USER_AGENT, REGTEST_USER_AGENT};
 use primitives::hash::H256;
 use rpc::HttpConfiguration as RpcHttpConfig;
-use verification::VerificationLevel;
+use rpc_apis::ApiSet;
+use seednodes::{mainnet_seednodes, testnet_seednodes};
+use std::net;
+use storage;
 use sync::VerificationParameters;
 use util::open_db;
+use verification::VerificationLevel;
+use {REGTEST_USER_AGENT, USER_AGENT};
 
 pub struct Config {
 	pub network: Network,
@@ -82,7 +82,8 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 
 	let connect = match matches.value_of("connect") {
 		Some(s) => Some(match s.parse::<net::SocketAddr>() {
-			Err(_) => s.parse::<net::IpAddr>()
+			Err(_) => s
+				.parse::<net::IpAddr>()
 				.map(|ip| net::SocketAddr::new(ip, network.port()))
 				.map_err(|_| "Invalid connect".to_owned()),
 			Ok(a) => Ok(a),
@@ -104,12 +105,12 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 		None => InternetProtocol::default(),
 	};
 
-	let host =  match matches.value_of("host") {
+	let host = match matches.value_of("host") {
 		Some(s) => s.parse::<net::IpAddr>().map_err(|_| "Invalid host".to_owned())?,
 		None => match only_net {
 			InternetProtocol::IpV6 => "::".parse().unwrap(),
 			_ => "0.0.0.0".parse().unwrap(),
-		}
+		},
 	};
 
 	let rpc_config = parse_rpc_config(network, matches)?;
@@ -133,7 +134,7 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 		Some(s) if verification_level != VerificationLevel::Full => {
 			let edge: H256 = s.parse().map_err(|_| "Invalid verification edge".to_owned())?;
 			edge.reversed()
-		},
+		}
 		_ => network.default_verification_edge(),
 	};
 

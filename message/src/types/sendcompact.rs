@@ -1,6 +1,6 @@
+use ser::{Reader, Stream};
 use std::io;
-use ser::{Stream, Reader};
-use {Payload, MessageResult};
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct SendCompact {
@@ -17,7 +17,10 @@ impl Payload for SendCompact {
 		"sendcmpct"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let send_compact = SendCompact {
 			first: reader.read()?,
 			second: reader.read()?,
@@ -27,9 +30,7 @@ impl Payload for SendCompact {
 	}
 
 	fn serialize_payload(&self, stream: &mut Stream, _version: u32) -> MessageResult<()> {
-		stream
-			.append(&self.first)
-			.append(&self.second);
+		stream.append(&self.first).append(&self.second);
 		Ok(())
 	}
 }

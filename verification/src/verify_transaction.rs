@@ -1,12 +1,12 @@
-use std::ops;
-use ser::Serializable;
 use chain::IndexedTransaction;
-use network::ConsensusParams;
+use constants::{MAX_COINBASE_SIZE, MIN_COINBASE_SIZE};
 use deployments::BlockDeployments;
-use storage::NoopStore;
-use sigops::transaction_sigops;
 use error::TransactionError;
-use constants::{MIN_COINBASE_SIZE, MAX_COINBASE_SIZE};
+use network::ConsensusParams;
+use ser::Serializable;
+use sigops::transaction_sigops;
+use std::ops;
+use storage::NoopStore;
 
 pub struct TransactionVerifier<'a> {
 	pub empty: TransactionEmpty<'a>,
@@ -71,9 +71,7 @@ pub struct TransactionEmpty<'a> {
 
 impl<'a> TransactionEmpty<'a> {
 	fn new(transaction: &'a IndexedTransaction) -> Self {
-		TransactionEmpty {
-			transaction: transaction,
-		}
+		TransactionEmpty { transaction }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -91,9 +89,7 @@ pub struct TransactionNullNonCoinbase<'a> {
 
 impl<'a> TransactionNullNonCoinbase<'a> {
 	fn new(transaction: &'a IndexedTransaction) -> Self {
-		TransactionNullNonCoinbase {
-			transaction: transaction,
-		}
+		TransactionNullNonCoinbase { transaction }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -112,10 +108,7 @@ pub struct TransactionOversizedCoinbase<'a> {
 
 impl<'a> TransactionOversizedCoinbase<'a> {
 	fn new(transaction: &'a IndexedTransaction, size_range: ops::Range<usize>) -> Self {
-		TransactionOversizedCoinbase {
-			transaction: transaction,
-			size_range: size_range,
-		}
+		TransactionOversizedCoinbase { transaction, size_range }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -135,9 +128,7 @@ pub struct TransactionMemoryPoolCoinbase<'a> {
 }
 impl<'a> TransactionMemoryPoolCoinbase<'a> {
 	fn new(transaction: &'a IndexedTransaction) -> Self {
-		TransactionMemoryPoolCoinbase {
-			transaction: transaction,
-		}
+		TransactionMemoryPoolCoinbase { transaction }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -156,10 +147,7 @@ pub struct TransactionSize<'a> {
 
 impl<'a> TransactionSize<'a> {
 	fn new(transaction: &'a IndexedTransaction, consensus: &'a ConsensusParams) -> Self {
-		TransactionSize {
-			transaction: transaction,
-			consensus: consensus,
-		}
+		TransactionSize { transaction, consensus }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -179,10 +167,7 @@ pub struct TransactionSigops<'a> {
 
 impl<'a> TransactionSigops<'a> {
 	fn new(transaction: &'a IndexedTransaction, max_sigops: usize) -> Self {
-		TransactionSigops {
-			transaction,
-			max_sigops,
-		}
+		TransactionSigops { transaction, max_sigops }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -205,8 +190,8 @@ impl<'a> TransactionPrematureWitness<'a> {
 		let segwit_active = deployments.segwit();
 
 		TransactionPrematureWitness {
-			transaction: transaction,
-			segwit_active: segwit_active,
+			transaction,
+			segwit_active,
 		}
 	}
 

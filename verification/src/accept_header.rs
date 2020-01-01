@@ -1,10 +1,10 @@
+use canon::CanonHeader;
+use deployments::Deployments;
+use error::Error;
 use network::ConsensusParams;
 use storage::BlockHeaderProvider;
-use canon::CanonHeader;
-use error::Error;
-use work::work_required;
 use timestamp::median_timestamp;
-use deployments::Deployments;
+use work::work_required;
 
 pub struct HeaderAcceptor<'a> {
 	pub version: HeaderVersion<'a>,
@@ -47,16 +47,17 @@ pub struct HeaderVersion<'a> {
 impl<'a> HeaderVersion<'a> {
 	fn new(header: CanonHeader<'a>, height: u32, consensus_params: &'a ConsensusParams) -> Self {
 		HeaderVersion {
-			header: header,
-			height: height,
-			consensus_params: consensus_params,
+			header,
+			height,
+			consensus_params,
 		}
 	}
 
 	fn check(&self) -> Result<(), Error> {
-		if (self.header.raw.version < 2 && self.height >= self.consensus_params.bip34_height) ||
-			(self.header.raw.version < 3 && self.height >= self.consensus_params.bip66_height) ||
-			(self.header.raw.version < 4 && self.height >= self.consensus_params.bip65_height) {
+		if (self.header.raw.version < 2 && self.height >= self.consensus_params.bip34_height)
+			|| (self.header.raw.version < 3 && self.height >= self.consensus_params.bip66_height)
+			|| (self.header.raw.version < 4 && self.height >= self.consensus_params.bip65_height)
+		{
 			Err(Error::OldVersionBlock)
 		} else {
 			Ok(())
@@ -74,10 +75,10 @@ pub struct HeaderWork<'a> {
 impl<'a> HeaderWork<'a> {
 	fn new(header: CanonHeader<'a>, store: &'a dyn BlockHeaderProvider, height: u32, consensus: &'a ConsensusParams) -> Self {
 		HeaderWork {
-			header: header,
-			store: store,
-			height: height,
-			consensus: consensus,
+			header,
+			store,
+			height,
+			consensus,
 		}
 	}
 
@@ -88,7 +89,10 @@ impl<'a> HeaderWork<'a> {
 		if work == self.header.raw.bits {
 			Ok(())
 		} else {
-			Err(Error::Difficulty { expected: work, actual: self.header.raw.bits })
+			Err(Error::Difficulty {
+				expected: work,
+				actual: self.header.raw.bits,
+			})
 		}
 	}
 }
@@ -102,8 +106,8 @@ pub struct HeaderMedianTimestamp<'a> {
 impl<'a> HeaderMedianTimestamp<'a> {
 	fn new(header: CanonHeader<'a>, store: &'a dyn BlockHeaderProvider, csv_active: bool) -> Self {
 		HeaderMedianTimestamp {
-			header: header,
-			store: store,
+			header,
+			store,
 			active: csv_active,
 		}
 	}

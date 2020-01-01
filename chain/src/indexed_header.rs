@@ -1,8 +1,8 @@
-use std::{io, cmp, fmt};
+use block_header::{block_header_hash, BlockHeader};
 use hash::H256;
-use ser::{Deserializable, Reader, Error as ReaderError};
-use block_header::{BlockHeader, block_header_hash};
 use read_and_hash::ReadAndHash;
+use ser::{Deserializable, Error as ReaderError, Reader};
+use std::{cmp, fmt, io};
 
 #[derive(Clone)]
 pub struct IndexedBlockHeader {
@@ -27,10 +27,7 @@ impl From<BlockHeader> for IndexedBlockHeader {
 }
 impl IndexedBlockHeader {
 	pub fn new(hash: H256, header: BlockHeader) -> Self {
-		IndexedBlockHeader {
-			hash: hash,
-			raw: header,
-		}
+		IndexedBlockHeader { hash, raw: header }
 	}
 
 	/// Explicit conversion of the raw BlockHeader into IndexedBlockHeader.
@@ -48,7 +45,10 @@ impl cmp::PartialEq for IndexedBlockHeader {
 }
 
 impl Deserializable for IndexedBlockHeader {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let data = reader.read_and_hash::<BlockHeader>()?;
 		// TODO: use len
 		let header = IndexedBlockHeader {

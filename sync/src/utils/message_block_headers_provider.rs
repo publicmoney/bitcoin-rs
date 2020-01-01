@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use chain::IndexedBlockHeader;
-use storage::{BlockRef, BlockHeaderProvider};
 use primitives::bytes::Bytes;
 use primitives::hash::H256;
+use std::collections::HashMap;
+use storage::{BlockHeaderProvider, BlockRef};
 
 /// Block headers provider from `headers` message
 pub struct MessageBlockHeadersProvider<'a> {
@@ -19,7 +19,7 @@ pub struct MessageBlockHeadersProvider<'a> {
 impl<'a> MessageBlockHeadersProvider<'a> {
 	pub fn new(chain_provider: &'a dyn BlockHeaderProvider, best_block_header_height: u32) -> Self {
 		MessageBlockHeadersProvider {
-			chain_provider: chain_provider,
+			chain_provider,
 			first_header_number: best_block_header_height + 1,
 			headers: HashMap::new(),
 			headers_order: Vec::new(),
@@ -39,15 +39,18 @@ impl<'a> BlockHeaderProvider for MessageBlockHeadersProvider<'a> {
 	}
 
 	fn block_header(&self, block_ref: BlockRef) -> Option<IndexedBlockHeader> {
-		self.chain_provider.block_header(block_ref.clone())
+		self.chain_provider
+			.block_header(block_ref.clone())
 			.or_else(move || match block_ref {
 				BlockRef::Hash(h) => self.headers.get(&h).cloned(),
-				BlockRef::Number(n) => if n >= self.first_header_number && n - self.first_header_number < self.headers_order.len() as u32 {
-					let header_hash = &self.headers_order[(n - self.first_header_number) as usize];
-					Some(self.headers[header_hash].clone())
-				} else {
-					None
-				},
+				BlockRef::Number(n) => {
+					if n >= self.first_header_number && n - self.first_header_number < self.headers_order.len() as u32 {
+						let header_hash = &self.headers_order[(n - self.first_header_number) as usize];
+						Some(self.headers[header_hash].clone())
+					} else {
+						None
+					}
+				}
 			})
 	}
 }
@@ -56,10 +59,10 @@ impl<'a> BlockHeaderProvider for MessageBlockHeadersProvider<'a> {
 mod tests {
 	extern crate test_data;
 
-	use storage::{AsSubstore, BlockHeaderProvider, BlockRef};
+	use super::MessageBlockHeadersProvider;
 	use db::BlockChainDatabase;
 	use primitives::hash::H256;
-	use super::MessageBlockHeadersProvider;
+	use storage::{AsSubstore, BlockHeaderProvider, BlockRef};
 
 	#[test]
 	fn test_message_block_headers_provider() {
@@ -67,17 +70,35 @@ mod tests {
 		let storage_provider = storage.as_block_header_provider();
 		let mut headers_provider = MessageBlockHeadersProvider::new(storage_provider, 0);
 
-		assert_eq!(headers_provider.block_header(BlockRef::Hash(test_data::genesis().hash())), Some(test_data::genesis().block_header.into()));
-		assert_eq!(headers_provider.block_header(BlockRef::Number(0)), Some(test_data::genesis().block_header.into()));
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Hash(test_data::genesis().hash())),
+			Some(test_data::genesis().block_header.into())
+		);
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Number(0)),
+			Some(test_data::genesis().block_header.into())
+		);
 		assert_eq!(headers_provider.block_header(BlockRef::Hash(H256::from(1))), None);
 		assert_eq!(headers_provider.block_header(BlockRef::Number(1)), None);
 
 		headers_provider.append_header(test_data::block_h1().hash(), test_data::block_h1().block_header.into());
 
-		assert_eq!(headers_provider.block_header(BlockRef::Hash(test_data::genesis().hash())), Some(test_data::genesis().block_header.into()));
-		assert_eq!(headers_provider.block_header(BlockRef::Number(0)), Some(test_data::genesis().block_header.into()));
-		assert_eq!(headers_provider.block_header(BlockRef::Hash(test_data::block_h1().hash())), Some(test_data::block_h1().block_header.into()));
-		assert_eq!(headers_provider.block_header(BlockRef::Number(1)), Some(test_data::block_h1().block_header.into()));
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Hash(test_data::genesis().hash())),
+			Some(test_data::genesis().block_header.into())
+		);
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Number(0)),
+			Some(test_data::genesis().block_header.into())
+		);
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Hash(test_data::block_h1().hash())),
+			Some(test_data::block_h1().block_header.into())
+		);
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Number(1)),
+			Some(test_data::block_h1().block_header.into())
+		);
 		assert_eq!(headers_provider.block_header(BlockRef::Hash(H256::from(1))), None);
 		assert_eq!(headers_provider.block_header(BlockRef::Number(2)), None);
 	}

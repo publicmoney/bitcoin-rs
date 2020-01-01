@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use db::BlockChainDatabase;
+use byteorder::{ByteOrder, LittleEndian};
 use chain::IndexedBlock;
-use verification::{BackwardsCompatibleChainVerifier as ChainVerifier, Verify, VerificationLevel};
-use network::{Network, ConsensusParams};
+use db::BlockChainDatabase;
+use network::{ConsensusParams, Network};
+use std::sync::Arc;
 use test_data;
-use byteorder::{LittleEndian, ByteOrder};
+use verification::{BackwardsCompatibleChainVerifier as ChainVerifier, VerificationLevel, Verify};
 
 use super::Benchmark;
 
@@ -20,8 +20,10 @@ pub fn main(benchmark: &mut Benchmark) {
 
 	benchmark.samples(BLOCKS);
 
-	assert!(BLOCKS_INITIAL - 100 > BLOCKS * OUTPUTS * TRANSACTIONS,
-		"There will be not enough initial blocks to continue this bench");
+	assert!(
+		BLOCKS_INITIAL - 100 > BLOCKS * OUTPUTS * TRANSACTIONS,
+		"There will be not enough initial blocks to continue this bench"
+	);
 
 	// test setup
 	let genesis = test_data::genesis();
@@ -30,8 +32,9 @@ pub fn main(benchmark: &mut Benchmark) {
 	let mut blocks: Vec<IndexedBlock> = Vec::new();
 
 	for x in 0..BLOCKS_INITIAL {
-		let mut coinbase_nonce = [0u8;8];
+		let mut coinbase_nonce = [0u8; 8];
 		LittleEndian::write_u64(&mut coinbase_nonce[..], x as u64);
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.lock_time(x as u32)
@@ -59,8 +62,9 @@ pub fn main(benchmark: &mut Benchmark) {
 
 	let mut verification_blocks: Vec<IndexedBlock> = Vec::new();
 	for b in 0..BLOCKS {
-		let mut coinbase_nonce = [0u8;8];
+		let mut coinbase_nonce = [0u8; 8];
 		LittleEndian::write_u64(&mut coinbase_nonce[..], (b + BLOCKS_INITIAL) as u64);
+		#[rustfmt::skip]
 		let mut builder = test_data::block_builder()
 			.transaction()
 				.lock_time(b as u32)
@@ -72,18 +76,14 @@ pub fn main(benchmark: &mut Benchmark) {
 			let mut tx_builder = builder.transaction();
 
 			for o in 0..OUTPUTS {
-				let parent_hash = blocks[(b*TRANSACTIONS*OUTPUTS + t * OUTPUTS + o)].transactions[0].hash.clone();
+				let parent_hash = blocks[(b * TRANSACTIONS * OUTPUTS + t * OUTPUTS + o)].transactions[0].hash.clone();
 
-				tx_builder = tx_builder
-					.input()
-						.hash(parent_hash)
-						.index(0)
-						.build()
+				tx_builder = tx_builder.input().hash(parent_hash).index(0).build()
 			}
 
 			builder = tx_builder.output().value(0).build().build()
 		}
-
+		#[rustfmt::skip]
 		verification_blocks.push(
 			builder
 				.merkled_header()
@@ -93,7 +93,6 @@ pub fn main(benchmark: &mut Benchmark) {
 			.into());
 	}
 
-
 	assert_eq!(store.best_block().hash, rolling_hash);
 
 	let chain_verifier = ChainVerifier::new(store.clone(), ConsensusParams::new(Network::Unitest));
@@ -102,6 +101,6 @@ pub fn main(benchmark: &mut Benchmark) {
 	benchmark.start();
 	for block in verification_blocks.iter() {
 		chain_verifier.verify(VerificationLevel::Full, block).unwrap();
-	 }
+	}
 	benchmark.stop();
 }

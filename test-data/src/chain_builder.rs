@@ -1,7 +1,7 @@
+use chain::{IndexedTransaction, OutPoint, Transaction, TransactionInput, TransactionOutput};
+use primitives::bytes::Bytes;
 use primitives::hash::H256;
 use ser::Serializable;
-use primitives::bytes::Bytes;
-use chain::{Transaction, IndexedTransaction, TransactionInput, TransactionOutput, OutPoint};
 
 #[derive(Debug, Default, Clone)]
 pub struct ChainBuilder {
@@ -15,9 +15,7 @@ pub struct TransactionBuilder {
 
 impl ChainBuilder {
 	pub fn new() -> ChainBuilder {
-		ChainBuilder {
-			transactions: Vec::new(),
-		}
+		ChainBuilder { transactions: Vec::new() }
 	}
 
 	pub fn at(&self, transaction_index: usize) -> Transaction {
@@ -85,7 +83,7 @@ impl TransactionBuilder {
 
 	pub fn add_output(mut self, value: u64) -> TransactionBuilder {
 		self.transaction.outputs.push(TransactionOutput {
-			value: value,
+			value,
 			script_pubkey: Bytes::new_with_len(0),
 		});
 		self
@@ -93,7 +91,7 @@ impl TransactionBuilder {
 
 	pub fn set_output(mut self, value: u64) -> TransactionBuilder {
 		self.transaction.outputs = vec![TransactionOutput {
-			value: value,
+			value,
 			script_pubkey: Bytes::new_with_len(0),
 		}];
 		self
@@ -102,7 +100,6 @@ impl TransactionBuilder {
 	pub fn add_default_input(self, output_index: u32) -> TransactionBuilder {
 		self.add_input(&Transaction::default(), output_index)
 	}
-
 
 	pub fn add_input(mut self, transaction: &Transaction, output_index: u32) -> TransactionBuilder {
 		self.transaction.inputs.push(TransactionInput {

@@ -1,15 +1,12 @@
-use rayon::prelude::{IntoParallelRefIterator, IndexedParallelIterator, ParallelIterator};
-use storage::{
-	DuplexTransactionOutputProvider, TransactionOutputProvider, TransactionMetaProvider,
-	BlockHeaderProvider,
-};
-use network::ConsensusParams;
-use error::Error;
-use canon::CanonBlock;
 use accept_block::BlockAcceptor;
 use accept_header::HeaderAcceptor;
 use accept_transaction::TransactionAcceptor;
+use canon::CanonBlock;
 use deployments::BlockDeployments;
+use error::Error;
+use network::ConsensusParams;
+use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
 use VerificationLevel;
 
 pub struct ChainAcceptor<'a> {
@@ -33,19 +30,14 @@ impl<'a> ChainAcceptor<'a> {
 		let output_store = DuplexTransactionOutputProvider::new(tx_out_provider, block.raw());
 
 		ChainAcceptor {
-			block: BlockAcceptor::new(
-				tx_out_provider,
-				consensus,
-				block,
-				height,
-				deployments,
-				header_provider,
-			),
+			block: BlockAcceptor::new(tx_out_provider, consensus, block, height, deployments, header_provider),
 			header: HeaderAcceptor::new(header_provider, consensus, block.header(), height, deployments),
-			transactions: block.transactions()
+			transactions: block
+				.transactions()
 				.into_iter()
 				.enumerate()
-				.map(|(tx_index, tx)| TransactionAcceptor::new(
+				.map(|(tx_index, tx)| {
+					TransactionAcceptor::new(
 						tx_meta_provider,
 						output_store,
 						consensus,
@@ -56,7 +48,8 @@ impl<'a> ChainAcceptor<'a> {
 						block.header.raw.time,
 						tx_index,
 						deployments,
-				))
+					)
+				})
 				.collect(),
 		}
 	}
@@ -69,9 +62,13 @@ impl<'a> ChainAcceptor<'a> {
 	}
 
 	fn check_transactions(&self) -> Result<(), Error> {
-		self.transactions.par_iter()
+		self.transactions
+			.par_iter()
 			.enumerate()
-			.fold(|| Ok(()), |result, (index, tx)| result.and_then(|_| tx.check().map_err(|err| Error::Transaction(index, err))))
+			.fold(
+				|| Ok(()),
+				|result, (index, tx)| result.and_then(|_| tx.check().map_err(|err| Error::Transaction(index, err))),
+			)
 			.reduce(|| Ok(()), |acc, check| acc.and(check))
 	}
 }

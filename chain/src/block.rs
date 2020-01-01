@@ -1,5 +1,5 @@
 use hex::FromHex;
-use ser::{deserialize};
+use ser::deserialize;
 use {BlockHeader, Transaction};
 
 #[cfg(any(test, feature = "test-helpers"))]
@@ -21,7 +21,10 @@ impl From<&'static str> for Block {
 
 impl Block {
 	pub fn new(header: BlockHeader, transactions: Vec<Transaction>) -> Self {
-		Block { block_header: header, transactions: transactions }
+		Block {
+			block_header: header,
+			transactions,
+		}
 	}
 
 	/// Returns block's merkle root.
@@ -40,7 +43,7 @@ impl Block {
 				let mut hashes = vec![H256::from(0)];
 				hashes.extend(rest.iter().map(Transaction::witness_hash));
 				hashes
-			},
+			}
 		};
 		merkle_root(&hashes)
 	}
@@ -61,8 +64,8 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
-	use hash::H256;
 	use super::Block;
+	use hash::H256;
 
 	// Block 80000
 	// https://blockchain.info/rawblock/000000000043a8c0fd1d6f726790caa2a406010d19efd2780db27bdbbd93baf6

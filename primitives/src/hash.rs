@@ -1,8 +1,8 @@
 //! Fixed-size hashes
 
-use std::{fmt, ops, cmp, str};
-use hex::{ToHex, FromHex, FromHexError};
+use hex::{FromHex, FromHexError, ToHex};
 use std::hash::{Hash, Hasher};
+use std::{cmp, fmt, ops, str};
 
 macro_rules! impl_hash {
 	($name: ident, $size: expr) => {
@@ -74,8 +74,8 @@ macro_rules! impl_hash {
 						let mut result = [0u8; $size];
 						result.copy_from_slice(&vec);
 						Ok($name(result))
-					},
-					_ => Err(FromHexError::InvalidHexLength)
+					}
+					_ => Err(FromHexError::InvalidHexLength),
 				}
 			}
 		}
@@ -122,15 +122,17 @@ macro_rules! impl_hash {
 			}
 		}
 
-
 		impl Hash for $name {
-			fn hash<H>(&self, state: &mut H) where H: Hasher {
+			fn hash<H>(&self, state: &mut H)
+			where
+				H: Hasher,
+			{
 				state.write(&self.0);
 				state.finish();
 			}
 		}
 
-		impl Eq for $name { }
+		impl Eq for $name {}
 
 		impl $name {
 			pub fn take(self) -> [u8; $size] {
@@ -151,7 +153,7 @@ macro_rules! impl_hash {
 				self.0.iter().all(|b| *b == 0)
 			}
 		}
-	}
+	};
 }
 
 impl_hash!(H32, 4);

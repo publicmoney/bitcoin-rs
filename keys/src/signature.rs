@@ -2,9 +2,9 @@
 //!
 //! http://bitcoin.stackexchange.com/q/12554/40688
 
-use std::{fmt, ops, str};
-use hex::{ToHex, FromHex};
 use hash::H520;
+use hex::{FromHex, ToHex};
+use std::{fmt, ops, str};
 use Error;
 
 #[derive(PartialEq)]

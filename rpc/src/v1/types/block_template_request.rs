@@ -5,11 +5,11 @@ use std::collections::HashSet;
 pub enum BlockTemplateRequestMode {
 	/// Work as described in BIP0022:
 	/// https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki
-	#[serde(rename="template")]
+	#[serde(rename = "template")]
 	Template,
 	/// Work as described in BIP0023:
 	/// https://github.com/bitcoin/bips/blob/master/bip-0023.mediawiki
-	#[serde(rename="proposal")]
+	#[serde(rename = "proposal")]
 	Proposal,
 }
 
@@ -30,8 +30,8 @@ pub struct BlockTemplateRequest {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
 	use super::*;
+	use serde_json;
 
 	#[test]
 	fn block_template_request_mode_serialize() {
@@ -41,18 +41,31 @@ mod tests {
 
 	#[test]
 	fn block_template_request_mode_deserialize() {
-		assert_eq!(serde_json::from_str::<BlockTemplateRequestMode>(r#""template""#).unwrap(), BlockTemplateRequestMode::Template);
-		assert_eq!(serde_json::from_str::<BlockTemplateRequestMode>(r#""proposal""#).unwrap(), BlockTemplateRequestMode::Proposal);
+		assert_eq!(
+			serde_json::from_str::<BlockTemplateRequestMode>(r#""template""#).unwrap(),
+			BlockTemplateRequestMode::Template
+		);
+		assert_eq!(
+			serde_json::from_str::<BlockTemplateRequestMode>(r#""proposal""#).unwrap(),
+			BlockTemplateRequestMode::Proposal
+		);
 	}
 
 	#[test]
 	fn block_template_request_serialize() {
-		assert_eq!(serde_json::to_string(&BlockTemplateRequest::default()).unwrap(), r#"{"mode":null,"capabilities":null,"rules":null}"#);
-		assert_eq!(serde_json::to_string(&BlockTemplateRequest {
-			mode: Some(BlockTemplateRequestMode::Template),
-			capabilities: Some(vec!["a".to_owned()].into_iter().collect()),
-			rules: Some(vec!["b".to_owned()].into_iter().collect()),
-		}).unwrap(), r#"{"mode":"template","capabilities":["a"],"rules":["b"]}"#);
+		assert_eq!(
+			serde_json::to_string(&BlockTemplateRequest::default()).unwrap(),
+			r#"{"mode":null,"capabilities":null,"rules":null}"#
+		);
+		assert_eq!(
+			serde_json::to_string(&BlockTemplateRequest {
+				mode: Some(BlockTemplateRequestMode::Template),
+				capabilities: Some(vec!["a".to_owned()].into_iter().collect()),
+				rules: Some(vec!["b".to_owned()].into_iter().collect()),
+			})
+			.unwrap(),
+			r#"{"mode":"template","capabilities":["a"],"rules":["b"]}"#
+		);
 	}
 
 	#[test]
@@ -63,13 +76,15 @@ mod tests {
 				mode: None,
 				capabilities: None,
 				rules: None,
-			});
+			}
+		);
 		assert_eq!(
 			serde_json::from_str::<BlockTemplateRequest>(r#"{"mode":"template","capabilities":["a"],"rules":["b"]}"#).unwrap(),
 			BlockTemplateRequest {
 				mode: Some(BlockTemplateRequestMode::Template),
 				capabilities: Some(vec!["a".to_owned()].into_iter().collect()),
 				rules: Some(vec!["b".to_owned()].into_iter().collect()),
-			});
+			}
+		);
 	}
 }

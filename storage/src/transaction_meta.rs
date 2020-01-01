@@ -1,9 +1,9 @@
 //! Transaction index
 
-use std::io;
 use bit_vec::BitVec;
 use bytes::Bytes;
-use ser::{Serializable, Deserializable, Error as ReaderError, Stream, Reader};
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::io;
 
 /// structure for indexing transaction info
 #[derive(Debug, Clone)]
@@ -16,14 +16,15 @@ pub struct TransactionMeta {
 
 impl Serializable for TransactionMeta {
 	fn serialize(&self, stream: &mut Stream) {
-		stream
-			.append(&self.block_height)
-			.append(&Bytes::from(self.bits.to_bytes()));
+		stream.append(&self.block_height).append(&Bytes::from(self.bits.to_bytes()));
 	}
 }
 
 impl Deserializable for TransactionMeta {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let result = TransactionMeta {
 			block_height: reader.read()?,
 			bits: BitVec::from_bytes(&reader.read::<Bytes>()?),
@@ -37,7 +38,7 @@ impl TransactionMeta {
 	/// New transaction description for indexing
 	pub fn new(block_height: u32, outputs: usize) -> Self {
 		TransactionMeta {
-			block_height: block_height,
+			block_height,
 			bits: BitVec::from_elem(outputs + 1, false),
 		}
 	}
@@ -51,13 +52,14 @@ impl TransactionMeta {
 
 	/// Returns true if it is a coinbase transaction
 	pub fn is_coinbase(&self) -> bool {
-		self.bits.get(0)
+		self.bits
+			.get(0)
 			.expect("One bit should always exists, since it is created as usize + 1; minimum value of usize is 0; 0 + 1 = 1; qed")
 	}
 
 	/// Denote particular output as used
 	pub fn denote_used(&mut self, index: usize) {
-		self.bits.set(index + 1 , true);
+		self.bits.set(index + 1, true);
 	}
 
 	/// Denote particular output as not used

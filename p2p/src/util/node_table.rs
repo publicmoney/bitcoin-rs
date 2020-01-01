@@ -1,12 +1,12 @@
-use std::{io, path, fs, net};
-use std::collections::{HashSet, HashMap, BTreeSet};
-use std::collections::hash_map::Entry;
-use std::net::SocketAddr;
-use std::cmp::{PartialOrd, Ord, Ordering};
 use csv;
-use message::common::{Services, NetAddress};
+use message::common::{NetAddress, Services};
 use message::types::addr::AddressEntry;
-use util::time::{Time, RealTime};
+use std::cmp::{Ord, Ordering, PartialOrd};
+use std::collections::hash_map::Entry;
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::net::SocketAddr;
+use std::{fs, io, net, path};
+use util::time::{RealTime, Time};
 use util::InternetProtocol;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -37,7 +37,7 @@ impl From<Node> for AddressEntry {
 				services: node.services,
 				address: node.addr.ip().into(),
 				port: node.addr.port().into(),
-			}
+			},
 		}
 	}
 }
@@ -57,12 +57,11 @@ impl PartialOrd for NodeByScore {
 			if self.0.is_preferable == other.0.is_preferable {
 				if other.0.time == self.0.time {
 					other.0.partial_cmp(&self.0)
-				}
-				else {
+				} else {
 					other.0.time.partial_cmp(&self.0.time)
 				}
 			} else if self.0.is_preferable {
-				return Some(Ordering::Less)
+				return Some(Ordering::Less);
 			} else {
 				Some(Ordering::Greater)
 			}
@@ -78,12 +77,11 @@ impl Ord for NodeByScore {
 			if self.0.is_preferable == other.0.is_preferable {
 				if other.0.time == self.0.time {
 					other.0.cmp(&self.0)
-				}
-				else {
+				} else {
 					other.0.time.cmp(&self.0.time)
 				}
 			} else if self.0.is_preferable {
-				return Ordering::Less
+				return Ordering::Less;
 			} else {
 				Ordering::Greater
 			}
@@ -106,8 +104,7 @@ impl PartialOrd for NodeByTime {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		if other.0.time == self.0.time {
 			other.0.partial_cmp(&self.0)
-		}
-		else {
+		} else {
 			other.0.time.partial_cmp(&self.0.time)
 		}
 	}
@@ -117,8 +114,7 @@ impl Ord for NodeByTime {
 	fn cmp(&self, other: &Self) -> Ordering {
 		if other.0.time == self.0.time {
 			other.0.cmp(&self.0)
-		}
-		else {
+		} else {
 			other.0.time.cmp(&self.0.time)
 		}
 	}
@@ -134,11 +130,10 @@ impl Ord for Node {
 					let other_port = other_addr.port();
 					if self_port == other_port {
 						self_addr.ip().cmp(other_addr.ip())
-					}
-					else {
+					} else {
 						self_port.cmp(&other_port)
 					}
-				},
+				}
 				SocketAddr::V6(_) => Ordering::Less,
 			},
 			SocketAddr::V6(self_addr) => match other.addr {
@@ -148,11 +143,10 @@ impl Ord for Node {
 					let other_port = other_addr.port();
 					if self_port == other_port {
 						self_addr.ip().cmp(other_addr.ip())
-					}
-					else {
+					} else {
 						self_port.cmp(&other_port)
 					}
-				},
+				}
 			},
 		}
 	}
@@ -165,10 +159,16 @@ impl PartialOrd for Node {
 }
 
 #[derive(Debug)]
-pub enum NodeTableError { AddressAlreadyAdded, NoAddressInTable }
+pub enum NodeTableError {
+	AddressAlreadyAdded,
+	NoAddressInTable,
+}
 
 #[derive(Default, Debug)]
-pub struct NodeTable<T = RealTime> where T: Time {
+pub struct NodeTable<T = RealTime>
+where
+	T: Time,
+{
 	/// Time source.
 	time: T,
 	/// Preferable services.
@@ -192,7 +192,10 @@ impl NodeTable {
 	}
 
 	/// Opens a file loads node_table from it.
-	pub fn from_file<P>(preferable_services: Services, path: P) -> Result<Self, io::Error> where P: AsRef<path::Path> {
+	pub fn from_file<P>(preferable_services: Services, path: P) -> Result<Self, io::Error>
+	where
+		P: AsRef<path::Path>,
+	{
 		fs::OpenOptions::new()
 			.create(true)
 			.read(true)
@@ -203,12 +206,18 @@ impl NodeTable {
 	}
 
 	/// Saves node table to file
-	pub fn save_to_file<P>(&self, path: P) -> Result<(), io::Error> where P: AsRef<path::Path> {
+	pub fn save_to_file<P>(&self, path: P) -> Result<(), io::Error>
+	where
+		P: AsRef<path::Path>,
+	{
 		fs::File::create(path).and_then(|file| self.save(file))
 	}
 }
 
-impl<T> NodeTable<T> where T: Time {
+impl<T> NodeTable<T>
+where
+	T: Time,
+{
 	/// Inserts new address and services pair into NodeTable.
 	pub fn insert(&mut self, addr: SocketAddr, services: Services) {
 		let now = self.time.get().sec;
@@ -221,12 +230,12 @@ impl<T> NodeTable<T> where T: Time {
 				old.services = services;
 				self.by_score.insert(old.clone().into());
 				self.by_time.insert(old.clone().into());
-			},
+			}
 			Entry::Vacant(entry) => {
 				let node = Node {
-					addr: addr,
+					addr,
 					time: now,
-					services: services,
+					services,
 					is_preferable: services.includes(&self.preferable_services),
 					failures: 0,
 				};
@@ -244,8 +253,7 @@ impl<T> NodeTable<T> where T: Time {
 	pub fn add(&mut self, addr: SocketAddr, services: Services) -> Result<(), NodeTableError> {
 		if self.exists(addr.clone()) {
 			Err(NodeTableError::AddressAlreadyAdded)
-		}
-		else {
+		} else {
 			self.insert(addr, services);
 			Ok(())
 		}
@@ -262,7 +270,7 @@ impl<T> NodeTable<T> where T: Time {
 				self.by_score.remove(&val.into());
 				Ok(())
 			}
-			None => Err(NodeTableError::NoAddressInTable)
+			None => Err(NodeTableError::NoAddressInTable),
 		}
 	}
 
@@ -272,8 +280,7 @@ impl<T> NodeTable<T> where T: Time {
 	pub fn insert_many(&mut self, addresses: Vec<AddressEntry>) {
 		// discard all nodes with timestamp newer than current time.
 		let now = self.time.get().sec;
-		let iter = addresses.into_iter()
-			.filter(|addr| addr.timestamp as i64 <= now);
+		let iter = addresses.into_iter().filter(|addr| addr.timestamp as i64 <= now);
 
 		// iterate over the rest
 		for addr in iter {
@@ -298,8 +305,8 @@ impl<T> NodeTable<T> where T: Time {
 						self.by_score.insert(old.clone().into());
 						self.by_time.insert(old.clone().into());
 					}
-				},
-				Entry::Vacant(entry)=> {
+				}
+				Entry::Vacant(entry) => {
 					// it's first time we see this node
 					self.by_score.insert(node.clone().into());
 					self.by_time.insert(node.clone().into());
@@ -310,17 +317,30 @@ impl<T> NodeTable<T> where T: Time {
 	}
 
 	/// Returnes most reliable nodes with desired services.
-	pub fn nodes_with_services(&self, services: &Services, protocol: InternetProtocol, except: &HashSet<net::SocketAddr>, limit: usize) -> Vec<Node> {
-		self.by_score.iter()
+	pub fn nodes_with_services(
+		&self,
+		services: &Services,
+		protocol: InternetProtocol,
+		except: &HashSet<net::SocketAddr>,
+		limit: usize,
+	) -> Vec<Node> {
+		self.by_score
+			.iter()
 			.filter(|node| protocol.is_allowed(&node.0.addr))
 			.filter(|node| node.0.services.includes(services))
 			.filter(|node| {
 				let node_address = node.0.address();
 				!except.contains(&node_address)
 					&& match node_address {
-						net::SocketAddr::V4(v4) => !except
-							.contains(&net::SocketAddr::V6(net::SocketAddrV6::new(v4.ip().to_ipv6_compatible(), v4.port(), 0, 0))),
-						net::SocketAddr::V6(v6) => v6.ip().to_ipv4()
+						net::SocketAddr::V4(v4) => !except.contains(&net::SocketAddr::V6(net::SocketAddrV6::new(
+							v4.ip().to_ipv6_compatible(),
+							v4.port(),
+							0,
+							0,
+						))),
+						net::SocketAddr::V6(v6) => v6
+							.ip()
+							.to_ipv4()
 							.map(|v4| !except.contains(&net::SocketAddr::V4(net::SocketAddrV4::new(v4, v6.port()))))
 							.unwrap_or(true),
 					}
@@ -344,7 +364,8 @@ impl<T> NodeTable<T> where T: Time {
 	///
 	/// https://en.bitcoin.it/wiki/Protocol_documentation#addr
 	pub fn recently_active_nodes(&self, protocol: InternetProtocol) -> Vec<Node> {
-		self.by_time.iter()
+		self.by_time
+			.iter()
 			.filter(|node| protocol.is_allowed(&node.0.addr))
 			.map(|node| node.0.clone())
 			.take(1000)
@@ -374,13 +395,12 @@ impl<T> NodeTable<T> where T: Time {
 	}
 
 	/// Save node table in csv format.
-	pub fn save<W>(&self, write: W) -> Result<(), io::Error> where W: io::Write {
-		let mut writer = csv::WriterBuilder::new()
-			.delimiter(b' ')
-			.from_writer(write);
-		let iter = self.by_score.iter()
-			.map(|node| &node.0)
-			.take(1000);
+	pub fn save<W>(&self, write: W) -> Result<(), io::Error>
+	where
+		W: io::Write,
+	{
+		let mut writer = csv::WriterBuilder::new().delimiter(b' ').from_writer(write);
+		let iter = self.by_score.iter().map(|node| &node.0).take(1000);
 
 		let err = || io::Error::new(io::ErrorKind::Other, "Write csv error");
 
@@ -393,11 +413,12 @@ impl<T> NodeTable<T> where T: Time {
 	}
 
 	/// Loads table in from a csv source.
-	pub fn load<R>(preferable_services: Services, read: R) -> Result<Self, io::Error> where R: io::Read, T: Default {
-		let mut rdr = csv::ReaderBuilder::new()
-			.has_headers(false)
-			.delimiter(b' ')
-			.from_reader(read);
+	pub fn load<R>(preferable_services: Services, read: R) -> Result<Self, io::Error>
+	where
+		R: io::Read,
+		T: Default,
+	{
+		let mut rdr = csv::ReaderBuilder::new().has_headers(false).delimiter(b' ').from_reader(read);
 
 		let mut node_table = NodeTable::default();
 		node_table.preferable_services = preferable_services;
@@ -410,10 +431,10 @@ impl<T> NodeTable<T> where T: Time {
 			let services = services.into();
 			let node = Node {
 				addr: addr.parse().map_err(|_| err())?,
-				time: time,
-				services: services,
+				time,
+				services,
 				is_preferable: services.includes(&preferable_services),
-				failures: failures,
+				failures,
 			};
 
 			node_table.by_score.insert(node.clone().into());
@@ -427,12 +448,12 @@ impl<T> NodeTable<T> where T: Time {
 
 #[cfg(test)]
 mod tests {
-	use std::net::SocketAddr;
-	use std::collections::HashSet;
-	use message::common::Services;
-	use util::InternetProtocol;
-	use util::time::{IncrementalTime, ZeroTime};
 	use super::NodeTable;
+	use message::common::Services;
+	use std::collections::HashSet;
+	use std::net::SocketAddr;
+	use util::time::{IncrementalTime, ZeroTime};
+	use util::InternetProtocol;
 
 	#[test]
 	fn test_node_table_insert() {
@@ -594,12 +615,15 @@ mod tests {
 
 		let s = String::from_utf8(db).unwrap();
 		assert_eq!(
-"127.0.0.1:8001 7 0 0
+			"127.0.0.1:8001 7 0 0
 127.0.0.1:8004 6 0 0
 127.0.0.1:8000 0 0 0
 127.0.0.1:8002 5 0 1
 127.0.0.1:8003 3 0 1
-".to_string(), s);
+"
+			.to_string(),
+			s
+		);
 	}
 
 	#[test]
@@ -610,12 +634,21 @@ mod tests {
 		let mut table = NodeTable::new(Services::default().with_network(true));
 		table.insert(s0, Services::default().with_network(true));
 		table.insert(s1, Services::default().with_network(true));
-		assert_eq!(table.nodes_with_services(&Services::default(), InternetProtocol::default(), &HashSet::new(), 1)[0].address(), s1);
+		assert_eq!(
+			table.nodes_with_services(&Services::default(), InternetProtocol::default(), &HashSet::new(), 1)[0].address(),
+			s1
+		);
 
 		table.note_failure(&s1);
-		assert_eq!(table.nodes_with_services(&Services::default(), InternetProtocol::default(), &HashSet::new(), 1)[0].address(), s0);
+		assert_eq!(
+			table.nodes_with_services(&Services::default(), InternetProtocol::default(), &HashSet::new(), 1)[0].address(),
+			s0
+		);
 
 		table.note_failure(&s0);
-		assert_eq!(table.nodes_with_services(&Services::default(), InternetProtocol::default(), &HashSet::new(), 1)[0].address(), s1);
+		assert_eq!(
+			table.nodes_with_services(&Services::default(), InternetProtocol::default(), &HashSet::new(), 1)[0].address(),
+			s1
+		);
 	}
 }

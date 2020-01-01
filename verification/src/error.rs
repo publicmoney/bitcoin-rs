@@ -1,7 +1,7 @@
-use hash::H256;
 use compact::Compact;
-use storage::Error as DBError;
+use hash::H256;
 use script::Error as SignatureError;
+use storage::Error as DBError;
 
 #[derive(Debug, PartialEq)]
 /// All possible verification errors
@@ -113,4 +113,3 @@ pub enum TransactionError {
 	/// Transaction with witness is received before SegWit is activated.
 	PrematureWitness,
 }
-

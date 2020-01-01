@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::collections::hash_map::Entry;
-use linked_hash_map::LinkedHashMap;
-use time;
-use primitives::hash::H256;
 use chain::IndexedBlock;
+use linked_hash_map::LinkedHashMap;
+use primitives::hash::H256;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet, VecDeque};
+use time;
 
 #[derive(Debug)]
 /// Storage for blocks, for which we have no parent yet.
@@ -57,7 +57,9 @@ impl OrphanBlocksPool {
 
 	/// Remove all blocks, which are not-unknown
 	pub fn remove_known_blocks(&mut self) -> Vec<H256> {
-		let orphans_to_remove: HashSet<_> = self.orphaned_blocks.values()
+		let orphans_to_remove: HashSet<_> = self
+			.orphaned_blocks
+			.values()
 			.flat_map(|v| v.iter().map(|e| e.0.clone()))
 			.filter(|h| !self.unknown_blocks.contains_key(h))
 			.collect();
@@ -111,9 +113,9 @@ impl OrphanBlocksPool {
 mod tests {
 	extern crate test_data;
 
-	use std::collections::HashSet;
-	use primitives::hash::H256;
 	use super::OrphanBlocksPool;
+	use primitives::hash::H256;
+	use std::collections::HashSet;
 
 	#[test]
 	fn orphan_block_pool_empty_on_start() {

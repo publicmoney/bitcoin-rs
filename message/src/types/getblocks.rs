@@ -1,7 +1,7 @@
-use std::io;
 use hash::H256;
-use ser::{Stream, Reader};
-use {Payload, MessageResult};
+use ser::{Reader, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 pub const GETBLOCKS_MAX_RESPONSE_HASHES: usize = 500;
 
@@ -21,7 +21,10 @@ impl Payload for GetBlocks {
 		"getblocks"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let get_blocks = GetBlocks {
 			version: reader.read()?,
 			block_locator_hashes: reader.read_list_max(500)?,
@@ -39,4 +42,3 @@ impl Payload for GetBlocks {
 		Ok(())
 	}
 }
-

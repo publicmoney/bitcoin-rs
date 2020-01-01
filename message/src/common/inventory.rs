@@ -1,6 +1,6 @@
-use std::io;
 use hash::H256;
-use ser::{Serializable, Stream, Deserializable, Reader, Error as ReaderError};
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::io;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u32)]
@@ -26,7 +26,7 @@ impl InventoryType {
 			0x40000001 => Some(InventoryType::MessageWitnessTx),
 			0x40000002 => Some(InventoryType::MessageWitnessBlock),
 			0x40000003 => Some(InventoryType::MessageWitnessFilteredBlock),
-			_ => None
+			_ => None,
 		}
 	}
 }
@@ -44,7 +44,10 @@ impl Serializable for InventoryType {
 }
 
 impl Deserializable for InventoryType {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let t: u32 = reader.read()?;
 		InventoryType::from_u32(t).ok_or(ReaderError::MalformedData)
 	}
@@ -60,42 +63,43 @@ impl InventoryVector {
 	pub fn tx(hash: H256) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageTx,
-			hash: hash,
+			hash,
 		}
 	}
 
 	pub fn witness_tx(hash: H256) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageWitnessTx,
-			hash: hash,
+			hash,
 		}
 	}
 
 	pub fn block(hash: H256) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageBlock,
-			hash: hash,
+			hash,
 		}
 	}
 
 	pub fn witness_block(hash: H256) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageWitnessBlock,
-			hash: hash,
+			hash,
 		}
 	}
 }
 
 impl Serializable for InventoryVector {
 	fn serialize(&self, stream: &mut Stream) {
-		stream
-			.append(&self.inv_type)
-			.append(&self.hash);
+		stream.append(&self.inv_type).append(&self.hash);
 	}
 }
 
 impl Deserializable for InventoryVector {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let vec = InventoryVector {
 			inv_type: reader.read()?,
 			hash: reader.read()?,
@@ -107,9 +111,9 @@ impl Deserializable for InventoryVector {
 
 #[cfg(test)]
 mod tests {
+	use super::{InventoryType, InventoryVector};
 	use bytes::Bytes;
-	use ser::{serialize, deserialize};
-	use super::{InventoryVector, InventoryType};
+	use ser::{deserialize, serialize};
 
 	#[test]
 	fn test_inventory_serialize() {
@@ -153,6 +157,9 @@ mod tests {
 		assert_eq!(InventoryType::from_u32(4).unwrap(), InventoryType::MessageCompactBlock);
 		assert_eq!(InventoryType::from_u32(0x40000001).unwrap(), InventoryType::MessageWitnessTx);
 		assert_eq!(InventoryType::from_u32(0x40000002).unwrap(), InventoryType::MessageWitnessBlock);
-		assert_eq!(InventoryType::from_u32(0x40000003).unwrap(), InventoryType::MessageWitnessFilteredBlock);
+		assert_eq!(
+			InventoryType::from_u32(0x40000003).unwrap(),
+			InventoryType::MessageWitnessFilteredBlock
+		);
 	}
 }

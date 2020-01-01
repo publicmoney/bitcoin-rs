@@ -1,19 +1,18 @@
-use std::sync::Arc;
-use parking_lot::{Mutex, Condvar};
-use time;
-use futures::{lazy, finished};
-use chain::{IndexedTransaction, IndexedBlock, IndexedBlockHeader};
+use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
+use futures::{finished, lazy};
 use message::types;
 use miner::BlockAssembler;
-use network::ConsensusParams;
-use synchronization_client::{Client};
-use synchronization_server::{Server, ServerTask};
-use synchronization_verifier::{TransactionVerificationSink};
-use primitives::hash::H256;
 use miner::BlockTemplate;
-use synchronization_peers::{TransactionAnnouncementType, BlockAnnouncementType};
-use types::{PeerIndex, RequestId, StorageRef, MemoryPoolRef, PeersRef,
-	ClientRef, ServerRef, SynchronizationStateRef, SyncListenerRef};
+use network::ConsensusParams;
+use parking_lot::{Condvar, Mutex};
+use primitives::hash::H256;
+use std::sync::Arc;
+use synchronization_client::Client;
+use synchronization_peers::{BlockAnnouncementType, TransactionAnnouncementType};
+use synchronization_server::{Server, ServerTask};
+use synchronization_verifier::TransactionVerificationSink;
+use time;
+use types::{ClientRef, MemoryPoolRef, PeerIndex, PeersRef, RequestId, ServerRef, StorageRef, SyncListenerRef, SynchronizationStateRef};
 
 /// Local synchronization node
 pub struct LocalNode<U: Server, V: Client> {
@@ -44,19 +43,30 @@ struct TransactionAcceptSinkData {
 	waiter: Condvar,
 }
 
-impl<U, V> LocalNode<U, V> where U: Server, V: Client {
+impl<U, V> LocalNode<U, V>
+where
+	U: Server,
+	V: Client,
+{
 	/// Create new synchronization node
-	#[cfg_attr(feature="cargo-clippy", allow(too_many_arguments))]
-	pub fn new(consensus: ConsensusParams, storage: StorageRef, memory_pool: MemoryPoolRef, peers: PeersRef,
-		state: SynchronizationStateRef, client: ClientRef<V>, server: ServerRef<U>) -> Self {
+	#[cfg_attr(feature = "cargo-clippy", allow(too_many_arguments))]
+	pub fn new(
+		consensus: ConsensusParams,
+		storage: StorageRef,
+		memory_pool: MemoryPoolRef,
+		peers: PeersRef,
+		state: SynchronizationStateRef,
+		client: ClientRef<V>,
+		server: ServerRef<U>,
+	) -> Self {
 		LocalNode {
-			consensus: consensus,
-			storage: storage,
-			memory_pool: memory_pool,
-			peers: peers,
-			state: state,
-			client: client,
-			server: server,
+			consensus,
+			storage,
+			memory_pool,
+			peers,
+			state,
+			client,
+			server,
 		}
 	}
 
@@ -71,7 +81,8 @@ impl<U, V> LocalNode<U, V> where U: Server, V: Client {
 
 		// light clients may not want transactions broadcasting until filter for connection is set
 		if !version.relay_transactions() {
-			self.peers.set_transaction_announcement_type(peer_index, TransactionAnnouncementType::DoNotAnnounce);
+			self.peers
+				.set_transaction_announcement_type(peer_index, TransactionAnnouncementType::DoNotAnnounce);
 		}
 
 		// start synchronization session with peer
@@ -141,7 +152,8 @@ impl<U, V> LocalNode<U, V> where U: Server, V: Client {
 			server.upgrade().map(|s| s.execute(server_task));
 			finished::<(), ()>(())
 		});
-		self.client.after_peer_nearly_blocks_verified(peer_index, Box::new(lazy_server_task));
+		self.client
+			.after_peer_nearly_blocks_verified(peer_index, Box::new(lazy_server_task));
 	}
 
 	/// When peer is requesting for memory pool contents
@@ -188,7 +200,8 @@ impl<U, V> LocalNode<U, V> where U: Server, V: Client {
 	/// When peer asks us to announce new blocks using headers message
 	pub fn on_sendheaders(&self, peer_index: PeerIndex, _message: types::SendHeaders) {
 		trace!(target: "sync", "Got `sendheaders` message from peer#{}", peer_index);
-		self.peers.set_block_announcement_type(peer_index, BlockAnnouncementType::SendHeaders);
+		self.peers
+			.set_block_announcement_type(peer_index, BlockAnnouncementType::SendHeaders);
 	}
 
 	/// When peer asks us to announce new blocks using cpmctblock message
@@ -203,7 +216,8 @@ impl<U, V> LocalNode<U, V> where U: Server, V: Client {
 
 		// Upon receipt of a "sendcmpct" message with the first and second integers set to 1, the node SHOULD announce new blocks by sending a cmpctblock message.
 		if message.first {
-			self.peers.set_block_announcement_type(peer_index, BlockAnnouncementType::SendCompactBlock);
+			self.peers
+				.set_block_announcement_type(peer_index, BlockAnnouncementType::SendCompactBlock);
 		}
 
 		// else:
@@ -263,9 +277,7 @@ impl<U, V> LocalNode<U, V> where U: Server, V: Client {
 
 impl TransactionAcceptSink {
 	pub fn new(data: Arc<TransactionAcceptSinkData>) -> Self {
-		TransactionAcceptSink {
-			data: data,
-		}
+		TransactionAcceptSink { data }
 	}
 
 	pub fn boxed(self) -> Box<Self> {
@@ -281,7 +293,8 @@ impl TransactionAcceptSinkData {
 		}
 
 		self.waiter.wait(&mut lock);
-		lock.take().expect("waiter.wait returns only when result is set; lock.take() takes result from waiter.result; qed")
+		lock.take()
+			.expect("waiter.wait returns only when result is set; lock.take() takes result from waiter.result; qed")
 	}
 }
 
@@ -301,29 +314,29 @@ impl TransactionVerificationSink for TransactionAcceptSink {
 pub mod tests {
 	extern crate test_data;
 
-	use std::sync::Arc;
-	use parking_lot::RwLock;
-	use synchronization_executor::Task;
-	use synchronization_executor::tests::DummyTaskExecutor;
-	use synchronization_client::SynchronizationClient;
-	use synchronization_client_core::{Config, SynchronizationClientCore, CoreVerificationSink};
-	use synchronization_chain::Chain;
-	use message::types;
-	use message::common::{InventoryVector, InventoryType};
-	use network::{ConsensusParams, Network};
-	use chain::Transaction;
-	use db::{BlockChainDatabase};
-	use miner::MemoryPool;
 	use super::LocalNode;
-	use synchronization_server::ServerTask;
-	use synchronization_server::tests::DummyServer;
-	use synchronization_verifier::tests::DummyVerifier;
+	use chain::Transaction;
+	use db::BlockChainDatabase;
+	use message::common::{InventoryType, InventoryVector};
+	use message::types;
+	use miner::MemoryPool;
+	use network::{ConsensusParams, Network};
+	use parking_lot::RwLock;
 	use primitives::bytes::Bytes;
-	use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 	use std::iter::repeat;
+	use std::sync::Arc;
+	use synchronization_chain::Chain;
+	use synchronization_client::SynchronizationClient;
+	use synchronization_client_core::{Config, CoreVerificationSink, SynchronizationClientCore};
+	use synchronization_executor::tests::DummyTaskExecutor;
+	use synchronization_executor::Task;
 	use synchronization_peers::PeersImpl;
-	use utils::SynchronizationState;
+	use synchronization_server::tests::DummyServer;
+	use synchronization_server::ServerTask;
+	use synchronization_verifier::tests::DummyVerifier;
 	use types::SynchronizationStateRef;
+	use utils::SynchronizationState;
+	use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 
 	pub fn default_filterload() -> types::FilterLoad {
 		types::FilterLoad {
@@ -335,12 +348,16 @@ pub mod tests {
 	}
 
 	pub fn make_filteradd(data: &[u8]) -> types::FilterAdd {
-		types::FilterAdd {
-			data: data.into(),
-		}
+		types::FilterAdd { data: data.into() }
 	}
 
-	fn create_local_node(verifier: Option<DummyVerifier>) -> (Arc<DummyTaskExecutor>, Arc<DummyServer>, LocalNode<DummyServer, SynchronizationClient<DummyTaskExecutor, DummyVerifier>>) {
+	fn create_local_node(
+		verifier: Option<DummyVerifier>,
+	) -> (
+		Arc<DummyTaskExecutor>,
+		Arc<DummyServer>,
+		LocalNode<DummyServer, SynchronizationClient<DummyTaskExecutor, DummyVerifier>>,
+	) {
 		let memory_pool = Arc::new(RwLock::new(MemoryPool::new()));
 		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
 		let sync_state = SynchronizationStateRef::new(SynchronizationState::with_storage(storage.clone()));
@@ -348,37 +365,59 @@ pub mod tests {
 		let sync_peers = Arc::new(PeersImpl::default());
 		let executor = DummyTaskExecutor::new();
 		let server = Arc::new(DummyServer::new());
-		let config = Config { close_connection_on_bad_block: true };
+		let config = Config {
+			close_connection_on_bad_block: true,
+		};
 		let chain_verifier = Arc::new(ChainVerifier::new(storage.clone(), ConsensusParams::new(Network::Mainnet)));
-		let client_core = SynchronizationClientCore::new(config, sync_state.clone(), sync_peers.clone(), executor.clone(), chain, chain_verifier);
+		let client_core = SynchronizationClientCore::new(
+			config,
+			sync_state.clone(),
+			sync_peers.clone(),
+			executor.clone(),
+			chain,
+			chain_verifier,
+		);
 		let mut verifier = match verifier {
 			Some(verifier) => verifier,
 			None => DummyVerifier::default(),
 		};
 		verifier.set_sink(Arc::new(CoreVerificationSink::new(client_core.clone())));
 		let client = SynchronizationClient::new(sync_state.clone(), client_core, verifier);
-		let local_node = LocalNode::new(ConsensusParams::new(Network::Mainnet), storage, memory_pool, sync_peers, sync_state, client, server.clone());
+		let local_node = LocalNode::new(
+			ConsensusParams::new(Network::Mainnet),
+			storage,
+			memory_pool,
+			sync_peers,
+			sync_state,
+			client,
+			server.clone(),
+		);
 		(executor, server, local_node)
 	}
 
 	#[test]
 	fn local_node_serves_block() {
 		let (_, server, local_node) = create_local_node(None);
-		let peer_index = 0; local_node.on_connect(peer_index, "test".into(), types::Version::default());
+		let peer_index = 0;
+		local_node.on_connect(peer_index, "test".into(), types::Version::default());
 		// peer requests genesis block
 		let genesis_block_hash = test_data::genesis().hash();
-		let inventory = vec![
-			InventoryVector {
-				inv_type: InventoryType::MessageBlock,
-				hash: genesis_block_hash.clone(),
-			}
-		];
-		local_node.on_getdata(peer_index, types::GetData {
-			inventory: inventory.clone()
-		});
+		let inventory = vec![InventoryVector {
+			inv_type: InventoryType::MessageBlock,
+			hash: genesis_block_hash.clone(),
+		}];
+		local_node.on_getdata(
+			peer_index,
+			types::GetData {
+				inventory: inventory.clone(),
+			},
+		);
 		// => `getdata` is served
 		let tasks = server.take_tasks();
-		assert_eq!(tasks, vec![ServerTask::GetData(peer_index, types::GetData::with_inventory(inventory))]);
+		assert_eq!(
+			tasks,
+			vec![ServerTask::GetData(peer_index, types::GetData::with_inventory(inventory))]
+		);
 	}
 
 	#[test]
@@ -386,11 +425,14 @@ pub mod tests {
 		let (executor, _, local_node) = create_local_node(None);
 
 		// transaction will be relayed to this peer
-		let peer_index1 = 0; local_node.on_connect(peer_index1, "test".into(), types::Version::default());
+		let peer_index1 = 0;
+		local_node.on_connect(peer_index1, "test".into(), types::Version::default());
 		executor.take_tasks();
 
 		let genesis = test_data::genesis();
-		let transaction: Transaction = test_data::TransactionBuilder::with_output(1).add_input(&genesis.transactions[0], 0).into();
+		let transaction: Transaction = test_data::TransactionBuilder::with_output(1)
+			.add_input(&genesis.transactions[0], 0)
+			.into();
 		let transaction_hash = transaction.hash();
 
 		let result = local_node.accept_transaction(transaction.clone().into());
@@ -402,7 +444,9 @@ pub mod tests {
 	#[test]
 	fn local_node_discards_local_transaction() {
 		let genesis = test_data::genesis();
-		let transaction: Transaction = test_data::TransactionBuilder::with_output(1).add_input(&genesis.transactions[0], 0).into();
+		let transaction: Transaction = test_data::TransactionBuilder::with_output(1)
+			.add_input(&genesis.transactions[0], 0)
+			.into();
 		let transaction_hash = transaction.hash();
 
 		// simulate transaction verification fail
@@ -411,7 +455,8 @@ pub mod tests {
 
 		let (executor, _, local_node) = create_local_node(Some(verifier));
 
-		let peer_index1 = 0; local_node.on_connect(peer_index1, "test".into(), types::Version::default());
+		let peer_index1 = 0;
+		local_node.on_connect(peer_index1, "test".into(), types::Version::default());
 		executor.take_tasks();
 
 		let result = local_node.accept_transaction(transaction.into());

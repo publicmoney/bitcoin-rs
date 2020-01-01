@@ -5,22 +5,22 @@
 //! transactions.
 //! It also guarantees that ancestor-descendant relation won't break during ordered removal (ancestors always removed
 //! before descendants). Removal using `remove_by_hash` can break this rule.
-use storage::{TransactionProvider, TransactionOutputProvider};
+use chain::{IndexedTransaction, OutPoint, Transaction, TransactionOutput};
+use fee::MemoryPoolFeeCalculator;
+use heapsize::HeapSizeOf;
 use primitives::bytes::Bytes;
 use primitives::hash::H256;
-use chain::{IndexedTransaction, Transaction, OutPoint, TransactionOutput};
+use ser::{serialize, Serializable};
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::BTreeSet;
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
-use ser::{Serializable, serialize};
-use heapsize::HeapSizeOf;
-use fee::MemoryPoolFeeCalculator;
+use storage::{TransactionOutputProvider, TransactionProvider};
 
 /// Transactions ordering strategy
-#[cfg_attr(feature="cargo-clippy", allow(enum_variant_names))]
+#[cfg_attr(feature = "cargo-clippy", allow(enum_variant_names))]
 #[derive(Debug, Clone, Copy)]
 pub enum OrderingStrategy {
 	/// Order transactions by the time they have entered the memory pool
@@ -173,14 +173,15 @@ pub struct NonFinalDoubleSpendSet {
 
 impl From<OutPoint> for HashedOutPoint {
 	fn from(out_point: OutPoint) -> Self {
-		HashedOutPoint {
-			out_point: out_point,
-		}
+		HashedOutPoint { out_point }
 	}
 }
 
 impl Hash for HashedOutPoint {
-	fn hash<H>(&self, state: &mut H) where H: Hasher {
+	fn hash<H>(&self, state: &mut H)
+	where
+		H: Hasher,
+	{
 		state.write(&serialize(&self.out_point));
 		state.finish();
 	}
@@ -227,7 +228,7 @@ impl Ord for ByTimestampOrderedEntry {
 	fn cmp(&self, other: &Self) -> Ordering {
 		let order = self.storage_index.cmp(&other.storage_index);
 		if order != Ordering::Equal {
-			return order
+			return order;
 		}
 
 		self.hash.cmp(&other.hash)
@@ -247,7 +248,7 @@ impl Ord for ByTransactionScoreOrderedEntry {
 		let right = (other.miner_fee as i64 + other.miner_virtual_fee) * (self.size as i64);
 		let order = right.cmp(&left);
 		if order != Ordering::Equal {
-			return order
+			return order;
 		}
 
 		self.hash.cmp(&other.hash)
@@ -267,7 +268,7 @@ impl Ord for ByPackageScoreOrderedEntry {
 		let right = (other.package_miner_fee as i64 + other.package_miner_virtual_fee) * (self.package_size as i64);
 		let order = right.cmp(&left);
 		if order != Ordering::Equal {
-			return order
+			return order;
 		}
 
 		self.hash.cmp(&other.hash)
@@ -305,7 +306,11 @@ impl Storage {
 
 		// remember that this transactions depends on its inputs
 		for input_hash in entry.transaction.inputs.iter().map(|input| &input.previous_output.hash) {
-			self.references.by_input.entry(input_hash.clone()).or_insert_with(HashSet::new).insert(entry.hash.clone());
+			self.references
+				.by_input
+				.entry(input_hash.clone())
+				.or_insert_with(HashSet::new)
+				.insert(entry.hash.clone());
 		}
 
 		// update score of all packages this transaction is in
@@ -326,14 +331,15 @@ impl Storage {
 		// insert either to pending queue or to orderings
 		if self.references.has_in_pool_ancestors(None, &self.by_hash, &entry.transaction) {
 			self.references.pending.insert(entry.hash.clone());
-		}
-		else {
+		} else {
 			self.references.ordered.insert_to_orderings(&entry);
 		}
 
 		// remember that all inputs of this transaction are spent
 		for input in &entry.transaction.inputs {
-			let previous_tx = self.by_previous_output.insert(input.previous_output.clone().into(), entry.hash.clone());
+			let previous_tx = self
+				.by_previous_output
+				.insert(input.previous_output.clone().into(), entry.hash.clone());
 			assert_eq!(previous_tx, None); // transaction must be verified before => no double spend
 		}
 
@@ -400,30 +406,49 @@ impl Storage {
 
 	pub fn read_with_strategy(&self, strategy: OrderingStrategy) -> Option<H256> {
 		match strategy {
-			OrderingStrategy::ByTimestamp => self.references.ordered.by_storage_index.iter().map(|entry| entry.hash.clone()).nth(0),
-			OrderingStrategy::ByTransactionScore => self.references.ordered.by_transaction_score.iter().map(|entry| entry.hash.clone()).nth(0),
-			OrderingStrategy::ByPackageScore => self.references.ordered.by_package_score.iter().map(|entry| entry.hash.clone()).nth(0),
+			OrderingStrategy::ByTimestamp => self
+				.references
+				.ordered
+				.by_storage_index
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
+			OrderingStrategy::ByTransactionScore => self
+				.references
+				.ordered
+				.by_transaction_score
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
+			OrderingStrategy::ByPackageScore => self
+				.references
+				.ordered
+				.by_package_score
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
 		}
 	}
 
 	pub fn remove_by_hash(&mut self, h: &H256) -> Option<Entry> {
-		self.by_hash.remove(h)
-			.map(|entry| {
-				// update pool information
-				self.transactions_size_in_bytes -= entry.size;
+		self.by_hash.remove(h).map(|entry| {
+			// update pool information
+			self.transactions_size_in_bytes -= entry.size;
 
-				// forget that all inputs of this transaction are spent
-				for input in &entry.transaction.inputs {
-					let spent_in_tx = self.by_previous_output.remove(&input.previous_output.clone().into())
-						.expect("by_spent_output is filled for each incoming transaction inputs; so the drained value should exist; qed");
-					assert_eq!(&spent_in_tx, h);
-				}
+			// forget that all inputs of this transaction are spent
+			for input in &entry.transaction.inputs {
+				let spent_in_tx = self
+					.by_previous_output
+					.remove(&input.previous_output.clone().into())
+					.expect("by_spent_output is filled for each incoming transaction inputs; so the drained value should exist; qed");
+				assert_eq!(&spent_in_tx, h);
+			}
 
-				// remove from storage
-				self.references.remove(None, &self.by_hash, &entry);
+			// remove from storage
+			self.references.remove(None, &self.by_hash, &entry);
 
-				entry
-			})
+			entry
+		})
 	}
 
 	pub fn check_double_spend(&self, transaction: &Transaction) -> DoubleSpendCheckResult {
@@ -437,7 +462,7 @@ impl Storage {
 				// check if this is final transaction. If so, that's a potential double-spend error
 				let entry = self.by_hash.get(&entry_hash).expect("checked that it exists line above; qed");
 				if entry.transaction.is_final() {
-					return DoubleSpendCheckResult::DoubleSpend(entry_hash,	 prevout.out_point.hash, prevout.out_point.index);
+					return DoubleSpendCheckResult::DoubleSpend(entry_hash, prevout.out_point.hash, prevout.out_point.index);
 				}
 				// else remember this double spend
 				double_spends.insert(prevout.clone());
@@ -447,11 +472,23 @@ impl Storage {
 				while let Some(dependent_prevout) = queue.pop_front() {
 					// if the same output is already spent with another in-pool transaction
 					if let Some(dependent_entry_hash) = self.by_previous_output.get(&dependent_prevout).cloned() {
-						let dependent_entry = self.by_hash.get(&dependent_entry_hash).expect("checked that it exists line above; qed");
-						let dependent_outputs: Vec<_> = dependent_entry.transaction.outputs.iter().enumerate().map(|(idx, _)| OutPoint {
-							hash: dependent_entry_hash.clone(),
-							index: idx as u32,
-						}.into()).collect();
+						let dependent_entry = self
+							.by_hash
+							.get(&dependent_entry_hash)
+							.expect("checked that it exists line above; qed");
+						let dependent_outputs: Vec<_> = dependent_entry
+							.transaction
+							.outputs
+							.iter()
+							.enumerate()
+							.map(|(idx, _)| {
+								OutPoint {
+									hash: dependent_entry_hash.clone(),
+									index: idx as u32,
+								}
+								.into()
+							})
+							.collect();
 						dependent_spends.extend(dependent_outputs.clone());
 						queue.extend(dependent_outputs);
 					}
@@ -463,8 +500,8 @@ impl Storage {
 			DoubleSpendCheckResult::NoDoubleSpend
 		} else {
 			DoubleSpendCheckResult::NonFinalDoubleSpend(NonFinalDoubleSpendSet {
-				double_spends: double_spends,
-				dependent_spends: dependent_spends,
+				double_spends,
+				dependent_spends,
 			})
 		}
 	}
@@ -496,7 +533,7 @@ impl Storage {
 			let mut all_descendants: HashSet<H256> = HashSet::new();
 			while let Some(descendant) = descendants.pop() {
 				if all_descendants.contains(&descendant) {
-					continue
+					continue;
 				}
 				all_descendants.insert(descendant.clone());
 
@@ -508,9 +545,13 @@ impl Storage {
 			// topologically sort descendants
 			let mut all_descendants: Vec<_> = all_descendants.iter().collect();
 			all_descendants.sort_by(|left, right| {
-				let left = self.by_hash.get(left)
+				let left = self
+					.by_hash
+					.get(left)
 					.expect("`left` is read from `by_input`; all entries from `by_input` have corresponding entries in `by_hash`; qed");
-				let right = self.by_hash.get(right)
+				let right = self
+					.by_hash
+					.get(right)
 					.expect("`right` is read from `by_input`; all entries from `by_input` have corresponding entries in `by_hash`; qed");
 				if left.ancestors.contains(&right.hash) {
 					return Ordering::Greater;
@@ -522,20 +563,43 @@ impl Storage {
 			});
 
 			// move all descendants out of storage for later insertion
-			Some(all_descendants.into_iter()
-					.filter_map(|hash| self.remove_by_hash(hash).map(|entry| IndexedTransaction::new(entry.hash, entry.transaction)))
-					.collect())
-		}
-		else {
+			Some(
+				all_descendants
+					.into_iter()
+					.filter_map(|hash| {
+						self.remove_by_hash(hash)
+							.map(|entry| IndexedTransaction::new(entry.hash, entry.transaction))
+					})
+					.collect(),
+			)
+		} else {
 			None
 		}
 	}
 
 	pub fn remove_with_strategy(&mut self, strategy: OrderingStrategy) -> Option<IndexedTransaction> {
 		let top_hash = match strategy {
-			OrderingStrategy::ByTimestamp => self.references.ordered.by_storage_index.iter().map(|entry| entry.hash.clone()).nth(0),
-			OrderingStrategy::ByTransactionScore => self.references.ordered.by_transaction_score.iter().map(|entry| entry.hash.clone()).nth(0),
-			OrderingStrategy::ByPackageScore => self.references.ordered.by_package_score.iter().map(|entry| entry.hash.clone()).nth(0),
+			OrderingStrategy::ByTimestamp => self
+				.references
+				.ordered
+				.by_storage_index
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
+			OrderingStrategy::ByTransactionScore => self
+				.references
+				.ordered
+				.by_transaction_score
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
+			OrderingStrategy::ByPackageScore => self
+				.references
+				.ordered
+				.by_package_score
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
 		};
 		top_hash.map(|hash| {
 			let entry = self.remove_by_hash(&hash)
@@ -566,10 +630,15 @@ impl Storage {
 }
 
 impl ReferenceStorage {
-	pub fn has_in_pool_ancestors(&self, removed: Option<&HashSet<H256>>, by_hash: &HashMap<H256, Entry>, transaction: &Transaction) -> bool {
-		transaction.inputs.iter()
-			.any(|input| by_hash.contains_key(&input.previous_output.hash)
-				&& !removed.map_or(false, |r| r.contains(&input.previous_output.hash)))
+	pub fn has_in_pool_ancestors(
+		&self,
+		removed: Option<&HashSet<H256>>,
+		by_hash: &HashMap<H256, Entry>,
+		transaction: &Transaction,
+	) -> bool {
+		transaction.inputs.iter().any(|input| {
+			by_hash.contains_key(&input.previous_output.hash) && !removed.map_or(false, |r| r.contains(&input.previous_output.hash))
+		})
 	}
 
 	pub fn remove(&mut self, removed: Option<&HashSet<H256>>, by_hash: &HashMap<H256, Entry>, entry: &Entry) {
@@ -620,9 +689,7 @@ impl HeapSizeOf for Storage {
 
 impl HeapSizeOf for ReferenceStorage {
 	fn heap_size_of_children(&self) -> usize {
-		self.by_input.heap_size_of_children()
-			+ self.pending.heap_size_of_children()
-			+ self.ordered.heap_size_of_children()
+		self.by_input.heap_size_of_children() + self.pending.heap_size_of_children() + self.ordered.heap_size_of_children()
 	}
 }
 
@@ -631,9 +698,7 @@ impl HeapSizeOf for OrderedReferenceStorage {
 		// HeapSizeOf is not implemented for BTreeSet => rough estimation here
 		use std::mem::size_of;
 		let len = self.by_storage_index.len();
-		len * (size_of::<ByTimestampOrderedEntry>()
-			+ size_of::<ByTransactionScoreOrderedEntry>()
-			+ size_of::<ByPackageScoreOrderedEntry>())
+		len * (size_of::<ByTimestampOrderedEntry>() + size_of::<ByTransactionScoreOrderedEntry>() + size_of::<ByPackageScoreOrderedEntry>())
 	}
 }
 
@@ -680,7 +745,8 @@ impl MemoryPool {
 	/// Removes single transaction by its hash.
 	/// All descendants remain in the pool.
 	pub fn remove_by_hash(&mut self, h: &H256) -> Option<IndexedTransaction> {
-		self.storage.remove_by_hash(h)
+		self.storage
+			.remove_by_hash(h)
 			.map(|entry| IndexedTransaction::new(entry.hash, entry.transaction))
 	}
 
@@ -769,14 +835,14 @@ impl MemoryPool {
 		if !self.accept_zero_fee_transactions && miner_fee == 0 {
 			return None;
 		}
-		
+
 		Some(Entry {
 			transaction: t.raw,
 			hash: t.hash,
-			ancestors: ancestors,
-			storage_index: storage_index,
-			size: size,
-			miner_fee: miner_fee,
+			ancestors,
+			storage_index,
+			size,
+			miner_fee,
 			miner_virtual_fee: 0,
 			// following fields are also updated when inserted to storage
 			package_size: size,
@@ -787,7 +853,9 @@ impl MemoryPool {
 
 	fn get_ancestors(&self, t: &Transaction) -> HashSet<H256> {
 		let mut ancestors: HashSet<H256> = HashSet::new();
-		let ancestors_entries = t.inputs.iter()
+		let ancestors_entries = t
+			.inputs
+			.iter()
 			.filter_map(|input| self.storage.get_by_hash(&input.previous_output.hash));
 		for ancestor_entry in ancestors_entries {
 			ancestors.insert(ancestor_entry.hash.clone());
@@ -852,10 +920,10 @@ pub struct MemoryPoolIterator<'a> {
 impl<'a> MemoryPoolIterator<'a> {
 	fn new(memory_pool: &'a MemoryPool, strategy: OrderingStrategy) -> Self {
 		MemoryPoolIterator {
-			memory_pool: memory_pool,
+			memory_pool,
 			references: memory_pool.storage.references.clone(),
 			removed: HashSet::new(),
-			strategy: strategy,
+			strategy,
 		}
 	}
 }
@@ -865,15 +933,39 @@ impl<'a> Iterator for MemoryPoolIterator<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let top_hash = match self.strategy {
-			OrderingStrategy::ByTimestamp => self.references.ordered.by_storage_index.iter().map(|entry| entry.hash.clone()).nth(0),
-			OrderingStrategy::ByTransactionScore => self.references.ordered.by_transaction_score.iter().map(|entry| entry.hash.clone()).nth(0),
-			OrderingStrategy::ByPackageScore => self.references.ordered.by_package_score.iter().map(|entry| entry.hash.clone()).nth(0),
+			OrderingStrategy::ByTimestamp => self
+				.references
+				.ordered
+				.by_storage_index
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
+			OrderingStrategy::ByTransactionScore => self
+				.references
+				.ordered
+				.by_transaction_score
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
+			OrderingStrategy::ByPackageScore => self
+				.references
+				.ordered
+				.by_package_score
+				.iter()
+				.map(|entry| entry.hash.clone())
+				.nth(0),
 		};
 
 		top_hash.map(|top_hash| {
-			let entry = self.memory_pool.storage.by_hash.get(&top_hash).expect("missing hash is a sign of MemoryPool internal inconsistancy");
+			let entry = self
+				.memory_pool
+				.storage
+				.by_hash
+				.get(&top_hash)
+				.expect("missing hash is a sign of MemoryPool internal inconsistancy");
 			self.removed.insert(top_hash.clone());
-			self.references.remove(Some(&self.removed), &self.memory_pool.storage.by_hash, entry);
+			self.references
+				.remove(Some(&self.removed), &self.memory_pool.storage.by_hash, entry);
 			entry
 		})
 	}
@@ -883,11 +975,11 @@ impl<'a> Iterator for MemoryPoolIterator<'a> {
 pub mod tests {
 	extern crate test_data;
 
-	use chain::{Transaction, OutPoint};
-	use heapsize::HeapSizeOf;
-	use fee::NonZeroFeeCalculator;
-	use super::{MemoryPool, OrderingStrategy, DoubleSpendCheckResult};
 	use self::test_data::{ChainBuilder, TransactionBuilder};
+	use super::{DoubleSpendCheckResult, MemoryPool, OrderingStrategy};
+	use chain::{OutPoint, Transaction};
+	use fee::NonZeroFeeCalculator;
+	use heapsize::HeapSizeOf;
 
 	fn to_memory_pool(chain: &mut ChainBuilder) -> MemoryPool {
 		let mut pool = MemoryPool::new();
@@ -935,9 +1027,15 @@ pub mod tests {
 
 		pool.insert_verified(default_tx().into(), &NonZeroFeeCalculator);
 		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), Some(default_tx().hash()));
-		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![default_tx().hash()]);
+		assert_eq!(
+			pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp),
+			vec![default_tx().hash()]
+		);
 		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), Some(default_tx().hash()));
-		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![default_tx().hash()]);
+		assert_eq!(
+			pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp),
+			vec![default_tx().hash()]
+		);
 	}
 
 	#[test]
@@ -981,9 +1079,14 @@ pub mod tests {
 	#[test]
 	fn test_memory_pool_insert_parent_after_child() {
 		let chain = &mut ChainBuilder::new();
-		TransactionBuilder::with_output(100).store(chain)
-			.into_input(0).add_output(100).store(chain)
-			.into_input(0).add_output(100).store(chain);
+		TransactionBuilder::with_output(100)
+			.store(chain)
+			.into_input(0)
+			.add_output(100)
+			.store(chain)
+			.into_input(0)
+			.add_output(100)
+			.store(chain);
 
 		// insert child, then parent
 		let mut pool = MemoryPool::new();
@@ -1002,9 +1105,14 @@ pub mod tests {
 	#[test]
 	fn test_memory_pool_insert_parent_before_child() {
 		let chain = &mut ChainBuilder::new();
-		TransactionBuilder::with_output(100).store(chain)
-			.into_input(0).add_output(100).store(chain)
-			.into_input(0).add_output(100).store(chain);
+		TransactionBuilder::with_output(100)
+			.store(chain)
+			.into_input(0)
+			.add_output(100)
+			.store(chain)
+			.into_input(0)
+			.add_output(100)
+			.store(chain);
 
 		// insert parent, then child
 		let mut pool = to_memory_pool(chain);
@@ -1020,9 +1128,14 @@ pub mod tests {
 	#[test]
 	fn test_memory_pool_insert_child_after_remove_by_hash() {
 		let chain = &mut ChainBuilder::new();
-		TransactionBuilder::with_output(100).store(chain)
-			.into_input(0).add_output(100).store(chain)
-			.into_input(0).add_output(100).store(chain);
+		TransactionBuilder::with_output(100)
+			.store(chain)
+			.into_input(0)
+			.add_output(100)
+			.store(chain)
+			.into_input(0)
+			.add_output(100)
+			.store(chain);
 
 		// insert parent, then child
 		let mut pool = to_memory_pool(chain);
@@ -1043,6 +1156,7 @@ pub mod tests {
 	#[test]
 	fn test_memory_pool_get_information() {
 		let chain = &mut ChainBuilder::new();
+		#[rustfmt::skip]
 		TransactionBuilder::with_output(10).store(chain)
 			.into_input(0).add_output(20).store(chain)
 			.into_input(0).add_output(30).store(chain)
@@ -1063,6 +1177,7 @@ pub mod tests {
 	#[test]
 	fn test_memory_pool_timestamp_ordering_strategy() {
 		let chain = &mut ChainBuilder::new();
+		#[rustfmt::skip]
 		TransactionBuilder::with_output(10).store(chain)
 			.set_output(20).store(chain)
 			.set_output(30).store(chain)
@@ -1086,6 +1201,7 @@ pub mod tests {
 	#[test]
 	fn test_memory_pool_transaction_score_ordering_strategy() {
 		let chain = &mut ChainBuilder::new();
+		#[rustfmt::skip]
 		TransactionBuilder::with_output(10).store(chain)
 			.set_output(40).store(chain)
 			.set_output(30).store(chain)
@@ -1103,10 +1219,14 @@ pub mod tests {
 	#[test]
 	fn test_memory_pool_transaction_score_ordering_strategy_with_virtual_fee() {
 		let chain = &mut ChainBuilder::new();
-		TransactionBuilder::with_output(10).store(chain)
-			.set_output(40).store(chain)
-			.set_output(30).store(chain)
-			.set_output(20).store(chain);
+		TransactionBuilder::with_output(10)
+			.store(chain)
+			.set_output(40)
+			.store(chain)
+			.set_output(30)
+			.store(chain)
+			.set_output(20)
+			.store(chain);
 		let mut pool = to_memory_pool(chain);
 
 		// increase miner score of transaction 3 to move it to position #1
@@ -1126,11 +1246,21 @@ pub mod tests {
 	fn test_memory_pool_package_score_ordering_strategy() {
 		let chain = &mut ChainBuilder::new();
 		// all transactions of same size
-		TransactionBuilder::with_default_input(0).set_output(30).store(chain)	// transaction0
-			.into_input(0).set_output(50).store(chain)							// transaction0 -> transaction1
-			.set_default_input(1).set_output(35).store(chain)					// transaction2
-			.into_input(0).set_output(10).store(chain)							// transaction2 -> transaction3
-			.into_input(0).set_output(100).store(chain);						// transaction2 -> transaction3 -> transaction4
+		TransactionBuilder::with_default_input(0)
+			.set_output(30)
+			.store(chain) // transaction0
+			.into_input(0)
+			.set_output(50)
+			.store(chain) // transaction0 -> transaction1
+			.set_default_input(1)
+			.set_output(35)
+			.store(chain) // transaction2
+			.into_input(0)
+			.set_output(10)
+			.store(chain) // transaction2 -> transaction3
+			.into_input(0)
+			.set_output(100)
+			.store(chain); // transaction2 -> transaction3 -> transaction4
 
 		let mut pool = MemoryPool::new();
 
@@ -1181,10 +1311,18 @@ pub mod tests {
 	fn test_memory_pool_package_score_ordering_strategy_opposite_insert_order() {
 		let chain = &mut ChainBuilder::new();
 		// all transactions of same size
-		TransactionBuilder::with_default_input(0).set_output(17).store(chain)	// transaction0
-			.into_input(0).set_output(50).store(chain)							// transaction0 -> transaction1
-			.into_input(0).set_output(7).store(chain)							// transaction0 -> transaction1 -> transaction2
-			.set_default_input(1).set_output(20).store(chain);					// transaction3
+		TransactionBuilder::with_default_input(0)
+			.set_output(17)
+			.store(chain) // transaction0
+			.into_input(0)
+			.set_output(50)
+			.store(chain) // transaction0 -> transaction1
+			.into_input(0)
+			.set_output(7)
+			.store(chain) // transaction0 -> transaction1 -> transaction2
+			.set_default_input(1)
+			.set_output(20)
+			.store(chain); // transaction3
 
 		let mut pool = MemoryPool::new();
 
@@ -1209,14 +1347,44 @@ pub mod tests {
 		let chain = &mut ChainBuilder::new();
 		// all transactions of same size (=> 3 inputs)
 		// construct level0
-		TransactionBuilder::with_default_input(0).add_default_input(1).add_default_input(2).set_output(10).add_output(10).store(chain)		// transaction0
-			.set_default_input(3).add_default_input(4).add_default_input(5).set_output(20).add_output(20).store(chain)						// transaction1
-			.set_default_input(6).add_default_input(7).add_default_input(8).set_output(30).add_output(30).store(chain)						// transaction2
+		TransactionBuilder::with_default_input(0)
+			.add_default_input(1)
+			.add_default_input(2)
+			.set_output(10)
+			.add_output(10)
+			.store(chain) // transaction0
+			.set_default_input(3)
+			.add_default_input(4)
+			.add_default_input(5)
+			.set_output(20)
+			.add_output(20)
+			.store(chain) // transaction1
+			.set_default_input(6)
+			.add_default_input(7)
+			.add_default_input(8)
+			.set_output(30)
+			.add_output(30)
+			.store(chain) // transaction2
 			// construct level1
-			.set_default_input(9).add_default_input(10).add_input(&chain.at(0), 0).set_output(40).add_output(40).store(chain)				// transaction0 -> transaction3
-			.set_default_input(11).add_input(&chain.at(0), 1).add_input(&chain.at(1), 0).set_output(50).add_output(50).store(chain)			// transaction0 + transaction1 -> transaction4
+			.set_default_input(9)
+			.add_default_input(10)
+			.add_input(&chain.at(0), 0)
+			.set_output(40)
+			.add_output(40)
+			.store(chain) // transaction0 -> transaction3
+			.set_default_input(11)
+			.add_input(&chain.at(0), 1)
+			.add_input(&chain.at(1), 0)
+			.set_output(50)
+			.add_output(50)
+			.store(chain) // transaction0 + transaction1 -> transaction4
 			// construct level3
-			.set_input(&chain.at(2), 0).add_input(&chain.at(3), 0).add_input(&chain.at(4), 0).set_output(60).add_output(60).store(chain);	// transaction2 + transaction3 + transaction4 -> transaction5
+			.set_input(&chain.at(2), 0)
+			.add_input(&chain.at(3), 0)
+			.add_input(&chain.at(4), 0)
+			.set_output(60)
+			.add_output(60)
+			.store(chain); // transaction2 + transaction3 + transaction4 -> transaction5
 
 		let mut pool = MemoryPool::new();
 
@@ -1255,7 +1423,14 @@ pub mod tests {
 		// score({ transaction1, transaction3, transaction5 }) = (20 + 50 + 60) / (60 + 60 + 142) ~ 0.496
 		// score({ transaction2, transaction5 }) = (30 + 60) / (60 + 142) ~ 0.445
 		pool.insert_verified(chain.at(0).into(), &NonZeroFeeCalculator);
-		let expected = vec![chain.hash(2), chain.hash(1), chain.hash(0), chain.hash(4), chain.hash(3), chain.hash(5)];
+		let expected = vec![
+			chain.hash(2),
+			chain.hash(1),
+			chain.hash(0),
+			chain.hash(4),
+			chain.hash(3),
+			chain.hash(5),
+		];
 		assert_eq!(pool.read_n_with_strategy(6, OrderingStrategy::ByTransactionScore), expected);
 		assert_eq!(pool.read_n_with_strategy(6, OrderingStrategy::ByPackageScore), expected);
 	}
@@ -1266,34 +1441,83 @@ pub mod tests {
 
 		// all transactions of same size (=> 3 inputs)
 		// construct level0
-		TransactionBuilder::with_output(10).store(chain)				// transaction0
-			.set_output(20).store(chain)								// transaction1
-			.set_input(&chain.at(0), 0).add_output(30).store(chain);	// transaction0 -> transaction2
+		TransactionBuilder::with_output(10)
+			.store(chain) // transaction0
+			.set_output(20)
+			.store(chain) // transaction1
+			.set_input(&chain.at(0), 0)
+			.add_output(30)
+			.store(chain); // transaction0 -> transaction2
 
 		let mut pool = MemoryPool::new();
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(0), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(1), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(2), index: 0, }));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(0),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(1),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(2),
+			index: 0,
+		}));
 
 		pool.insert_verified(chain.at(0).into(), &NonZeroFeeCalculator);
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(0), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(1), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(2), index: 0, }));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(0),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(1),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(2),
+			index: 0,
+		}));
 
 		pool.insert_verified(chain.at(1).into(), &NonZeroFeeCalculator);
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(0), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(1), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(2), index: 0, }));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(0),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(1),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(2),
+			index: 0,
+		}));
 
 		pool.insert_verified(chain.at(2).into(), &NonZeroFeeCalculator);
-		assert!(pool.is_spent(&OutPoint { hash: chain.hash(0), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(1), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(2), index: 0, }));
+		assert!(pool.is_spent(&OutPoint {
+			hash: chain.hash(0),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(1),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(2),
+			index: 0,
+		}));
 
 		pool.remove_by_hash(&chain.at(2).hash());
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(0), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(1), index: 0, }));
-		assert!(!pool.is_spent(&OutPoint { hash: chain.hash(2), index: 0, }));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(0),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(1),
+			index: 0,
+		}));
+		assert!(!pool.is_spent(&OutPoint {
+			hash: chain.hash(2),
+			index: 0,
+		}));
 	}
 
 	#[test]
@@ -1302,10 +1526,17 @@ pub mod tests {
 
 		// all transactions of same size (=> 3 inputs)
 		// construct level0
-		TransactionBuilder::with_output(10).store(chain)	// transaction0
-			.into_input(0).add_output(20).store(chain)		// transaction0 -> transaction1
-			.into_input(0).add_output(30).store(chain)		// transaction0 -> transaction1 -> transaction2
-			.reset().add_output(40).store(chain);			// transaction3
+		TransactionBuilder::with_output(10)
+			.store(chain) // transaction0
+			.into_input(0)
+			.add_output(20)
+			.store(chain) // transaction0 -> transaction1
+			.into_input(0)
+			.add_output(30)
+			.store(chain) // transaction0 -> transaction1 -> transaction2
+			.reset()
+			.add_output(40)
+			.store(chain); // transaction3
 		let mut pool = MemoryPool::new();
 
 		pool.insert_verified(chain.at(0).into(), &NonZeroFeeCalculator);
@@ -1314,7 +1545,13 @@ pub mod tests {
 		pool.insert_verified(chain.at(3).into(), &NonZeroFeeCalculator);
 		assert_eq!(pool.information().transactions_count, 4);
 
-		assert_eq!(pool.remove_by_prevout(&OutPoint { hash: chain.hash(0), index: 0 }), Some(vec![chain.at(1).into(), chain.at(2).into()]));
+		assert_eq!(
+			pool.remove_by_prevout(&OutPoint {
+				hash: chain.hash(0),
+				index: 0
+			}),
+			Some(vec![chain.at(1).into(), chain.at(2).into()])
+		);
 		assert_eq!(pool.information().transactions_count, 2);
 	}
 
@@ -1322,13 +1559,35 @@ pub mod tests {
 	fn test_memory_pool_check_double_spend() {
 		let chain = &mut ChainBuilder::new();
 
-		TransactionBuilder::with_output(10).add_output(10).add_output(10).store(chain)	// t0
-			.reset().set_input(&chain.at(0), 0).add_output(20).lock().store(chain)		// nonfinal: t0[0] -> t1
-			.reset().set_input(&chain.at(1), 0).add_output(30).store(chain)				// dependent: t0[0] -> t1[0] -> t2
-			.reset().set_input(&chain.at(0), 0).add_output(40).store(chain)				// good replacement: t0[0] -> t3
-			.reset().set_input(&chain.at(0), 1).add_output(50).store(chain)				// final: t0[1] -> t4
-			.reset().set_input(&chain.at(0), 1).add_output(60).store(chain)				// bad replacement: t0[1] -> t5
-			.reset().set_input(&chain.at(0), 2).add_output(70).store(chain);			// no double spend: t0[2] -> t6
+		TransactionBuilder::with_output(10)
+			.add_output(10)
+			.add_output(10)
+			.store(chain) // t0
+			.reset()
+			.set_input(&chain.at(0), 0)
+			.add_output(20)
+			.lock()
+			.store(chain) // nonfinal: t0[0] -> t1
+			.reset()
+			.set_input(&chain.at(1), 0)
+			.add_output(30)
+			.store(chain) // dependent: t0[0] -> t1[0] -> t2
+			.reset()
+			.set_input(&chain.at(0), 0)
+			.add_output(40)
+			.store(chain) // good replacement: t0[0] -> t3
+			.reset()
+			.set_input(&chain.at(0), 1)
+			.add_output(50)
+			.store(chain) // final: t0[1] -> t4
+			.reset()
+			.set_input(&chain.at(0), 1)
+			.add_output(60)
+			.store(chain) // bad replacement: t0[1] -> t5
+			.reset()
+			.set_input(&chain.at(0), 2)
+			.add_output(70)
+			.store(chain); // no double spend: t0[2] -> t6
 
 		let mut pool = MemoryPool::new();
 		pool.insert_verified(chain.at(1).into(), &NonZeroFeeCalculator);
@@ -1340,15 +1599,21 @@ pub mod tests {
 				assert_eq!(set.double_spends.len(), 1);
 				assert!(set.double_spends.contains(&chain.at(1).inputs[0].previous_output.clone().into()));
 				assert_eq!(set.dependent_spends.len(), 2);
-				assert!(set.dependent_spends.contains(&OutPoint {
-					hash: chain.at(1).hash(),
-					index: 0,
-				}.into()));
-				assert!(set.dependent_spends.contains(&OutPoint {
-					hash: chain.at(2).hash(),
-					index: 0,
-				}.into()));
-			},
+				assert!(set.dependent_spends.contains(
+					&OutPoint {
+						hash: chain.at(1).hash(),
+						index: 0,
+					}
+					.into()
+				));
+				assert!(set.dependent_spends.contains(
+					&OutPoint {
+						hash: chain.at(2).hash(),
+						index: 0,
+					}
+					.into()
+				));
+			}
 			_ => panic!("unexpected"),
 		}
 		// when output is spent by final transaction
@@ -1357,7 +1622,7 @@ pub mod tests {
 				assert_eq!(inpool_hash, chain.at(4).hash());
 				assert_eq!(prev_hash, chain.at(0).hash());
 				assert_eq!(prev_index, 1);
-			},
+			}
 			_ => panic!("unexpected"),
 		}
 		// when output is not spent at all
@@ -1371,9 +1636,19 @@ pub mod tests {
 	fn test_memory_pool_check_double_spend_multiple_dependent_outputs() {
 		let chain = &mut ChainBuilder::new();
 
-		TransactionBuilder::with_output(100).store(chain)															// t0
-			.reset().set_input(&chain.at(0), 0).add_output(20).add_output(30).add_output(50).lock().store(chain)	// nonfinal: t0[0] -> t1
-			.reset().set_input(&chain.at(0), 0).add_output(40).store(chain);										// good replacement: t0[0] -> t2
+		TransactionBuilder::with_output(100)
+			.store(chain) // t0
+			.reset()
+			.set_input(&chain.at(0), 0)
+			.add_output(20)
+			.add_output(30)
+			.add_output(50)
+			.lock()
+			.store(chain) // nonfinal: t0[0] -> t1
+			.reset()
+			.set_input(&chain.at(0), 0)
+			.add_output(40)
+			.store(chain); // good replacement: t0[0] -> t2
 
 		let mut pool = MemoryPool::new();
 		pool.insert_verified(chain.at(1).into(), &NonZeroFeeCalculator);
@@ -1384,22 +1659,30 @@ pub mod tests {
 				assert_eq!(set.double_spends.len(), 1);
 				assert!(set.double_spends.contains(&chain.at(1).inputs[0].previous_output.clone().into()));
 				assert_eq!(set.dependent_spends.len(), 3);
-				assert!(set.dependent_spends.contains(&OutPoint {
-					hash: chain.at(1).hash(),
-					index: 0,
-				}.into()));
-				assert!(set.dependent_spends.contains(&OutPoint {
-					hash: chain.at(1).hash(),
-					index: 1,
-				}.into()));
-				assert!(set.dependent_spends.contains(&OutPoint {
-					hash: chain.at(1).hash(),
-					index: 2,
-				}.into()));
-			},
+				assert!(set.dependent_spends.contains(
+					&OutPoint {
+						hash: chain.at(1).hash(),
+						index: 0,
+					}
+					.into()
+				));
+				assert!(set.dependent_spends.contains(
+					&OutPoint {
+						hash: chain.at(1).hash(),
+						index: 1,
+					}
+					.into()
+				));
+				assert!(set.dependent_spends.contains(
+					&OutPoint {
+						hash: chain.at(1).hash(),
+						index: 2,
+					}
+					.into()
+				));
+			}
 			_ => panic!("unexpected"),
 		}
-
 	}
 
 	#[test]

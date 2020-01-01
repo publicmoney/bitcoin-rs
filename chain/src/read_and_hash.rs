@@ -1,7 +1,7 @@
-use std::io;
-use hash::H256;
 use crypto::{DHash256, Digest};
-use ser::{Reader, Error as ReaderError, Deserializable};
+use hash::H256;
+use ser::{Deserializable, Error as ReaderError, Reader};
+use std::io;
 
 pub struct HashedData<T> {
 	pub size: usize,
@@ -10,11 +10,19 @@ pub struct HashedData<T> {
 }
 
 pub trait ReadAndHash {
-	fn read_and_hash<T>(&mut self) -> Result<HashedData<T>, ReaderError> where T: Deserializable;
+	fn read_and_hash<T>(&mut self) -> Result<HashedData<T>, ReaderError>
+	where
+		T: Deserializable;
 }
 
-impl<R> ReadAndHash for Reader<R> where R: io::Read {
-	fn read_and_hash<T>(&mut self) -> Result<HashedData<T>, ReaderError> where T: Deserializable {
+impl<R> ReadAndHash for Reader<R>
+where
+	R: io::Read,
+{
+	fn read_and_hash<T>(&mut self) -> Result<HashedData<T>, ReaderError>
+	where
+		T: Deserializable,
+	{
 		let mut size = 0usize;
 		let mut hasher = DHash256::new();
 		let data = self.read_with_proxy(|bytes| {
@@ -24,8 +32,8 @@ impl<R> ReadAndHash for Reader<R> where R: io::Read {
 
 		let result = HashedData {
 			hash: hasher.finish(),
-			data: data,
-			size: size,
+			data,
+			size,
 		};
 
 		Ok(result)

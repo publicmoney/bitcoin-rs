@@ -1,19 +1,13 @@
-use keys::{Public, Signature, Message};
 use chain::constants::{
-	SEQUENCE_FINAL, SEQUENCE_LOCKTIME_DISABLE_FLAG,
-	SEQUENCE_LOCKTIME_MASK, SEQUENCE_LOCKTIME_TYPE_FLAG, LOCKTIME_THRESHOLD
+	LOCKTIME_THRESHOLD, SEQUENCE_FINAL, SEQUENCE_LOCKTIME_DISABLE_FLAG, SEQUENCE_LOCKTIME_MASK, SEQUENCE_LOCKTIME_TYPE_FLAG,
 };
+use keys::{Message, Public, Signature};
 use sign::SignatureVersion;
-use {Script, TransactionInputSigner, Num};
+use {Num, Script, TransactionInputSigner};
 
 /// Checks transaction signature
 pub trait SignatureChecker {
-	fn verify_signature(
-		&self,
-		signature: &Signature,
-		public: &Public,
-		hash: &Message,
-	) -> bool;
+	fn verify_signature(&self, signature: &Signature, public: &Public, hash: &Message) -> bool;
 
 	fn check_signature(
 		&self,
@@ -21,7 +15,7 @@ pub trait SignatureChecker {
 		public: &Public,
 		script_code: &Script,
 		sighashtype: u32,
-		version: SignatureVersion
+		version: SignatureVersion,
 	) -> bool;
 
 	fn check_lock_time(&self, lock_time: Num) -> bool;
@@ -57,12 +51,7 @@ pub struct TransactionSignatureChecker {
 }
 
 impl SignatureChecker for TransactionSignatureChecker {
-	fn verify_signature(
-		&self,
-		signature: &Signature,
-		public: &Public,
-		hash: &Message,
-	) -> bool {
+	fn verify_signature(&self, signature: &Signature, public: &Public, hash: &Message) -> bool {
 		public.verify(hash, signature).unwrap_or(false)
 	}
 
@@ -72,9 +61,11 @@ impl SignatureChecker for TransactionSignatureChecker {
 		public: &Public,
 		script_code: &Script,
 		sighashtype: u32,
-		version: SignatureVersion
+		version: SignatureVersion,
 	) -> bool {
-		let hash = self.signer.signature_hash(self.input_index, self.input_amount, script_code, version, sighashtype);
+		let hash = self
+			.signer
+			.signature_hash(self.input_index, self.input_amount, script_code, version, sighashtype);
 		self.verify_signature(signature, public, &hash)
 	}
 
@@ -87,10 +78,9 @@ impl SignatureChecker for TransactionSignatureChecker {
 		// unless the type of nLockTime being tested is the same as
 		// the nLockTime in the transaction.
 		let lock_time_u32: u32 = lock_time.into();
-		if !(
-			(self.signer.lock_time < LOCKTIME_THRESHOLD && lock_time_u32 < LOCKTIME_THRESHOLD) ||
-			(self.signer.lock_time >= LOCKTIME_THRESHOLD && lock_time_u32 >= LOCKTIME_THRESHOLD)
-		) {
+		if !((self.signer.lock_time < LOCKTIME_THRESHOLD && lock_time_u32 < LOCKTIME_THRESHOLD)
+			|| (self.signer.lock_time >= LOCKTIME_THRESHOLD && lock_time_u32 >= LOCKTIME_THRESHOLD))
+		{
 			return false;
 		}
 
@@ -145,10 +135,9 @@ impl SignatureChecker for TransactionSignatureChecker {
 		// We want to compare apples to apples, so fail the script
 		// unless the type of nSequenceMasked being tested is the same as
 		// the nSequenceMasked in the transaction.
-		if !(
-			(to_sequence_masked < SEQUENCE_LOCKTIME_TYPE_FLAG as i64 && sequence_masked < SEQUENCE_LOCKTIME_TYPE_FLAG as i64) ||
-			(to_sequence_masked >= SEQUENCE_LOCKTIME_TYPE_FLAG as i64 && sequence_masked >= SEQUENCE_LOCKTIME_TYPE_FLAG as i64)
-		) {
+		if !((to_sequence_masked < SEQUENCE_LOCKTIME_TYPE_FLAG as i64 && sequence_masked < SEQUENCE_LOCKTIME_TYPE_FLAG as i64)
+			|| (to_sequence_masked >= SEQUENCE_LOCKTIME_TYPE_FLAG as i64 && sequence_masked >= SEQUENCE_LOCKTIME_TYPE_FLAG as i64))
+		{
 			return false;
 		}
 

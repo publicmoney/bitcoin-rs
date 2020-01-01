@@ -157,18 +157,13 @@ impl ConfigurableSynchronizer {
 	/// from last_processed response will still be granted permissions.
 	pub fn change_sync_policy(&mut self, sync: bool) {
 		let new_inner = match self.inner {
-			InnerSynchronizer::Threshold(ref s) if !sync => {
-				InnerSynchronizer::Noop(NoopSynchronizer {
-					declared_responses: s.inner.declared_responses,
-				})
-			},
+			InnerSynchronizer::Threshold(ref s) if !sync => InnerSynchronizer::Noop(NoopSynchronizer {
+				declared_responses: s.inner.declared_responses,
+			}),
 			InnerSynchronizer::Noop(ref s) if sync => {
-				let threshold  = ThresholdSynchronizer::new(
-					s.declared_responses,
-					CONFIGURABLE_SYNCHRONIZER_THRESHOLD,
-				);
+				let threshold = ThresholdSynchronizer::new(s.declared_responses, CONFIGURABLE_SYNCHRONIZER_THRESHOLD);
 				InnerSynchronizer::Threshold(threshold)
-			},
+			}
 			_ => return (),
 		};
 
@@ -201,9 +196,7 @@ impl Synchronizer for ConfigurableSynchronizer {
 
 #[cfg(test)]
 mod tests {
-	use super::{
-		Synchronizer, FifoSynchronizer, NoopSynchronizer, ConfigurableSynchronizer, ThresholdSynchronizer
-	};
+	use super::{ConfigurableSynchronizer, FifoSynchronizer, NoopSynchronizer, Synchronizer, ThresholdSynchronizer};
 
 	#[test]
 	fn test_fifo_synchronizer() {
@@ -272,7 +265,6 @@ mod tests {
 		assert!(s.permission_for_response(id1));
 		assert!(s.permission_for_response(id2));
 		assert!(s.permission_for_response(id0));
-
 
 		let d0 = s.declare_response();
 		let d1 = s.declare_response();

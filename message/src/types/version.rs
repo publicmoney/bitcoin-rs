@@ -1,12 +1,9 @@
-use std::io;
 use bytes::Bytes;
-use ser::{
-	Serializable, Stream,
-	Deserializable, Reader, Error as ReaderError,
-};
 use common::{NetAddress, Services};
-use {Payload, MessageResult};
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use serialization::deserialize_payload;
+use std::io;
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Version {
@@ -31,7 +28,10 @@ impl Payload for Version {
 	}
 
 	// version package is an serialization excpetion
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let simple: V0 = reader.read()?;
 
 		if simple.version < 106 {
@@ -51,18 +51,13 @@ impl Payload for Version {
 		match *self {
 			Version::V0(ref simple) => {
 				stream.append(simple);
-			},
+			}
 			Version::V106(ref simple, ref v106) => {
-				stream
-					.append(simple)
-					.append(v106);
-			},
+				stream.append(simple).append(v106);
+			}
 			Version::V70001(ref simple, ref v106, ref v70001) => {
-				stream
-					.append(simple)
-					.append(v106)
-					.append(v70001);
-			},
+				stream.append(simple).append(v106).append(v70001);
+			}
 		}
 		Ok(())
 	}
@@ -71,25 +66,20 @@ impl Payload for Version {
 impl Version {
 	pub fn version(&self) -> u32 {
 		match *self {
-			Version::V0(ref s) |
-			Version::V106(ref s, _) |
-			Version::V70001(ref s, _, _) => s.version,
+			Version::V0(ref s) | Version::V106(ref s, _) | Version::V70001(ref s, _, _) => s.version,
 		}
 	}
 
 	pub fn nonce(&self) -> Option<u64> {
 		match *self {
 			Version::V0(_) => None,
-			Version::V106(_, ref v) |
-			Version::V70001(_, ref v, _) => Some(v.nonce),
+			Version::V106(_, ref v) | Version::V70001(_, ref v, _) => Some(v.nonce),
 		}
 	}
 
 	pub fn services(&self) -> Services {
 		match *self {
-			Version::V0(ref s) |
-			Version::V106(ref s, _) |
-			Version::V70001(ref s, _, _) => s.services,
+			Version::V0(ref s) | Version::V106(ref s, _) | Version::V70001(ref s, _, _) => s.services,
 		}
 	}
 
@@ -104,8 +94,7 @@ impl Version {
 	pub fn user_agent(&self) -> Option<String> {
 		match *self {
 			Version::V0(_) => None,
-			Version::V106(_, ref v) |
-			Version::V70001(_, ref v, _) => Some(v.user_agent.clone()),
+			Version::V106(_, ref v) | Version::V70001(_, ref v, _) => Some(v.user_agent.clone()),
 		}
 	}
 }
@@ -142,7 +131,10 @@ impl Serializable for V0 {
 }
 
 impl Deserializable for V0 {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let result = V0 {
 			version: reader.read()?,
 			services: reader.read()?,
@@ -165,7 +157,10 @@ impl Serializable for V106 {
 }
 
 impl Deserializable for V106 {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let result = V106 {
 			from: reader.read()?,
 			nonce: reader.read()?,
@@ -184,10 +179,11 @@ impl Serializable for V70001 {
 }
 
 impl Deserializable for V70001 {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
-		let result = V70001 {
-			relay: reader.read()?,
-		};
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
+		let result = V70001 { relay: reader.read()? };
 
 		Ok(result)
 	}
@@ -202,25 +198,28 @@ impl From<&'static str> for Version {
 
 #[cfg(test)]
 mod test {
-	use bytes::Bytes;
-	use serialization::{serialize_payload, deserialize_payload};
 	use super::{Version, V0, V106};
+	use bytes::Bytes;
+	use serialization::{deserialize_payload, serialize_payload};
 
 	#[test]
 	fn test_version_serialize() {
 		let expected: Bytes = "9c7c00000100000000000000e615104d00000000010000000000000000000000000000000000ffff0a000001208d010000000000000000000000000000000000ffff0a000002208ddd9d202c3ab457130055810100".into();
 
-		let version = Version::V106(V0 {
-			version: 31900,
-			services: 1u64.into(),
-			timestamp: 0x4d1015e6,
-			receiver: "010000000000000000000000000000000000ffff0a000001208d".into(),
-		}, V106 {
-			from: "010000000000000000000000000000000000ffff0a000002208d".into(),
-			nonce: 0x1357b43a2c209ddd,
-			user_agent: "".into(),
-			start_height: 98645,
-		});
+		let version = Version::V106(
+			V0 {
+				version: 31900,
+				services: 1u64.into(),
+				timestamp: 0x4d1015e6,
+				receiver: "010000000000000000000000000000000000ffff0a000001208d".into(),
+			},
+			V106 {
+				from: "010000000000000000000000000000000000ffff0a000002208d".into(),
+				nonce: 0x1357b43a2c209ddd,
+				user_agent: "".into(),
+				start_height: 98645,
+			},
+		);
 
 		assert_eq!(serialize_payload(&version, 0), Ok(expected));
 	}
@@ -229,17 +228,20 @@ mod test {
 	fn test_version_deserialize() {
 		let raw: Bytes = "9c7c00000100000000000000e615104d00000000010000000000000000000000000000000000ffff0a000001208d010000000000000000000000000000000000ffff0a000002208ddd9d202c3ab457130055810100".into();
 
-		let expected = Version::V106(V0 {
-			version: 31900,
-			services: 1u64.into(),
-			timestamp: 0x4d1015e6,
-			receiver: "010000000000000000000000000000000000ffff0a000001208d".into(),
-		}, V106 {
-			from: "010000000000000000000000000000000000ffff0a000002208d".into(),
-			nonce: 0x1357b43a2c209ddd,
-			user_agent: "".into(),
-			start_height: 98645,
-		});
+		let expected = Version::V106(
+			V0 {
+				version: 31900,
+				services: 1u64.into(),
+				timestamp: 0x4d1015e6,
+				receiver: "010000000000000000000000000000000000ffff0a000001208d".into(),
+			},
+			V106 {
+				from: "010000000000000000000000000000000000ffff0a000002208d".into(),
+				nonce: 0x1357b43a2c209ddd,
+				user_agent: "".into(),
+				start_height: 98645,
+			},
+		);
 
 		assert_eq!(expected, deserialize_payload(&raw, 0).unwrap());
 	}

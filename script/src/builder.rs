@@ -1,8 +1,8 @@
 //! Script builder
 
 use bytes::Bytes;
-use {Opcode, Script, Num};
 use keys::AddressHash;
+use {Num, Opcode, Script};
 
 /// Script builder
 #[derive(Default)]
@@ -33,10 +33,7 @@ impl Builder {
 
 	/// Builds op_return script
 	pub fn build_nulldata(bytes: &[u8]) -> Script {
-		Builder::default()
-			.push_opcode(Opcode::OP_RETURN)
-			.push_bytes(bytes)
-			.into_script()
+		Builder::default().push_opcode(Opcode::OP_RETURN).push_bytes(bytes).into_script()
 	}
 
 	/// Pushes opcode to the end of script

@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use chain::IndexedBlockHeader;
+use std::sync::Arc;
 use {
-	BestBlock, BlockProvider, BlockHeaderProvider, TransactionProvider, TransactionMetaProvider,
-	TransactionOutputProvider, BlockChain, Forkable, Error,
+	BestBlock, BlockChain, BlockHeaderProvider, BlockProvider, Error, Forkable, TransactionMetaProvider, TransactionOutputProvider,
+	TransactionProvider,
 };
 
 pub trait CanonStore: Store + Forkable + ConfigStore {
@@ -43,7 +43,10 @@ pub trait AsSubstore: BlockChain + BlockProvider + TransactionProvider + Transac
 	fn as_transaction_meta_provider(&self) -> &dyn TransactionMetaProvider;
 }
 
-impl<T> AsSubstore for T where T: BlockChain + BlockProvider + TransactionProvider + TransactionMetaProvider + TransactionOutputProvider {
+impl<T> AsSubstore for T
+where
+	T: BlockChain + BlockProvider + TransactionProvider + TransactionMetaProvider + TransactionOutputProvider,
+{
 	fn as_block_provider(&self) -> &dyn BlockProvider {
 		&*self
 	}

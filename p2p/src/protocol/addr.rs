@@ -1,10 +1,10 @@
+use bytes::Bytes;
+use message::types::{Addr, GetAddr};
+use message::{deserialize_payload, Command, Error, Payload};
+use net::PeerContext;
+use protocol::Protocol;
 use std::sync::Arc;
 use std::time::Duration;
-use bytes::Bytes;
-use message::{Error, Command, deserialize_payload, Payload};
-use message::types::{GetAddr, Addr};
-use protocol::Protocol;
-use net::PeerContext;
 use util::Direction;
 
 pub struct AddrProtocol {
@@ -17,8 +17,8 @@ pub struct AddrProtocol {
 impl AddrProtocol {
 	pub fn new(context: Arc<PeerContext>, is_seed_node_connection: bool) -> Self {
 		AddrProtocol {
-			context: context,
-			is_seed_node_connection: is_seed_node_connection,
+			context,
+			is_seed_node_connection,
 		}
 	}
 }
@@ -43,7 +43,7 @@ impl Protocol for AddrProtocol {
 			match addr {
 				Addr::V0(_) => {
 					unreachable!("This version of protocol is not supported!");
-				},
+				}
 				Addr::V31402(addr) => {
 					let nodes_len = addr.addresses.len();
 					self.context.global().update_node_table(addr.addresses);
@@ -53,7 +53,7 @@ impl Protocol for AddrProtocol {
 					if self.is_seed_node_connection && nodes_len > 1 {
 						self.context.close();
 					}
-				},
+				}
 			}
 		}
 		Ok(())
@@ -70,7 +70,7 @@ pub struct SeednodeProtocol {
 impl SeednodeProtocol {
 	pub fn new(context: Arc<PeerContext>) -> Self {
 		SeednodeProtocol {
-			context: context,
+			context,
 			disconnecting: false,
 		}
 	}

@@ -1,6 +1,6 @@
-use tokio_io::io::{write_all, WriteAll};
+use io::{read_any_message, ReadAnyMessage, SharedTcpStream};
 use session::Session;
-use io::{SharedTcpStream, read_any_message, ReadAnyMessage};
+use tokio_io::io::{write_all, WriteAll};
 use util::PeerInfo;
 
 pub struct Channel {
@@ -12,13 +12,16 @@ pub struct Channel {
 impl Channel {
 	pub fn new(stream: SharedTcpStream, peer_info: PeerInfo, session: Session) -> Self {
 		Channel {
-			stream: stream,
-			peer_info: peer_info,
-			session: session,
+			stream,
+			peer_info,
+			session,
 		}
 	}
 
-	pub fn write_message<T>(&self, message: T) -> WriteAll<SharedTcpStream, T> where T: AsRef<[u8]> {
+	pub fn write_message<T>(&self, message: T) -> WriteAll<SharedTcpStream, T>
+	where
+		T: AsRef<[u8]>,
+	{
 		write_all(self.stream.clone(), message)
 	}
 

@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use super::{HashPosition, HashQueue};
 use chain::IndexedBlockHeader;
 use primitives::hash::H256;
-use super::{HashQueue, HashPosition};
+use std::collections::HashMap;
 
 /// Best headers chain information
 #[derive(Debug)]
@@ -28,7 +28,7 @@ impl BestHeadersChain {
 	/// Create new best headers chain
 	pub fn new(storage_best_hash: H256) -> Self {
 		BestHeadersChain {
-			storage_best_hash: storage_best_hash,
+			storage_best_hash,
 			headers: HashMap::new(),
 			best: HashQueue::new(),
 		}
@@ -44,8 +44,7 @@ impl BestHeadersChain {
 
 	/// Get header from main chain at given position
 	pub fn at(&self, height: u32) -> Option<IndexedBlockHeader> {
-		self.best.at(height)
-			.and_then(|hash| self.headers.get(&hash).cloned())
+		self.best.at(height).and_then(|hash| self.headers.get(&hash).cloned())
 	}
 
 	/// Get geader by given hash
@@ -60,7 +59,8 @@ impl BestHeadersChain {
 
 	/// Get all direct child blocks hashes of given block hash
 	pub fn children(&self, hash: &H256) -> Vec<H256> {
-		self.best.position(hash)
+		self.best
+			.position(hash)
 			.and_then(|pos| self.best.at(pos + 1))
 			.and_then(|child| Some(vec![child]))
 			.unwrap_or_default()
@@ -68,7 +68,8 @@ impl BestHeadersChain {
 
 	/// Get hash of best block
 	pub fn best_block_hash(&self) -> H256 {
-		self.best.back()
+		self.best
+			.back()
 			.or_else(|| Some(self.storage_best_hash.clone()))
 			.expect("storage_best_hash is always known")
 	}
@@ -103,7 +104,7 @@ impl BestHeadersChain {
 	}
 
 	/// Remove blocks headers with given hash and all its children
-	pub fn remove_n<I: IntoIterator<Item=H256>> (&mut self, hashes: I) {
+	pub fn remove_n<I: IntoIterator<Item = H256>>(&mut self, hashes: I) {
 		for hash in hashes {
 			self.remove(&hash);
 		}
@@ -140,8 +141,8 @@ impl BestHeadersChain {
 mod tests {
 	extern crate test_data;
 
-	use primitives::hash::H256;
 	use super::BestHeadersChain;
+	use primitives::hash::H256;
 
 	#[test]
 	fn best_chain_empty() {

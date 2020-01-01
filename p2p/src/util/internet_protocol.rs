@@ -1,4 +1,4 @@
-use std::{str, net};
+use std::{net, str};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum InternetProtocol {
@@ -36,7 +36,7 @@ impl InternetProtocol {
 			InternetProtocol::IpV6 => match *addr {
 				net::SocketAddr::V6(_) => true,
 				_ => false,
-			}
+			},
 		}
 	}
 }

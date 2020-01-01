@@ -1,6 +1,6 @@
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
-pub trait Interval : Default {
+pub trait Interval: Default {
 	fn now(&self) -> Instant {
 		Instant::now()
 	}
@@ -13,7 +13,7 @@ pub trait Interval : Default {
 #[derive(Default)]
 pub struct RealInterval;
 
-impl Interval for RealInterval { }
+impl Interval for RealInterval {}
 
 #[derive(Default)]
 #[cfg(test)]
@@ -24,7 +24,7 @@ pub struct FixedIntervalSpawner {
 #[cfg(test)]
 impl FixedIntervalSpawner {
 	pub fn new(step_millis: u64) -> Self {
-		FixedIntervalSpawner { step_millis : step_millis }
+		FixedIntervalSpawner { step_millis }
 	}
 }
 

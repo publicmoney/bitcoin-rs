@@ -1,11 +1,11 @@
-use std::fmt;
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::ser::SerializeMap;
-use keys::Address;
-use v1::types;
 use super::bytes::Bytes;
 use super::hash::H256;
 use super::script::ScriptType;
+use keys::Address;
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt;
+use v1::types;
 
 /// Hex-encoded transaction
 pub type RawTransaction = Bytes;
@@ -154,7 +154,10 @@ pub enum GetRawTransactionResponse {
 }
 
 impl Serialize for GetRawTransactionResponse {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
 		match *self {
 			GetRawTransactionResponse::Raw(ref raw_transaction) => raw_transaction.serialize(serializer),
 			GetRawTransactionResponse::Verbose(ref verbose_transaction) => verbose_transaction.serialize(serializer),
@@ -169,16 +172,19 @@ impl TransactionOutputs {
 }
 
 impl Serialize for TransactionOutputs {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
 		let mut state = serializer.serialize_map(Some(self.len()))?;
 		for output in &self.outputs {
 			match output {
 				&TransactionOutput::Address(ref address_output) => {
 					state.serialize_entry(&address_output.address.to_string(), &address_output.amount)?;
-				},
+				}
 				&TransactionOutput::ScriptData(ref script_output) => {
 					state.serialize_entry("data", &script_output.script_data)?;
-				},
+				}
 			}
 		}
 		state.end()
@@ -186,8 +192,11 @@ impl Serialize for TransactionOutputs {
 }
 
 impl<'a> Deserialize<'a> for TransactionOutputs {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
-		use serde::de::{Visitor, MapAccess};
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'a>,
+	{
+		use serde::de::{MapAccess, Visitor};
 
 		struct TransactionOutputsVisitor;
 
@@ -198,7 +207,10 @@ impl<'a> Deserialize<'a> for TransactionOutputs {
 				formatter.write_str("a transaction output object")
 			}
 
-			fn visit_map<V>(self, mut visitor: V) -> Result<TransactionOutputs, V::Error> where V: MapAccess<'b> {
+			fn visit_map<V>(self, mut visitor: V) -> Result<TransactionOutputs, V::Error>
+			where
+				V: MapAccess<'b>,
+			{
 				let mut outputs: Vec<TransactionOutput> = Vec::with_capacity(visitor.size_hint().unwrap_or(0));
 
 				while let Some(key) = visitor.next_key::<String>()? {
@@ -210,16 +222,11 @@ impl<'a> Deserialize<'a> for TransactionOutputs {
 					} else {
 						let address = types::address::AddressVisitor::default().visit_str(&key)?;
 						let amount: f64 = visitor.next_value()?;
-						outputs.push(TransactionOutput::Address(TransactionOutputWithAddress {
-							address: address,
-							amount: amount,
-						}));
+						outputs.push(TransactionOutput::Address(TransactionOutputWithAddress { address, amount }));
 					}
 				}
 
-				Ok(TransactionOutputs {
-					outputs: outputs,
-				})
+				Ok(TransactionOutputs { outputs })
 			}
 		}
 
@@ -229,11 +236,11 @@ impl<'a> Deserialize<'a> for TransactionOutputs {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
 	use super::super::bytes::Bytes;
 	use super::super::hash::H256;
 	use super::super::script::ScriptType;
 	use super::*;
+	use serde_json;
 
 	#[test]
 	fn transaction_input_serialize() {
@@ -242,7 +249,10 @@ mod tests {
 			vout: 33,
 			sequence: Some(88),
 		};
-		assert_eq!(serde_json::to_string(&txinput).unwrap(), r#"{"txid":"0700000000000000000000000000000000000000000000000000000000000000","vout":33,"sequence":88}"#);
+		assert_eq!(
+			serde_json::to_string(&txinput).unwrap(),
+			r#"{"txid":"0700000000000000000000000000000000000000000000000000000000000000","vout":33,"sequence":88}"#
+		);
 	}
 
 	#[test]
@@ -254,8 +264,12 @@ mod tests {
 		};
 
 		assert_eq!(
-			serde_json::from_str::<TransactionInput>(r#"{"txid":"0700000000000000000000000000000000000000000000000000000000000000","vout":33,"sequence":88}"#).unwrap(),
-			txinput);
+			serde_json::from_str::<TransactionInput>(
+				r#"{"txid":"0700000000000000000000000000000000000000000000000000000000000000","vout":33,"sequence":88}"#
+			)
+			.unwrap(),
+			txinput
+		);
 	}
 
 	#[test]
@@ -276,9 +290,12 @@ mod tests {
 				TransactionOutput::ScriptData(TransactionOutputWithScriptData {
 					script_data: Bytes::new(vec![5, 6, 7, 8]),
 				}),
-			]
+			],
 		};
-		assert_eq!(serde_json::to_string(&txout).unwrap(), r#"{"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa":123.45,"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC":67.89,"data":"01020304","data":"05060708"}"#);
+		assert_eq!(
+			serde_json::to_string(&txout).unwrap(),
+			r#"{"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa":123.45,"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC":67.89,"data":"01020304","data":"05060708"}"#
+		);
 	}
 
 	#[test]
@@ -299,11 +316,15 @@ mod tests {
 				TransactionOutput::ScriptData(TransactionOutputWithScriptData {
 					script_data: Bytes::new(vec![5, 6, 7, 8]),
 				}),
-			]
+			],
 		};
 		assert_eq!(
-			serde_json::from_str::<TransactionOutputs>(r#"{"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa":123.45,"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC":67.89,"data":"01020304","data":"05060708"}"#).unwrap(),
-			txout);
+			serde_json::from_str::<TransactionOutputs>(
+				r#"{"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa":123.45,"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC":67.89,"data":"01020304","data":"05060708"}"#
+			)
+			.unwrap(),
+			txout
+		);
 	}
 
 	#[test]
@@ -312,7 +333,10 @@ mod tests {
 			asm: "Hello, world!!!".to_owned(),
 			hex: Bytes::new(vec![1, 2, 3, 4]),
 		};
-		assert_eq!(serde_json::to_string(&txin).unwrap(), r#"{"asm":"Hello, world!!!","hex":"01020304"}"#);
+		assert_eq!(
+			serde_json::to_string(&txin).unwrap(),
+			r#"{"asm":"Hello, world!!!","hex":"01020304"}"#
+		);
 	}
 
 	#[test]
@@ -323,7 +347,8 @@ mod tests {
 		};
 		assert_eq!(
 			serde_json::from_str::<TransactionInputScript>(r#"{"asm":"Hello, world!!!","hex":"01020304"}"#).unwrap(),
-			txin);
+			txin
+		);
 	}
 
 	#[test]
@@ -333,9 +358,15 @@ mod tests {
 			hex: Bytes::new(vec![1, 2, 3, 4]),
 			req_sigs: 777,
 			script_type: ScriptType::Multisig,
-			addresses: vec!["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(), "1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into()],
+			addresses: vec![
+				"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(),
+				"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into(),
+			],
 		};
-		assert_eq!(serde_json::to_string(&txout).unwrap(), r#"{"asm":"Hello, world!!!","hex":"01020304","reqSigs":777,"type":"multisig","addresses":["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa","1H5m1XzvHsjWX3wwU781ubctznEpNACrNC"]}"#);
+		assert_eq!(
+			serde_json::to_string(&txout).unwrap(),
+			r#"{"asm":"Hello, world!!!","hex":"01020304","reqSigs":777,"type":"multisig","addresses":["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa","1H5m1XzvHsjWX3wwU781ubctznEpNACrNC"]}"#
+		);
 	}
 
 	#[test]
@@ -345,7 +376,10 @@ mod tests {
 			hex: Bytes::new(vec![1, 2, 3, 4]),
 			req_sigs: 777,
 			script_type: ScriptType::Multisig,
-			addresses: vec!["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(), "1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into()],
+			addresses: vec![
+				"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(),
+				"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into(),
+			],
 		};
 
 		assert_eq!(
@@ -365,7 +399,10 @@ mod tests {
 			sequence: 123,
 			txinwitness: None,
 		};
-		assert_eq!(serde_json::to_string(&txin).unwrap(), r#"{"txid":"4d00000000000000000000000000000000000000000000000000000000000000","vout":13,"script_sig":{"asm":"Hello, world!!!","hex":"01020304"},"sequence":123}"#);
+		assert_eq!(
+			serde_json::to_string(&txin).unwrap(),
+			r#"{"txid":"4d00000000000000000000000000000000000000000000000000000000000000","vout":13,"script_sig":{"asm":"Hello, world!!!","hex":"01020304"},"sequence":123}"#
+		);
 	}
 
 	#[test]
@@ -395,10 +432,16 @@ mod tests {
 				hex: Bytes::new(vec![1, 2, 3, 4]),
 				req_sigs: 777,
 				script_type: ScriptType::Multisig,
-				addresses: vec!["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(), "1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into()],
+				addresses: vec![
+					"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(),
+					"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into(),
+				],
 			},
 		};
-		assert_eq!(serde_json::to_string(&txout).unwrap(), r#"{"value":777.79,"n":12,"scriptPubKey":{"asm":"Hello, world!!!","hex":"01020304","reqSigs":777,"type":"multisig","addresses":["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa","1H5m1XzvHsjWX3wwU781ubctznEpNACrNC"]}}"#);
+		assert_eq!(
+			serde_json::to_string(&txout).unwrap(),
+			r#"{"value":777.79,"n":12,"scriptPubKey":{"asm":"Hello, world!!!","hex":"01020304","reqSigs":777,"type":"multisig","addresses":["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa","1H5m1XzvHsjWX3wwU781ubctznEpNACrNC"]}}"#
+		);
 	}
 
 	#[test]
@@ -411,7 +454,10 @@ mod tests {
 				hex: Bytes::new(vec![1, 2, 3, 4]),
 				req_sigs: 777,
 				script_type: ScriptType::Multisig,
-				addresses: vec!["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(), "1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into()],
+				addresses: vec![
+					"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(),
+					"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into(),
+				],
 			},
 		};
 		assert_eq!(
@@ -436,7 +482,10 @@ mod tests {
 			time: Some(88),
 			blocktime: Some(99),
 		};
-		assert_eq!(serde_json::to_string(&tx).unwrap(), r#"{"hex":"deadbeef","txid":"0400000000000000000000000000000000000000000000000000000000000000","hash":"0500000000000000000000000000000000000000000000000000000000000000","size":33,"vsize":44,"version":55,"locktime":66,"vin":[],"vout":[],"blockhash":"0600000000000000000000000000000000000000000000000000000000000000","confirmations":77,"time":88,"blocktime":99}"#);
+		assert_eq!(
+			serde_json::to_string(&tx).unwrap(),
+			r#"{"hex":"deadbeef","txid":"0400000000000000000000000000000000000000000000000000000000000000","hash":"0500000000000000000000000000000000000000000000000000000000000000","size":33,"vsize":44,"version":55,"locktime":66,"vin":[],"vout":[],"blockhash":"0600000000000000000000000000000000000000000000000000000000000000","confirmations":77,"time":88,"blocktime":99}"#
+		);
 	}
 
 	#[test]

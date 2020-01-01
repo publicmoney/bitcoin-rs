@@ -3,16 +3,14 @@ mod ping;
 mod sync;
 
 use bytes::Bytes;
-use message::Error;
 use message::common::Command;
+use message::Error;
 
 pub use self::addr::{AddrProtocol, SeednodeProtocol};
 pub use self::ping::PingProtocol;
-pub use self::sync::{SyncProtocol,
-	InboundSyncConnection, InboundSyncConnectionRef,
-	InboundSyncConnectionState, InboundSyncConnectionStateRef,
-	OutboundSyncConnection, OutboundSyncConnectionRef,
-	LocalSyncNode, LocalSyncNodeRef,
+pub use self::sync::{
+	InboundSyncConnection, InboundSyncConnectionRef, InboundSyncConnectionState, InboundSyncConnectionStateRef, LocalSyncNode,
+	LocalSyncNodeRef, OutboundSyncConnection, OutboundSyncConnectionRef, SyncProtocol,
 };
 
 pub trait Protocol: Send {
@@ -29,7 +27,10 @@ pub trait Protocol: Send {
 	fn on_close(&mut self) {}
 
 	/// Boxes the protocol.
-	fn boxed(self) -> Box<dyn Protocol> where Self: Sized + 'static {
+	fn boxed(self) -> Box<dyn Protocol>
+	where
+		Self: Sized + 'static,
+	{
 		Box::new(self)
 	}
 }

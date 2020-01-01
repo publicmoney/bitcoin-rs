@@ -1,8 +1,8 @@
 //! Wrapper around `Vec<u8>`
 
-use std::{ops, str, fmt, io, marker};
-use hex::{ToHex, FromHex, FromHexError};
 use heapsize::HeapSizeOf;
+use hex::{FromHex, FromHexError, ToHex};
+use std::{fmt, io, marker, ops, str};
 
 /// Wrapper around `Vec<u8>`
 #[derive(Default, PartialEq, Clone, Eq, Hash)]
@@ -124,7 +124,7 @@ pub struct TaggedBytes<T> {
 impl<T> TaggedBytes<T> {
 	pub fn new(bytes: Bytes) -> Self {
 		TaggedBytes {
-			bytes: bytes,
+			bytes,
 			label: marker::PhantomData,
 		}
 	}

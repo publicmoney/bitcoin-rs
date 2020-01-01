@@ -1,9 +1,9 @@
-use std::fmt;
+use linked_hash_map::LinkedHashMap;
+use primitives::hash::H256;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
-use linked_hash_map::LinkedHashMap;
+use std::fmt;
 use time::precise_time_s;
-use primitives::hash::H256;
 use types::PeerIndex;
 use utils::AverageSpeedMeter;
 
@@ -144,9 +144,7 @@ impl PeersTasks {
 
 	/// Get peer tasks
 	pub fn get_blocks_tasks(&self, peer_index: PeerIndex) -> Option<&HashSet<H256>> {
-		self.blocks_requests
-			.get(&peer_index)
-			.map(|br| &br.blocks)
+		self.blocks_requests.get(&peer_index).map(|br| &br.blocks)
 	}
 
 	/// Get peer statistics
@@ -164,8 +162,7 @@ impl PeersTasks {
 	pub fn useful_peer(&mut self, peer_index: PeerIndex) {
 		// if peer is unknown => insert to idle queue
 		// if peer is known && not useful => insert to idle queue
-		if self.all.insert(peer_index)
-			|| self.unuseful.remove(&peer_index) {
+		if self.all.insert(peer_index) || self.unuseful.remove(&peer_index) {
 			self.idle_for_headers.insert(peer_index);
 			self.idle_for_blocks.insert(peer_index);
 			self.stats.insert(peer_index, PeerStats::new());
@@ -217,14 +214,13 @@ impl PeersTasks {
 		};
 
 		// it was requested block => update block response time
-		self.stats.get_mut(&peer_index)
-			.map(|br| {
-				if br.failures > 0 {
-					br.failures -= 1;
-				}
-				br.trust = TrustLevel::Trusted;
-				br.speed.checkpoint()
-			});
+		self.stats.get_mut(&peer_index).map(|br| {
+			if br.failures > 0 {
+				br.failures -= 1;
+			}
+			br.trust = TrustLevel::Trusted;
+			br.speed.checkpoint()
+		});
 
 		// if it hasn't been last requested block => just return
 		if !is_last_requested_block_received {
@@ -268,9 +264,11 @@ impl PeersTasks {
 		if !self.blocks_requests.contains_key(&peer_index) {
 			self.blocks_requests.insert(peer_index, BlocksRequest::new());
 		}
-		self.blocks_requests.get_mut(&peer_index)
+		self.blocks_requests
+			.get_mut(&peer_index)
 			.expect("inserted one line above")
-			.blocks.extend(blocks_hashes.iter().cloned());
+			.blocks
+			.extend(blocks_hashes.iter().cloned());
 
 		// no more requested blocks => pause requests speed meter
 		self.stats.get_mut(&peer_index).map(|br| br.speed.start());
@@ -324,7 +322,8 @@ impl PeersTasks {
 
 	/// Penalize peer. Returns true if the peer score is too low to keep connection.
 	pub fn penalize(&mut self, peer_index: PeerIndex) -> bool {
-		self.stats.get_mut(&peer_index)
+		self.stats
+			.get_mut(&peer_index)
 			.map(|s| {
 				if s.trust == TrustLevel::Trusted {
 					s.failures += 1;
@@ -350,7 +349,8 @@ impl PeersTasks {
 	/// Reset peer tasks && move peer to idle state
 	pub fn reset_blocks_tasks(&mut self, peer_index: PeerIndex) -> Vec<H256> {
 		self.idle_for_blocks.insert(peer_index);
-		self.blocks_requests.remove(&peer_index)
+		self.blocks_requests
+			.remove(&peer_index)
 			.map(|mut br| br.blocks.drain().collect())
 			.unwrap_or_default()
 	}
@@ -400,8 +400,8 @@ impl fmt::Debug for Information {
 
 #[cfg(test)]
 mod tests {
+	use super::{PeersTasks, MAX_BLOCKS_FAILURES, MAX_PEER_FAILURES};
 	use primitives::hash::H256;
-	use super::{PeersTasks, MAX_PEER_FAILURES, MAX_BLOCKS_FAILURES};
 	use types::PeerIndex;
 
 	#[test]
@@ -573,10 +573,16 @@ mod tests {
 		let mut peers = PeersTasks::default();
 		peers.useful_peer(1);
 		peers.useful_peer(1);
-		assert_eq!(peers.information().active + peers.information().idle + peers.information().unuseful, 1);
+		assert_eq!(
+			peers.information().active + peers.information().idle + peers.information().unuseful,
+			1
+		);
 		peers.on_blocks_requested(1, &vec![H256::default()]);
 		peers.useful_peer(1);
-		assert_eq!(peers.information().active + peers.information().idle + peers.information().unuseful, 1);
+		assert_eq!(
+			peers.information().active + peers.information().idle + peers.information().unuseful,
+			1
+		);
 		for _ in 0..MAX_PEER_FAILURES {
 			if peers.on_peer_block_failure(1) {
 				peers.reset_blocks_tasks(1);
@@ -584,7 +590,10 @@ mod tests {
 			}
 		}
 		peers.useful_peer(1);
-		assert_eq!(peers.information().active + peers.information().idle + peers.information().unuseful, 1);
+		assert_eq!(
+			peers.information().active + peers.information().idle + peers.information().unuseful,
+			1
+		);
 	}
 
 	#[test]

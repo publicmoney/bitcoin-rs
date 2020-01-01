@@ -1,6 +1,6 @@
-use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use ser::{Serializable, Stream, Deserializable, Reader, Error as ReaderError};
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::io;
 
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub struct Port(u16);
@@ -24,15 +24,18 @@ impl Serializable for Port {
 }
 
 impl Deserializable for Port {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		Ok(reader.read_u16::<BigEndian>().map(Port)?)
 	}
 }
 
 #[cfg(test)]
-mod	tests {
-	use ser::{serialize, deserialize};
+mod tests {
 	use super::Port;
+	use ser::{deserialize, serialize};
 
 	#[test]
 	fn test_port_serialize() {

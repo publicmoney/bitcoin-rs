@@ -1,6 +1,6 @@
 use chain::IndexedBlock;
-use storage::{BlockProvider, BlockRef, BlockOrigin, ForkChain};
 use db::BlockChainDatabase;
+use storage::{BlockOrigin, BlockProvider, BlockRef, ForkChain};
 use test_data;
 
 use super::Benchmark;
@@ -20,6 +20,7 @@ pub fn fetch(benchmark: &mut Benchmark) {
 	let mut hashes = Vec::new();
 
 	for x in 0..BLOCKS {
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -63,6 +64,7 @@ pub fn write(benchmark: &mut Benchmark) {
 	let mut blocks: Vec<IndexedBlock> = Vec::new();
 
 	for x in 0..BLOCKS {
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -100,7 +102,7 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 
 	for x in 0..BLOCKS {
 		let base = rolling_hash.clone();
-
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -111,7 +113,7 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
-
+		#[rustfmt::skip]
 		let next_block_side = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -122,7 +124,7 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 			.build();
 		let next_base = next_block_side.hash();
 		blocks.push(next_block_side);
-
+		#[rustfmt::skip]
 		let next_block_side_continue = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -132,7 +134,7 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 			.merkled_header().parent(next_base).nonce(x as u32 * 4 + 3).build()
 			.build();
 		blocks.push(next_block_side_continue);
-
+		#[rustfmt::skip]
 		let next_block_continue = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -158,21 +160,21 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 		match store.block_origin(&block.header).unwrap() {
 			BlockOrigin::KnownBlock => {
 				unreachable!();
-			},
+			}
 			BlockOrigin::CanonChain { .. } => {
 				store.insert(block).unwrap();
 				store.canonize(&hash).unwrap();
-			},
+			}
 			BlockOrigin::SideChain(_origin) => {
 				store.insert(block).unwrap();
-			},
+			}
 			BlockOrigin::SideChainBecomingCanonChain(origin) => {
 				reorgs += 1;
 				let fork = store.fork(origin).unwrap();
 				fork.store().insert(block).unwrap();
 				fork.store().canonize(&hash).unwrap();
 				store.switch_to_fork(fork).unwrap();
-			},
+			}
 		}
 	}
 	benchmark.stop();
@@ -202,6 +204,7 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 	let mut hashes = Vec::new();
 
 	for x in 0..BLOCKS_INITIAL {
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -216,13 +219,18 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 	}
 
 	for b in 0..BLOCKS {
-		let mut builder = test_data::block_builder()
-			.transaction().coinbase().build();
+		let mut builder = test_data::block_builder().transaction().coinbase().build();
 
 		for t in 0..TRANSACTIONS {
-			builder = builder.transaction()
-				.input().hash(blocks[b*TRANSACTIONS+t].transactions()[0].hash()).build() // default index is 0 which is ok
-				.output().value(1000).build()
+			#[rustfmt::skip]
+			builder = builder
+				.transaction()
+				.input()
+				.hash(blocks[b * TRANSACTIONS + t].transactions()[0].hash())
+				.build() // default index is 0 which is ok
+				.output()
+				.value(1000)
+				.build()
 				.build();
 		}
 

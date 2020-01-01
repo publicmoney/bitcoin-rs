@@ -1,14 +1,14 @@
-use std::collections::{VecDeque, HashMap, HashSet};
-use std::collections::hash_map::Entry;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-use parking_lot::{Mutex, Condvar};
 use chain::IndexedTransaction;
-use message::{types, common};
+use message::{common, types};
+use parking_lot::{Condvar, Mutex};
 use primitives::hash::H256;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread;
 use synchronization_executor::{Task, TaskExecutor};
-use types::{PeerIndex, RequestId, BlockHeight, StorageRef, ExecutorRef, MemoryPoolRef, PeersRef};
+use types::{BlockHeight, ExecutorRef, MemoryPoolRef, PeerIndex, PeersRef, RequestId, StorageRef};
 use utils::KnownHashType;
 
 /// Synchronization server task
@@ -29,7 +29,7 @@ pub enum ServerTask {
 }
 
 /// Synchronization server
-pub trait Server : Send + Sync + 'static {
+pub trait Server: Send + Sync + 'static {
 	/// Execute single synchronization task
 	fn execute(&self, task: ServerTask);
 	/// Called when connection is closed
@@ -52,7 +52,10 @@ struct ServerQueue {
 }
 
 /// Server tasks executor
-struct ServerTaskExecutor<T> where T: TaskExecutor {
+struct ServerTaskExecutor<T>
+where
+	T: TaskExecutor,
+{
 	/// Peers
 	peers: PeersRef,
 	/// Executor
@@ -77,11 +80,11 @@ impl ServerTask {
 	pub fn peer_index(&self) -> PeerIndex {
 		match *self {
 			ServerTask::GetData(peer_index, _)
-				| ServerTask::ReversedGetData(peer_index, _, _)
-				| ServerTask::GetBlocks(peer_index, _)
-				| ServerTask::GetHeaders(peer_index, _, _)
-				| ServerTask::Mempool(peer_index)
-				| ServerTask::GetBlockTxn(peer_index, _) => peer_index,
+			| ServerTask::ReversedGetData(peer_index, _, _)
+			| ServerTask::GetBlocks(peer_index, _)
+			| ServerTask::GetHeaders(peer_index, _, _)
+			| ServerTask::Mempool(peer_index)
+			| ServerTask::GetBlockTxn(peer_index, _) => peer_index,
 		}
 	}
 }
@@ -107,14 +110,13 @@ impl ServerImpl {
 			let task = {
 				let mut queue = queue.lock();
 				if queue.is_stopping.load(Ordering::SeqCst) {
-					break
+					break;
 				}
 
-				queue.next_task()
-					.or_else(|| {
-						queue_ready.wait(&mut queue);
-						queue.next_task()
-					})
+				queue.next_task().or_else(|| {
+					queue_ready.wait(&mut queue);
+					queue.next_task()
+				})
 			};
 
 			if let Some(task) = task {
@@ -140,32 +142,34 @@ impl ServerQueue {
 	pub fn new(queue_ready: Arc<Condvar>) -> Self {
 		ServerQueue {
 			is_stopping: AtomicBool::new(false),
-			queue_ready: queue_ready,
+			queue_ready,
 			peers_queue: VecDeque::new(),
 			tasks_queue: HashMap::new(),
 		}
 	}
 
 	pub fn next_task(&mut self) -> Option<ServerTask> {
-		self.peers_queue.pop_front()
-			.map(|peer_index| {
-				let (peer_task, is_last_peer_task) = {
-					let peer_tasks = self.tasks_queue.get_mut(&peer_index)
-						.expect("entry from tasks_queue is removed when empty; when empty, peer is removed from peers_queue; qed");
-					let peer_task = peer_tasks.pop_front()
-						.expect("entry from peer_tasks is removed when empty; when empty, peer is removed from peers_queue; qed");
-					(peer_task, peer_tasks.is_empty())
-				};
+		self.peers_queue.pop_front().map(|peer_index| {
+			let (peer_task, is_last_peer_task) = {
+				let peer_tasks = self
+					.tasks_queue
+					.get_mut(&peer_index)
+					.expect("entry from tasks_queue is removed when empty; when empty, peer is removed from peers_queue; qed");
+				let peer_task = peer_tasks
+					.pop_front()
+					.expect("entry from peer_tasks is removed when empty; when empty, peer is removed from peers_queue; qed");
+				(peer_task, peer_tasks.is_empty())
+			};
 
-				// remove if no tasks left || schedule otherwise
-				if !is_last_peer_task {
-					self.peers_queue.push_back(peer_index);
-				} else {
-					self.tasks_queue.remove(&peer_index);
-				}
+			// remove if no tasks left || schedule otherwise
+			if !is_last_peer_task {
+				self.peers_queue.push_back(peer_index);
+			} else {
+				self.tasks_queue.remove(&peer_index);
+			}
 
-				peer_task
-			})
+			peer_task
+		})
 	}
 
 	pub fn add_task(&mut self, task: ServerTask) {
@@ -177,7 +181,7 @@ impl ServerQueue {
 				if add_to_peers_queue {
 					self.peers_queue.push_back(peer_index);
 				}
-			},
+			}
 			Entry::Vacant(entry) => {
 				let mut new_tasks = VecDeque::new();
 				new_tasks.push_back(task);
@@ -197,7 +201,7 @@ impl ServerQueue {
 				if add_to_peers_queue {
 					self.peers_queue.push_back(peer_index);
 				}
-			},
+			}
 			Entry::Vacant(entry) => {
 				let mut new_tasks = VecDeque::new();
 				new_tasks.push_back(task);
@@ -210,27 +214,35 @@ impl ServerQueue {
 
 	pub fn remove_peer_tasks(&mut self, peer_index: PeerIndex) {
 		if self.tasks_queue.remove(&peer_index).is_some() {
-			let position = self.peers_queue.iter().position(|p| p == &peer_index)
+			let position = self
+				.peers_queue
+				.iter()
+				.position(|p| p == &peer_index)
 				.expect("there are tasks for peer in tasks_queue; all tasks from tasks_queue are queued in peers_queue; qed");
 			self.peers_queue.remove(position);
 		}
 	}
 }
 
-impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
+impl<TExecutor> ServerTaskExecutor<TExecutor>
+where
+	TExecutor: TaskExecutor,
+{
 	pub fn new(peers: PeersRef, storage: StorageRef, memory_pool: MemoryPoolRef, executor: ExecutorRef<TExecutor>) -> Self {
 		ServerTaskExecutor {
-			peers: peers,
-			storage: storage,
-			memory_pool: memory_pool,
-			executor: executor,
+			peers,
+			storage,
+			memory_pool,
+			executor,
 		}
 	}
 
 	pub fn execute(&self, task: ServerTask) -> Option<ServerTask> {
 		match task {
 			ServerTask::GetData(peer_index, message) => return self.serve_get_data(peer_index, message),
-			ServerTask::ReversedGetData(peer_index, message, notfound) => return self.serve_reversed_get_data(peer_index, message, notfound),
+			ServerTask::ReversedGetData(peer_index, message, notfound) => {
+				return self.serve_reversed_get_data(peer_index, message, notfound)
+			}
 			ServerTask::GetBlocks(peer_index, message) => self.serve_get_blocks(peer_index, message),
 			ServerTask::GetHeaders(peer_index, message, request_id) => self.serve_get_headers(peer_index, message, request_id),
 			ServerTask::Mempool(peer_index) => self.serve_mempool(peer_index),
@@ -246,11 +258,16 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 		// => to respond in given order, we have to reverse blocks inventory here
 		message.inventory.reverse();
 		// + while iterating by items, also accumulate unknown items to respond with notfound
-		let notfound = types::NotFound { inventory: Vec::new(), };
+		let notfound = types::NotFound { inventory: Vec::new() };
 		Some(ServerTask::ReversedGetData(peer_index, message, notfound))
 	}
 
-	fn serve_reversed_get_data(&self, peer_index: PeerIndex, mut message: types::GetData, mut notfound: types::NotFound) -> Option<ServerTask> {
+	fn serve_reversed_get_data(
+		&self,
+		peer_index: PeerIndex,
+		mut message: types::GetData,
+		mut notfound: types::NotFound,
+	) -> Option<ServerTask> {
 		let next_item = match message.inventory.pop() {
 			None => {
 				if !notfound.inventory.is_empty() {
@@ -258,7 +275,7 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 					self.executor.execute(Task::NotFound(peer_index, notfound));
 				}
 				return None;
-			},
+			}
 			Some(next_item) => next_item,
 		};
 
@@ -272,7 +289,7 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 				} else {
 					notfound.inventory.push(next_item);
 				}
-			},
+			}
 			common::InventoryType::MessageWitnessTx => {
 				// only transaction from memory pool can be requested
 				if let Some(transaction) = self.memory_pool.read().read_by_hash(&next_item.hash) {
@@ -282,7 +299,7 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 				} else {
 					notfound.inventory.push(next_item);
 				}
-			},
+			}
 			common::InventoryType::MessageBlock => {
 				if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
 					trace!(target: "sync", "'getblocks' response to peer#{} is ready with block {}", peer_index, next_item.hash.to_reversed_str());
@@ -290,14 +307,15 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 				} else {
 					notfound.inventory.push(next_item);
 				}
-			},
+			}
 			common::InventoryType::MessageFilteredBlock => {
 				if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
 					let message_artefacts = self.peers.build_merkle_block(peer_index, &block);
 					if let Some(message_artefacts) = message_artefacts {
 						// send merkleblock first
 						trace!(target: "sync", "'getblocks' response to peer#{} is ready with merkleblock {}", peer_index, next_item.hash.to_reversed_str());
-						self.executor.execute(Task::MerkleBlock(peer_index, *block.hash(), message_artefacts.merkleblock));
+						self.executor
+							.execute(Task::MerkleBlock(peer_index, *block.hash(), message_artefacts.merkleblock));
 
 						// also send all matched transactions
 						for matched_transaction in message_artefacts.matching_transactions {
@@ -310,7 +328,7 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 				} else {
 					notfound.inventory.push(next_item);
 				}
-			},
+			}
 			common::InventoryType::MessageCompactBlock => {
 				if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
 					let message = self.peers.build_compact_block(peer_index, &block);
@@ -321,7 +339,7 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 				} else {
 					notfound.inventory.push(next_item);
 				}
-			},
+			}
 			common::InventoryType::MessageWitnessBlock => {
 				if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
 					trace!(target: "sync", "'getblocks' response to peer#{} is ready with witness-block {}", peer_index, next_item.hash.to_reversed_str());
@@ -329,7 +347,7 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 				} else {
 					notfound.inventory.push(next_item);
 				}
-			},
+			}
 			common::InventoryType::Error | common::InventoryType::MessageWitnessFilteredBlock => (),
 		}
 
@@ -348,7 +366,8 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 			// empty inventory messages are invalid according to regtests, while empty headers messages are valid
 			if !inventory.is_empty() {
 				trace!(target: "sync", "'getblocks' response to peer#{} is ready with {} hashes", peer_index, inventory.len());
-				self.executor.execute(Task::Inventory(peer_index, types::Inv::with_inventory(inventory)));
+				self.executor
+					.execute(Task::Inventory(peer_index, types::Inv::with_inventory(inventory)));
 			} else {
 				trace!(target: "sync", "'getblocks' request from peer#{} is ignored as there are no new blocks for peer", peer_index);
 			}
@@ -372,7 +391,8 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 				.collect();
 			// empty inventory messages are invalid according to regtests, while empty headers messages are valid
 			trace!(target: "sync", "'getheaders' response to peer#{} is ready with {} headers", peer_index, headers.len());
-			self.executor.execute(Task::Headers(peer_index, types::Headers::with_headers(headers), Some(request_id)));
+			self.executor
+				.execute(Task::Headers(peer_index, types::Headers::with_headers(headers), Some(request_id)));
 		} else {
 			self.peers.misbehaving(peer_index, "Got 'headers' message without known blocks");
 			return;
@@ -380,7 +400,9 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 	}
 
 	fn serve_mempool(&self, peer_index: PeerIndex) {
-		let inventory: Vec<_> = self.memory_pool.read()
+		let inventory: Vec<_> = self
+			.memory_pool
+			.read()
 			.get_transactions_ids()
 			.into_iter()
 			.map(common::InventoryVector::tx)
@@ -388,7 +410,8 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 		// empty inventory messages are invalid according to regtests, while empty headers messages are valid
 		if !inventory.is_empty() {
 			trace!(target: "sync", "'mempool' response to peer#{} is ready with {} transactions", peer_index, inventory.len());
-			self.executor.execute(Task::Inventory(peer_index, types::Inv::with_inventory(inventory)));
+			self.executor
+				.execute(Task::Inventory(peer_index, types::Inv::with_inventory(inventory)));
 		} else {
 			trace!(target: "sync", "'mempool' request from peer#{} is ignored as pool is empty", peer_index);
 		}
@@ -397,8 +420,17 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 	fn serve_get_block_txn(&self, peer_index: PeerIndex, message: types::GetBlockTxn) {
 		// according to protocol documentation, we only should only respond
 		// if requested block has been recently sent in 'cmpctblock'
-		if !self.peers.is_hash_known_as(peer_index, &message.request.blockhash, KnownHashType::CompactBlock) {
-			self.peers.misbehaving(peer_index, &format!("Got 'getblocktxn' message for non-sent block: {}", message.request.blockhash.to_reversed_str()));
+		if !self
+			.peers
+			.is_hash_known_as(peer_index, &message.request.blockhash, KnownHashType::CompactBlock)
+		{
+			self.peers.misbehaving(
+				peer_index,
+				&format!(
+					"Got 'getblocktxn' message for non-sent block: {}",
+					message.request.blockhash.to_reversed_str()
+				),
+			);
 			return;
 		}
 
@@ -407,7 +439,13 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 		let requested_len = message.request.indexes.len();
 		if requested_len > block_transactions_len {
 			// peer has requested more transactions, than there are
-			self.peers.misbehaving(peer_index, &format!("Got 'getblocktxn' message with {} transactions, when there are: {}", requested_len, block_transactions_len));
+			self.peers.misbehaving(
+				peer_index,
+				&format!(
+					"Got 'getblocktxn' message with {} transactions, when there are: {}",
+					requested_len, block_transactions_len
+				),
+			);
 			return;
 		}
 
@@ -416,12 +454,25 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 		for transaction_index in message.request.indexes {
 			if transaction_index >= block_transactions_len {
 				// peer has requested index, larger than index of last transaction
-				self.peers.misbehaving(peer_index, &format!("Got 'getblocktxn' message with index {}, larger than index of last transaction {}", transaction_index, block_transactions_len - 1));
+				self.peers.misbehaving(
+					peer_index,
+					&format!(
+						"Got 'getblocktxn' message with index {}, larger than index of last transaction {}",
+						transaction_index,
+						block_transactions_len - 1
+					),
+				);
 				return;
 			}
 			if !requested_indexes.insert(transaction_index) {
 				// peer has requested same index several times
-				self.peers.misbehaving(peer_index, &format!("Got 'getblocktxn' message where same index {} has been requested several times", transaction_index));
+				self.peers.misbehaving(
+					peer_index,
+					&format!(
+						"Got 'getblocktxn' message where same index {} has been requested several times",
+						transaction_index
+					),
+				);
 				return;
 			}
 
@@ -438,12 +489,15 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 		}
 
 		trace!(target: "sync", "'getblocktxn' response to peer#{} is ready with {} transactions", peer_index, transactions.len());
-		self.executor.execute(Task::BlockTxn(peer_index, types::BlockTxn {
-			request: common::BlockTransactions {
-				blockhash: message.request.blockhash,
-				transactions: transactions.into_iter().map(|tx| tx.raw).collect(),
-			}
-		}));
+		self.executor.execute(Task::BlockTxn(
+			peer_index,
+			types::BlockTxn {
+				request: common::BlockTransactions {
+					blockhash: message.request.blockhash,
+					transactions: transactions.into_iter().map(|tx| tx.raw).collect(),
+				},
+			},
+		));
 	}
 
 	fn locate_best_common_block(&self, hash_stop: &H256, locator: &[H256]) -> Option<BlockHeight> {
@@ -478,23 +532,23 @@ impl<TExecutor> ServerTaskExecutor<TExecutor> where TExecutor: TaskExecutor {
 pub mod tests {
 	extern crate test_data;
 
+	use super::{Server, ServerImpl, ServerTask, ServerTaskExecutor};
+	use chain::Transaction;
+	use db::BlockChainDatabase;
+	use inbound_connection::tests::DummyOutboundSyncConnection;
+	use local_node::tests::{default_filterload, make_filteradd};
+	use message::common::{self, InventoryType, InventoryVector, Services};
+	use message::types;
+	use miner::{MemoryPool, NonZeroFeeCalculator};
+	use parking_lot::{Mutex, RwLock};
+	use primitives::hash::H256;
 	use std::mem::replace;
 	use std::sync::Arc;
-	use parking_lot::{Mutex, RwLock};
-	use db::{BlockChainDatabase};
-	use message::types;
-	use message::common::{self, Services, InventoryVector, InventoryType};
-	use primitives::hash::H256;
-	use chain::Transaction;
-	use inbound_connection::tests::DummyOutboundSyncConnection;
-	use miner::{NonZeroFeeCalculator, MemoryPool};
-	use local_node::tests::{default_filterload, make_filteradd};
-	use synchronization_executor::Task;
 	use synchronization_executor::tests::DummyTaskExecutor;
+	use synchronization_executor::Task;
 	use synchronization_peers::{PeersContainer, PeersFilters, PeersImpl};
-	use types::{PeerIndex, StorageRef, MemoryPoolRef, PeersRef, ExecutorRef};
+	use types::{ExecutorRef, MemoryPoolRef, PeerIndex, PeersRef, StorageRef};
 	use utils::KnownHashType;
-	use super::{Server, ServerTask, ServerImpl, ServerTaskExecutor};
 
 	pub struct DummyServer {
 		tasks: Mutex<Vec<ServerTask>>,
@@ -517,8 +571,7 @@ pub mod tests {
 			self.tasks.lock().push(task);
 		}
 
-		fn on_disconnect(&self, _peer_index: PeerIndex) {
-		}
+		fn on_disconnect(&self, _peer_index: PeerIndex) {}
 	}
 
 	fn create_synchronization_server() -> (StorageRef, MemoryPoolRef, ExecutorRef<DummyTaskExecutor>, PeersRef, ServerImpl) {
@@ -534,12 +587,10 @@ pub mod tests {
 	fn server_getdata_responds_notfound_when_block_not_found() {
 		let (_, _, executor, _, server) = create_synchronization_server();
 		// when asking for unknown block
-		let inventory = vec![
-			InventoryVector {
-				inv_type: InventoryType::MessageBlock,
-				hash: H256::default(),
-			}
-		];
+		let inventory = vec![InventoryVector {
+			inv_type: InventoryType::MessageBlock,
+			hash: H256::default(),
+		}];
 		server.execute(ServerTask::GetData(0, types::GetData::with_inventory(inventory.clone())));
 		// => respond with notfound
 		let tasks = DummyTaskExecutor::wait_tasks(executor);
@@ -550,12 +601,10 @@ pub mod tests {
 	fn server_getdata_responds_block_when_block_is_found() {
 		let (_, _, executor, _, server) = create_synchronization_server();
 		// when asking for known block
-		let inventory = vec![
-			InventoryVector {
-				inv_type: InventoryType::MessageBlock,
-				hash: test_data::genesis().hash(),
-			}
-		];
+		let inventory = vec![InventoryVector {
+			inv_type: InventoryType::MessageBlock,
+			hash: test_data::genesis().hash(),
+		}];
 		server.execute(ServerTask::GetData(0, types::GetData::with_inventory(inventory.clone())));
 		// => respond with block
 		let tasks = DummyTaskExecutor::wait_tasks(executor);
@@ -567,11 +616,14 @@ pub mod tests {
 		let (_, _, executor, _, server) = create_synchronization_server();
 		// when asking for blocks hashes
 		let genesis_block_hash = test_data::genesis().hash();
-		server.execute(ServerTask::GetBlocks(0, types::GetBlocks {
-			version: 0,
-			block_locator_hashes: vec![genesis_block_hash.clone()],
-			hash_stop: H256::default(),
-		}));
+		server.execute(ServerTask::GetBlocks(
+			0,
+			types::GetBlocks {
+				version: 0,
+				block_locator_hashes: vec![genesis_block_hash.clone()],
+				hash_stop: H256::default(),
+			},
+		));
 		// => empty response
 		let tasks = DummyTaskExecutor::wait_tasks_for(executor, 100); // TODO: get rid of explicit timeout
 		assert_eq!(tasks, vec![]);
@@ -583,11 +635,14 @@ pub mod tests {
 		storage.insert(test_data::block_h1().into()).expect("Db write error");
 		storage.canonize(&test_data::block_h1().hash()).unwrap();
 		// when asking for blocks hashes
-		server.execute(ServerTask::GetBlocks(0, types::GetBlocks {
-			version: 0,
-			block_locator_hashes: vec![test_data::genesis().hash()],
-			hash_stop: H256::default(),
-		}));
+		server.execute(ServerTask::GetBlocks(
+			0,
+			types::GetBlocks {
+				version: 0,
+				block_locator_hashes: vec![test_data::genesis().hash()],
+				hash_stop: H256::default(),
+			},
+		));
 		// => responds with inventory
 		let inventory = vec![InventoryVector {
 			inv_type: InventoryType::MessageBlock,
@@ -603,11 +658,15 @@ pub mod tests {
 		// when asking for blocks hashes
 		let genesis_block_hash = test_data::genesis().hash();
 		let dummy_id = 6;
-		server.execute(ServerTask::GetHeaders(0, types::GetHeaders {
-			version: 0,
-			block_locator_hashes: vec![genesis_block_hash.clone()],
-			hash_stop: H256::default(),
-		}, dummy_id));
+		server.execute(ServerTask::GetHeaders(
+			0,
+			types::GetHeaders {
+				version: 0,
+				block_locator_hashes: vec![genesis_block_hash.clone()],
+				hash_stop: H256::default(),
+			},
+			dummy_id,
+		));
 		// => no response
 		let tasks = DummyTaskExecutor::wait_tasks_for(executor, 100); // TODO: get rid of explicit timeout
 		assert_eq!(tasks, vec![Task::Headers(0, types::Headers::with_headers(vec![]), Some(dummy_id))]);
@@ -620,15 +679,17 @@ pub mod tests {
 		storage.canonize(&test_data::block_h1().hash()).unwrap();
 		// when asking for blocks hashes
 		let dummy_id = 0;
-		server.execute(ServerTask::GetHeaders(0, types::GetHeaders {
-			version: 0,
-			block_locator_hashes: vec![test_data::genesis().hash()],
-			hash_stop: H256::default(),
-		}, dummy_id));
+		server.execute(ServerTask::GetHeaders(
+			0,
+			types::GetHeaders {
+				version: 0,
+				block_locator_hashes: vec![test_data::genesis().hash()],
+				hash_stop: H256::default(),
+			},
+			dummy_id,
+		));
 		// => responds with headers
-		let headers = vec![
-			test_data::block_h1().block_header,
-		];
+		let headers = vec![test_data::block_h1().block_header];
 		let tasks = DummyTaskExecutor::wait_tasks(executor);
 		assert_eq!(tasks, vec![Task::Headers(0, types::Headers::with_headers(headers), Some(dummy_id))]);
 	}
@@ -669,21 +730,30 @@ pub mod tests {
 		peers.hash_known_as(0, test_data::genesis().hash(), KnownHashType::CompactBlock);
 
 		// when asking for block_txns
-		server.execute(ServerTask::GetBlockTxn(0, types::GetBlockTxn {
-			request: common::BlockTransactionsRequest {
-				blockhash: test_data::genesis().hash(),
-				indexes: vec![0],
-			}
-		}));
+		server.execute(ServerTask::GetBlockTxn(
+			0,
+			types::GetBlockTxn {
+				request: common::BlockTransactionsRequest {
+					blockhash: test_data::genesis().hash(),
+					indexes: vec![0],
+				},
+			},
+		));
 
 		// server responds with transactions
 		let tasks = DummyTaskExecutor::wait_tasks(executor);
-		assert_eq!(tasks, vec![Task::BlockTxn(0, types::BlockTxn {
-			request: common::BlockTransactions {
-				blockhash: test_data::genesis().hash(),
-				transactions: vec![test_data::genesis().transactions[0].clone()],
-			}
-		})]);
+		assert_eq!(
+			tasks,
+			vec![Task::BlockTxn(
+				0,
+				types::BlockTxn {
+					request: common::BlockTransactions {
+						blockhash: test_data::genesis().hash(),
+						transactions: vec![test_data::genesis().transactions[0].clone()],
+					}
+				}
+			)]
+		);
 	}
 
 	#[test]
@@ -694,12 +764,15 @@ pub mod tests {
 		assert!(peers.enumerate().contains(&0));
 
 		// when asking for block_txns
-		server.execute(ServerTask::GetBlockTxn(0, types::GetBlockTxn {
-			request: common::BlockTransactionsRequest {
-				blockhash: test_data::genesis().hash(),
-				indexes: vec![1],
-			}
-		}));
+		server.execute(ServerTask::GetBlockTxn(
+			0,
+			types::GetBlockTxn {
+				request: common::BlockTransactionsRequest {
+					blockhash: test_data::genesis().hash(),
+					indexes: vec![1],
+				},
+			},
+		));
 
 		// server closes connection
 		use std::thread;
@@ -735,15 +808,15 @@ pub mod tests {
 		let tx_verified_hash = tx_verified.hash();
 		// given in-memory transaction
 		{
-			memory_pool.write().insert_verified(tx_verified.clone().into(), &NonZeroFeeCalculator);
+			memory_pool
+				.write()
+				.insert_verified(tx_verified.clone().into(), &NonZeroFeeCalculator);
 		}
 		// when asking for known in-memory transaction
-		let inventory = vec![
-			InventoryVector {
-				inv_type: InventoryType::MessageTx,
-				hash: tx_verified_hash,
-			},
-		];
+		let inventory = vec![InventoryVector {
+			inv_type: InventoryType::MessageTx,
+			hash: tx_verified_hash,
+		}];
 		server.execute(ServerTask::GetData(0, types::GetData::with_inventory(inventory.clone())));
 		// => respond with transaction
 		let mut tasks = DummyTaskExecutor::wait_tasks(executor.clone());
@@ -751,9 +824,7 @@ pub mod tests {
 		if tasks.len() != 2 {
 			tasks.extend(DummyTaskExecutor::wait_tasks_for(executor, 100));
 		}
-		assert_eq!(tasks, vec![
-			Task::Transaction(0, tx_verified.into()),
-		]);
+		assert_eq!(tasks, vec![Task::Transaction(0, tx_verified.into()),]);
 	}
 
 	#[test]
@@ -764,11 +835,14 @@ pub mod tests {
 			storage.canonize(&test_data::block_h1().hash()).unwrap();
 		}
 		// when asking with stop_hash
-		server.execute(ServerTask::GetBlocks(0, types::GetBlocks {
-			version: 0,
-			block_locator_hashes: vec![],
-			hash_stop: test_data::genesis().hash(),
-		}));
+		server.execute(ServerTask::GetBlocks(
+			0,
+			types::GetBlocks {
+				version: 0,
+				block_locator_hashes: vec![],
+				hash_stop: test_data::genesis().hash(),
+			},
+		));
 		// => respond with next block
 		let inventory = vec![InventoryVector {
 			inv_type: InventoryType::MessageBlock,
@@ -787,15 +861,17 @@ pub mod tests {
 		}
 		// when asking with stop_hash
 		let dummy_id = 6;
-		server.execute(ServerTask::GetHeaders(0, types::GetHeaders {
-			version: 0,
-			block_locator_hashes: vec![],
-			hash_stop: test_data::genesis().hash(),
-		}, dummy_id));
+		server.execute(ServerTask::GetHeaders(
+			0,
+			types::GetHeaders {
+				version: 0,
+				block_locator_hashes: vec![],
+				hash_stop: test_data::genesis().hash(),
+			},
+			dummy_id,
+		));
 		// => respond with next block
-		let headers = vec![
-			test_data::block_h1().block_header,
-		];
+		let headers = vec![test_data::block_h1().block_header];
 		let tasks = DummyTaskExecutor::wait_tasks(executor);
 		assert_eq!(tasks, vec![Task::Headers(0, types::Headers::with_headers(headers), Some(dummy_id))]);
 	}
@@ -809,9 +885,11 @@ pub mod tests {
 		let executor = ServerTaskExecutor::new(peers.clone(), storage.clone(), memory_pool.clone(), sync_executor.clone());
 
 		let genesis = test_data::genesis();
+		#[rustfmt::skip]
 		let b1 = test_data::block_builder().header().parent(genesis.hash()).build()
 			.transaction().output().value(10).build().build()
 			.build(); // genesis -> b1
+		#[rustfmt::skip]
 		let b2 = test_data::block_builder().header().parent(b1.hash()).build()
 			.transaction().output().value(20).build().build()
 			.build(); // genesis -> b1 -> b2
@@ -829,30 +907,55 @@ pub mod tests {
 		storage.canonize(&b2.hash()).unwrap();
 
 		// This peer won't get any blocks, because it has not set filter for the connection
-		let peer_index2 = 1; peers.insert(peer_index2, Services::default(), DummyOutboundSyncConnection::new());
+		let peer_index2 = 1;
+		peers.insert(peer_index2, Services::default(), DummyOutboundSyncConnection::new());
 
-		let mut loop_task = ServerTask::GetData(peer_index2, types::GetData {inventory: vec![
-			InventoryVector { inv_type: InventoryType::MessageFilteredBlock, hash: b1_hash.clone() },
-			InventoryVector { inv_type: InventoryType::MessageFilteredBlock, hash: b2_hash.clone() },
-		]});
+		let mut loop_task = ServerTask::GetData(
+			peer_index2,
+			types::GetData {
+				inventory: vec![
+					InventoryVector {
+						inv_type: InventoryType::MessageFilteredBlock,
+						hash: b1_hash.clone(),
+					},
+					InventoryVector {
+						inv_type: InventoryType::MessageFilteredBlock,
+						hash: b2_hash.clone(),
+					},
+				],
+			},
+		);
 		while let Some(new_task) = executor.execute(loop_task) {
 			loop_task = new_task;
 		}
-		assert_eq!(sync_executor.take_tasks(), vec![Task::NotFound(peer_index2, types::NotFound::with_inventory(vec![
-				InventoryVector { inv_type: InventoryType::MessageFilteredBlock, hash: b1_hash.clone() },
-				InventoryVector { inv_type: InventoryType::MessageFilteredBlock, hash: b2_hash.clone() },
-		]))]);
+		assert_eq!(
+			sync_executor.take_tasks(),
+			vec![Task::NotFound(
+				peer_index2,
+				types::NotFound::with_inventory(vec![
+					InventoryVector {
+						inv_type: InventoryType::MessageFilteredBlock,
+						hash: b1_hash.clone()
+					},
+					InventoryVector {
+						inv_type: InventoryType::MessageFilteredBlock,
+						hash: b2_hash.clone()
+					},
+				])
+			)]
+		);
 
 		let peers_config = vec![
-			(true, false), // will get tx1
-			(false, true), // will get tx2
-			(true, true), // will get both tx
+			(true, false),  // will get tx1
+			(false, true),  // will get tx2
+			(true, true),   // will get both tx
 			(false, false), // won't get any tx
 		];
 
 		let mut counter = 2;
 		for (get_tx1, get_tx2) in peers_config {
-			let peer_index = counter; peers.insert(peer_index, Services::default(), DummyOutboundSyncConnection::new());
+			let peer_index = counter;
+			peers.insert(peer_index, Services::default(), DummyOutboundSyncConnection::new());
 			counter += 1;
 			// setup filter
 			peers.set_bloom_filter(peer_index, default_filterload());
@@ -864,10 +967,21 @@ pub mod tests {
 			}
 
 			// ask for data
-			let mut loop_task = ServerTask::GetData(peer_index, types::GetData {inventory: vec![
-				InventoryVector { inv_type: InventoryType::MessageFilteredBlock, hash: b1_hash.clone() },
-				InventoryVector { inv_type: InventoryType::MessageFilteredBlock, hash: b2_hash.clone() },
-			]});
+			let mut loop_task = ServerTask::GetData(
+				peer_index,
+				types::GetData {
+					inventory: vec![
+						InventoryVector {
+							inv_type: InventoryType::MessageFilteredBlock,
+							hash: b1_hash.clone(),
+						},
+						InventoryVector {
+							inv_type: InventoryType::MessageFilteredBlock,
+							hash: b2_hash.clone(),
+						},
+					],
+				},
+			);
 			while let Some(new_task) = executor.execute(loop_task) {
 				loop_task = new_task;
 			}
@@ -884,7 +998,7 @@ pub mod tests {
 							_ => panic!("unexpected"),
 						}
 					}
-				},
+				}
 				_ => panic!("unexpected"),
 			}
 			index += 1;
@@ -898,7 +1012,7 @@ pub mod tests {
 							_ => panic!("unexpected"),
 						}
 					}
-				},
+				}
 				_ => panic!("unexpected"),
 			}
 		}
@@ -913,6 +1027,7 @@ pub mod tests {
 		let executor = ServerTaskExecutor::new(peers.clone(), storage.clone(), memory_pool.clone(), sync_executor.clone());
 
 		let genesis = test_data::genesis();
+		#[rustfmt::skip]
 		let b1 = test_data::block_builder().header().parent(genesis.hash()).build()
 			.transaction().output().value(10).build().build()
 			.build(); // genesis -> b1
@@ -923,12 +1038,19 @@ pub mod tests {
 		storage.canonize(&b1.hash()).unwrap();
 
 		// This peer will receive compact block
-		let peer_index2 = 1; peers.insert(peer_index2, Services::default(), DummyOutboundSyncConnection::new());
+		let peer_index2 = 1;
+		peers.insert(peer_index2, Services::default(), DummyOutboundSyncConnection::new());
 
 		// ask for data
-		let mut loop_task = ServerTask::GetData(peer_index2, types::GetData {inventory: vec![
-			InventoryVector { inv_type: InventoryType::MessageCompactBlock, hash: b1_hash.clone() },
-		]});
+		let mut loop_task = ServerTask::GetData(
+			peer_index2,
+			types::GetData {
+				inventory: vec![InventoryVector {
+					inv_type: InventoryType::MessageCompactBlock,
+					hash: b1_hash.clone(),
+				}],
+			},
+		);
 		while let Some(new_task) = executor.execute(loop_task) {
 			loop_task = new_task;
 		}

@@ -6,5 +6,7 @@ pub trait DisplayLayout {
 
 	fn layout(&self) -> Self::Target;
 
-	fn from_layout(data: &[u8]) -> Result<Self, Error> where Self: Sized;
+	fn from_layout(data: &[u8]) -> Result<Self, Error>
+	where
+		Self: Sized;
 }

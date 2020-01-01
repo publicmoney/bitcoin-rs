@@ -1,6 +1,6 @@
-use std::net::SocketAddr;
 use message::types;
 use network::Magic;
+use std::net::SocketAddr;
 
 pub type PeerId = usize;
 
@@ -20,4 +20,3 @@ pub struct PeerInfo {
 	pub version_message: types::Version,
 	pub magic: Magic,
 }
-

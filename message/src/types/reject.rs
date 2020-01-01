@@ -1,6 +1,6 @@
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
-use ser::{Serializable, Stream, Deserializable, Reader, Error as ReaderError};
-use {Payload, MessageResult};
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
@@ -46,7 +46,10 @@ impl Serializable for RejectCode {
 }
 
 impl Deserializable for RejectCode {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let v: u8 = reader.read()?;
 		RejectCode::from_u8(v).ok_or_else(|| ReaderError::MalformedData)
 	}
@@ -69,7 +72,10 @@ impl Payload for Reject {
 		"reject"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let reject = Reject {
 			message: reader.read()?,
 			code: reader.read()?,
@@ -80,10 +86,7 @@ impl Payload for Reject {
 	}
 
 	fn serialize_payload(&self, stream: &mut Stream, _version: u32) -> MessageResult<()> {
-		stream
-			.append(&self.message)
-			.append(&self.code)
-			.append(&self.reason);
+		stream.append(&self.message).append(&self.code).append(&self.reason);
 		Ok(())
 	}
 }

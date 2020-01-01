@@ -1,9 +1,9 @@
-use std::fmt;
+use compact::Compact;
+use crypto::dhash256;
+use hash::H256;
 use hex::FromHex;
 use ser::{deserialize, serialize};
-use crypto::dhash256;
-use compact::Compact;
-use hash::H256;
+use std::fmt;
 
 #[derive(PartialEq, Clone, Serializable, Deserializable)]
 pub struct BlockHeader {
@@ -49,8 +49,8 @@ pub(crate) fn block_header_hash(block_header: &BlockHeader) -> H256 {
 
 #[cfg(test)]
 mod tests {
-	use ser::{Reader, Error as ReaderError, Stream};
 	use super::BlockHeader;
+	use ser::{Error as ReaderError, Reader, Stream};
 
 	#[test]
 	fn test_block_header_stream() {
@@ -65,7 +65,7 @@ mod tests {
 
 		let mut stream = Stream::default();
 		stream.append(&block_header);
-
+		#[rustfmt::skip]
 		let expected = vec![
 			1, 0, 0, 0,
 			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
@@ -80,6 +80,7 @@ mod tests {
 
 	#[test]
 	fn test_block_header_reader() {
+		#[rustfmt::skip]
 		let buffer = vec![
 			1, 0, 0, 0,
 			2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,

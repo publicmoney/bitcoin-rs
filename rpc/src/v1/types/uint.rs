@@ -1,8 +1,8 @@
-use std::fmt;
-use std::str::FromStr;
+use primitives::bigint::{Uint, U256 as GlobalU256};
 use serde;
 use serde::de::Unexpected;
-use primitives::bigint::{U256 as GlobalU256, Uint};
+use std::fmt;
+use std::str::FromStr;
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
@@ -10,9 +10,12 @@ macro_rules! impl_uint {
 		#[derive(Debug, Default, Clone, Copy, PartialEq, Hash)]
 		pub struct $name($other);
 
-		impl Eq for $name { }
+		impl Eq for $name {}
 
-		impl<T> From<T> for $name where $other: From<T> {
+		impl<T> From<T> for $name
+		where
+			$other: From<T>,
+		{
 			fn from(o: T) -> Self {
 				$name($other::from(o))
 			}
@@ -33,14 +36,20 @@ macro_rules! impl_uint {
 		}
 
 		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+			where
+				S: serde::Serializer,
+			{
 				let as_hex = format!("{}", self.0.to_hex());
 				serializer.serialize_str(&as_hex)
 			}
 		}
 
 		impl<'a> serde::Deserialize<'a> for $name {
-			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer<'a> {
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error>
+			where
+				D: serde::Deserializer<'a>,
+			{
 				struct UintVisitor;
 
 				impl<'b> serde::de::Visitor<'b> for UintVisitor {
@@ -50,15 +59,23 @@ macro_rules! impl_uint {
 						formatter.write_str("an integer represented in hex string")
 					}
 
-					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+					where
+						E: serde::de::Error,
+					{
 						if value.len() > $size * 16 {
-							return Err(E::invalid_value(Unexpected::Str(value), &self))
+							return Err(E::invalid_value(Unexpected::Str(value), &self));
 						}
 
-						$other::from_str(value).map($name).map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
+						$other::from_str(value)
+							.map($name)
+							.map_err(|_| E::invalid_value(Unexpected::Str(value), &self))
 					}
 
-					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+					where
+						E: serde::de::Error,
+					{
 						self.visit_str(&value)
 					}
 				}
@@ -66,11 +83,10 @@ macro_rules! impl_uint {
 				deserializer.deserialize_identifier(UintVisitor)
 			}
 		}
-	}
+	};
 }
 
 impl_uint!(U256, GlobalU256, 4);
-
 
 #[cfg(test)]
 mod tests {

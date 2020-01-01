@@ -1,6 +1,6 @@
 use chain::BlockHeader;
-use storage::{BlockHeaderProvider, BlockAncestors};
 use primitives::hash::H256;
+use storage::{BlockAncestors, BlockHeaderProvider};
 
 /// Returns median timestamp, of given header ancestors.
 /// The header should be later expected to have higher timestamp

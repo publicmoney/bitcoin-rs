@@ -1,13 +1,13 @@
-use std::net::SocketAddr;
-use std::thread;
-use std::sync::Arc;
-use std::sync::mpsc::{channel, Sender, Receiver};
-use std::sync::atomic::{AtomicBool, Ordering};
-use sync::{create_sync_peers, create_local_sync_node, create_sync_connection_factory, SyncListener};
-use primitives::hash::H256;
-use util::{init_db, node_table_path};
-use {config, p2p, PROTOCOL_VERSION, PROTOCOL_MINIMUM};
 use super::super::rpc;
+use primitives::hash::H256;
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Arc;
+use std::thread;
+use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, SyncListener};
+use util::{init_db, node_table_path};
+use {config, p2p, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 
 enum BlockNotifierTask {
 	NewBlock(H256),
@@ -25,12 +25,14 @@ impl BlockNotifier {
 		let (tx, rx) = channel();
 		let is_synchronizing = Arc::new(AtomicBool::default());
 		BlockNotifier {
-			tx: tx,
+			tx,
 			is_synchronizing: is_synchronizing.clone(),
-			worker_thread: Some(thread::Builder::new()
-				.name("Block notification thread".to_owned())
-				.spawn(move || BlockNotifier::worker(rx, block_notify_command))
-				.expect("Error creating block notification thread"))
+			worker_thread: Some(
+				thread::Builder::new()
+					.name("Block notification thread".to_owned())
+					.spawn(move || BlockNotifier::worker(rx, block_notify_command))
+					.expect("Error creating block notification thread"),
+			),
 		}
 	}
 
@@ -49,10 +51,8 @@ impl BlockNotifier {
 							error!(target: "pbtc", "Block notification command {} exited with error code {}", command, err);
 						}
 					}
-				},
-				BlockNotifierTask::Stop => {
-					break
 				}
+				BlockNotifierTask::Stop => break,
 			}
 		}
 		trace!(target: "pbtc", "Block notification thread stopped");
@@ -66,7 +66,8 @@ impl SyncListener for BlockNotifier {
 
 	fn best_storage_block_inserted(&self, block_hash: &H256) {
 		if !self.is_synchronizing.load(Ordering::SeqCst) {
-			self.tx.send(BlockNotifierTask::NewBlock(block_hash.clone()))
+			self.tx
+				.send(BlockNotifierTask::NewBlock(block_hash.clone()))
 				.expect("Block notification thread have the same lifetime as `BlockNotifier`")
 		}
 	}
@@ -121,7 +122,7 @@ pub fn start(cfg: config::Config) -> Result<(), String> {
 	let rpc_deps = rpc::Dependencies {
 		network: cfg.network,
 		storage: cfg.db,
-		local_sync_node: local_sync_node,
+		local_sync_node,
 		p2p_context: p2p.context().clone(),
 		remote: el.remote(),
 	};

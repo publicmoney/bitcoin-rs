@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use bytes::Bytes;
+use std::collections::{HashMap, HashSet};
 
 /// Queue of out-of-order responses. Each peer has it's own queue.
 #[derive(Debug, Default)]
@@ -24,7 +24,10 @@ impl ResponseQueue {
 		let mut responses = self.unfinished.remove(&id).unwrap_or_default();
 		responses.push(response);
 		let previous = self.finished.insert(id, responses);
-		assert!(previous.is_none(), "logic error; same finished response should never be pushed twice");
+		assert!(
+			previous.is_none(),
+			"logic error; same finished response should never be pushed twice"
+		);
 	}
 
 	pub fn push_ignored_response(&mut self, id: u32) {
@@ -32,14 +35,10 @@ impl ResponseQueue {
 	}
 
 	pub fn responses(&mut self, id: u32) -> Option<Responses> {
-		self.unfinished.remove(&id).map(Responses::Unfinished)
+		self.unfinished
+			.remove(&id)
+			.map(Responses::Unfinished)
 			.or_else(|| self.finished.remove(&id).map(Responses::Finished))
-			.or_else(|| {
-				if self.ignored.remove(&id) {
-					Some(Responses::Ignored)
-				} else {
-					None
-				}
-			})
+			.or_else(|| if self.ignored.remove(&id) { Some(Responses::Ignored) } else { None })
 	}
 }

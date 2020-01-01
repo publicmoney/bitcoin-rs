@@ -12,16 +12,14 @@ pub struct DuplexTransactionOutputProvider<'a> {
 
 impl<'a> DuplexTransactionOutputProvider<'a> {
 	pub fn new(first: &'a dyn TransactionOutputProvider, second: &'a dyn TransactionOutputProvider) -> Self {
-		DuplexTransactionOutputProvider {
-			first: first,
-			second: second,
-		}
+		DuplexTransactionOutputProvider { first, second }
 	}
 }
 
 impl<'a> TransactionOutputProvider for DuplexTransactionOutputProvider<'a> {
 	fn transaction_output(&self, prevout: &OutPoint, transaction_index: usize) -> Option<TransactionOutput> {
-		self.first.transaction_output(prevout, transaction_index)
+		self.first
+			.transaction_output(prevout, transaction_index)
 			.or_else(|| self.second.transaction_output(prevout, transaction_index))
 	}
 

@@ -4,7 +4,7 @@ use message::types;
 use primitives::bytes::Bytes;
 use primitives::hash::H256;
 use synchronization_peers::MerkleBlockArtefacts;
-use utils::{KnownHashFilter, KnownHashType, BloomFilter, FeeRateFilter, build_compact_block, build_partial_merkle_tree};
+use utils::{build_compact_block, build_partial_merkle_tree, BloomFilter, FeeRateFilter, KnownHashFilter, KnownHashType};
 
 /// Filter, which controls data relayed over connection.
 #[derive(Debug, Default)]
@@ -62,7 +62,10 @@ impl ConnectionFilter {
 
 	/// Convert block to compact block using this filter
 	pub fn build_compact_block(&self, block: &IndexedBlock) -> types::CompactBlock {
-		let unknown_transaction_indexes = block.transactions.iter().enumerate()
+		let unknown_transaction_indexes = block
+			.transactions
+			.iter()
+			.enumerate()
 			.filter(|&(_, tx)| self.known_hash_filter.contains(&tx.hash, KnownHashType::Transaction))
 			.map(|(idx, _)| idx)
 			.collect();
@@ -91,8 +94,9 @@ impl ConnectionFilter {
 		};
 
 		// calculate hashes && match flags for all transactions
-		let (all_hashes, all_flags) = block.transactions.iter()
-			.fold((Vec::<H256>::with_capacity(all_len), BitVec::with_capacity(all_len)), |(mut all_hashes, mut all_flags), t| {
+		let (all_hashes, all_flags) = block.transactions.iter().fold(
+			(Vec::<H256>::with_capacity(all_len), BitVec::with_capacity(all_len)),
+			|(mut all_hashes, mut all_flags), t| {
 				let flag = self.bloom_filter.filter_transaction(t);
 				all_flags.push(flag);
 				all_hashes.push(t.hash.clone());
@@ -100,23 +104,30 @@ impl ConnectionFilter {
 					result.matching_transactions.push(t.clone());
 				}
 				(all_hashes, all_flags)
-			});
+			},
+		);
 
 		// build partial merkle tree
 		let partial_merkle_tree = build_partial_merkle_tree(all_hashes, all_flags);
 		result.merkleblock.hashes.extend(partial_merkle_tree.hashes);
 		// to_bytes() converts [true, false, true] to 0b10100000
 		// while protocol requires [true, false, true] to be serialized as 0x00000101
-		result.merkleblock.flags = partial_merkle_tree.flags.to_bytes().into_iter()
-			.map(|b|
-				((b & 0b10000000) >> 7) |
-				((b & 0b01000000) >> 5) |
-				((b & 0b00100000) >> 3) |
-				((b & 0b00010000) >> 1) |
-				((b & 0b00001000) << 1) |
-				((b & 0b00000100) << 3) |
-				((b & 0b00000010) << 5) |
-				((b & 0b00000001) << 7)).collect::<Vec<u8>>().into();
+		result.merkleblock.flags = partial_merkle_tree
+			.flags
+			.to_bytes()
+			.into_iter()
+			.map(|b| {
+				((b & 0b10000000) >> 7)
+					| ((b & 0b01000000) >> 5)
+					| ((b & 0b00100000) >> 3)
+					| ((b & 0b00010000) >> 1)
+					| ((b & 0b00001000) << 1)
+					| ((b & 0b00000100) << 3)
+					| ((b & 0b00000010) << 5)
+					| ((b & 0b00000001) << 7)
+			})
+			.collect::<Vec<u8>>()
+			.into();
 		Some(result)
 	}
 }
@@ -125,11 +136,11 @@ impl ConnectionFilter {
 pub mod tests {
 	extern crate test_data;
 
-	use std::iter::repeat;
+	use super::ConnectionFilter;
 	use chain::IndexedTransaction;
 	use message::types;
 	use primitives::bytes::Bytes;
-	use super::ConnectionFilter;
+	use std::iter::repeat;
 	use utils::KnownHashType;
 
 	#[test]

@@ -18,8 +18,8 @@ impl ConnectionCounter {
 		ConnectionCounter {
 			current_inbound_connections: AtomicUsize::new(0),
 			current_outbound_connections: AtomicUsize::new(0),
-			max_inbound_connections: max_inbound_connections,
-			max_outbound_connections: max_outbound_connections,
+			max_inbound_connections,
+			max_outbound_connections,
 		}
 	}
 

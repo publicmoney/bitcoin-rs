@@ -1,7 +1,7 @@
-use std::ops::Index;
-use std::collections::{VecDeque, HashSet};
-use std::iter::repeat;
 use primitives::hash::H256;
+use std::collections::{HashSet, VecDeque};
+use std::iter::repeat;
+use std::ops::Index;
 
 /// Block position
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -58,7 +58,9 @@ impl HashQueue {
 
 	/// Returns position of the element in the queue
 	pub fn position(&self, hash: &H256) -> Option<u32> {
-		self.queue.iter().enumerate()
+		self.queue
+			.iter()
+			.enumerate()
 			.filter_map(|(pos, h)| if hash == h { Some(pos as u32) } else { None })
 			.nth(0)
 	}
@@ -93,7 +95,7 @@ impl HashQueue {
 			Some(hash) => {
 				self.set.remove(&hash);
 				Some(hash)
-			},
+			}
 			None => None,
 		}
 	}
@@ -116,11 +118,10 @@ impl HashQueue {
 			Some(hash) => {
 				self.set.remove(&hash);
 				Some(hash)
-			},
+			}
 			None => None,
 		}
 	}
-
 
 	/// Adds element to the back of the queue.
 	pub fn push_back(&mut self, hash: H256) {
@@ -310,7 +311,7 @@ impl Index<u32> for HashQueueChain {
 
 #[cfg(test)]
 mod tests {
-	use super::{HashQueue, HashQueueChain, HashPosition};
+	use super::{HashPosition, HashQueue, HashQueueChain};
 	use primitives::hash::H256;
 
 	#[test]
@@ -320,10 +321,16 @@ mod tests {
 		assert_eq!(queue.front(), None);
 		assert_eq!(queue.back(), None);
 		assert_eq!(queue.pre_back(), None);
-		assert_eq!(queue.contains(&"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()), false);
+		assert_eq!(
+			queue.contains(&"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()),
+			false
+		);
 		assert_eq!(queue.pop_front(), None);
 		assert_eq!(queue.pop_front_n(100), vec![]);
-		assert_eq!(queue.remove(&"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()), HashPosition::Missing);
+		assert_eq!(
+			queue.remove(&"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()),
+			HashPosition::Missing
+		);
 	}
 
 	#[test]
@@ -335,27 +342,27 @@ mod tests {
 		assert_eq!(chain.back_at(0), None);
 		assert_eq!(chain.pre_back_at(0), None);
 		assert_eq!(chain.back(), None);
-		assert_eq!(chain.is_contained_in(0, &"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()), false);
-		assert_eq!(chain.contains_in(&"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()), None);
+		assert_eq!(
+			chain.is_contained_in(0, &"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()),
+			false
+		);
+		assert_eq!(
+			chain.contains_in(&"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()),
+			None
+		);
 		assert_eq!(chain.pop_front_n_at(0, 100), vec![]);
-		assert_eq!(chain.remove_at(0, &"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()), HashPosition::Missing);
+		assert_eq!(
+			chain.remove_at(0, &"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into()),
+			HashPosition::Missing
+		);
 	}
 
 	#[test]
 	fn hash_queue_chain_not_empty() {
 		let mut chain = HashQueueChain::with_number_of_queues(4);
-		chain.push_back_n_at(0, vec![
-			H256::from(0),
-			H256::from(1),
-			H256::from(2),
-		]);
-		chain.push_back_n_at(1, vec![
-			H256::from(3),
-			H256::from(4),
-		]);
-		chain.push_back_n_at(2, vec![
-			H256::from(5),
-		]);
+		chain.push_back_n_at(0, vec![H256::from(0), H256::from(1), H256::from(2)]);
+		chain.push_back_n_at(1, vec![H256::from(3), H256::from(4)]);
+		chain.push_back_n_at(2, vec![H256::from(5)]);
 
 		assert_eq!(chain.len(), 6);
 		assert_eq!(chain.len_of(0), 3);

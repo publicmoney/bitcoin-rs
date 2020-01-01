@@ -1,7 +1,11 @@
-use std::{io, marker};
 use compact_integer::CompactInteger;
+use std::{io, marker};
 
-pub fn deserialize<R, T>(buffer: R) -> Result<T, Error> where R: io::Read, T: Deserializable {
+pub fn deserialize<R, T>(buffer: R) -> Result<T, Error>
+where
+	R: io::Read,
+	T: Deserializable,
+{
 	let mut reader = Reader::from_read(buffer);
 	let result = reader.read()?;
 
@@ -12,7 +16,11 @@ pub fn deserialize<R, T>(buffer: R) -> Result<T, Error> where R: io::Read, T: De
 	}
 }
 
-pub fn deserialize_iterator<R, T>(buffer: R) -> ReadIterator<R, T> where R: io::Read, T: Deserializable {
+pub fn deserialize_iterator<R, T>(buffer: R) -> ReadIterator<R, T>
+where
+	R: io::Read,
+	T: Deserializable,
+{
 	ReadIterator {
 		reader: Reader::from_read(buffer),
 		iter_type: marker::PhantomData,
@@ -33,7 +41,10 @@ impl From<io::Error> for Error {
 }
 
 pub trait Deserializable {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read;
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		Self: Sized,
+		T: io::Read;
 }
 
 /// Bitcoin structures reader.
@@ -46,14 +57,14 @@ pub struct Reader<T> {
 impl<'a> Reader<&'a [u8]> {
 	/// Convenient way of creating for slice of bytes
 	pub fn new(buffer: &'a [u8]) -> Self {
-		Reader {
-			buffer: buffer,
-			peeked: None,
-		}
+		Reader { buffer, peeked: None }
 	}
 }
 
-impl<T> io::Read for Reader<T> where T: io::Read {
+impl<T> io::Read for Reader<T>
+where
+	T: io::Read,
+{
 	fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
 		// most of the times, there will be nothing in peeked,
 		// so to make it as efficient as possible, check it
@@ -63,16 +74,19 @@ impl<T> io::Read for Reader<T> where T: io::Read {
 			Some(peeked) if buf.is_empty() => {
 				self.peeked = Some(peeked);
 				Ok(0)
-			},
+			}
 			Some(peeked) => {
 				buf[0] = peeked;
 				io::Read::read(&mut self.buffer, &mut buf[1..]).map(|x| x + 1)
-			},
+			}
 		}
 	}
 }
 
-impl<R> Reader<R> where R: io::Read {
+impl<R> Reader<R>
+where
+	R: io::Read,
+{
 	pub fn from_read(read: R) -> Self {
 		Reader {
 			buffer: read,
@@ -80,11 +94,18 @@ impl<R> Reader<R> where R: io::Read {
 		}
 	}
 
-	pub fn read<T>(&mut self) -> Result<T, Error> where T: Deserializable {
+	pub fn read<T>(&mut self) -> Result<T, Error>
+	where
+		T: Deserializable,
+	{
 		T::deserialize(self)
 	}
 
-	pub fn read_with_proxy<T, F>(&mut self, proxy: F) -> Result<T, Error> where T: Deserializable, F: FnMut(&[u8]) {
+	pub fn read_with_proxy<T, F>(&mut self, proxy: F) -> Result<T, Error>
+	where
+		T: Deserializable,
+		F: FnMut(&[u8]),
+	{
 		let mut reader = Reader::from_read(Proxy::new(self, proxy));
 		T::deserialize(&mut reader)
 	}
@@ -111,7 +132,10 @@ impl<R> Reader<R> where R: io::Read {
 		io::Read::read_exact(self, bytes).map_err(|_| Error::UnexpectedEnd)
 	}
 
-	pub fn read_list<T>(&mut self) -> Result<Vec<T>, Error> where T: Deserializable {
+	pub fn read_list<T>(&mut self) -> Result<Vec<T>, Error>
+	where
+		T: Deserializable,
+	{
 		let len: usize = self.read::<CompactInteger>()?.into();
 		let mut result = Vec::with_capacity(len);
 
@@ -122,7 +146,10 @@ impl<R> Reader<R> where R: io::Read {
 		Ok(result)
 	}
 
-	pub fn read_list_max<T>(&mut self, max: usize) -> Result<Vec<T>, Error> where T: Deserializable {
+	pub fn read_list_max<T>(&mut self, max: usize) -> Result<Vec<T>, Error>
+	where
+		T: Deserializable,
+	{
 		let len: usize = self.read::<CompactInteger>()?.into();
 		if len > max {
 			return Err(Error::MalformedData);
@@ -137,7 +164,7 @@ impl<R> Reader<R> where R: io::Read {
 		Ok(result)
 	}
 
-	#[cfg_attr(feature="cargo-clippy", allow(wrong_self_convention))]
+	#[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
 	pub fn is_finished(&mut self) -> bool {
 		if self.peeked.is_some() {
 			return false;
@@ -148,7 +175,7 @@ impl<R> Reader<R> where R: io::Read {
 			Ok(_) => {
 				self.peeked = Some(peek[0]);
 				false
-			},
+			}
 			Err(_) => true,
 		}
 	}
@@ -160,7 +187,11 @@ pub struct ReadIterator<R, T> {
 	iter_type: marker::PhantomData<T>,
 }
 
-impl<R, T> Iterator for ReadIterator<R, T> where R: io::Read, T: Deserializable {
+impl<R, T> Iterator for ReadIterator<R, T>
+where
+	R: io::Read,
+	T: Deserializable,
+{
 	type Item = Result<T, Error>;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -179,14 +210,15 @@ struct Proxy<F, T> {
 
 impl<F, T> Proxy<F, T> {
 	fn new(from: F, to: T) -> Self {
-		Proxy {
-			from: from,
-			to: to,
-		}
+		Proxy { from, to }
 	}
 }
 
-impl<F, T> io::Read for Proxy<F, T> where F: io::Read, T: FnMut(&[u8]) {
+impl<F, T> io::Read for Proxy<F, T>
+where
+	F: io::Read,
+	T: FnMut(&[u8]),
+{
 	fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
 		let len = io::Read::read(&mut self.from, buf)?;
 		let to = &mut self.to;

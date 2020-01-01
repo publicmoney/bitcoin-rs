@@ -1,9 +1,9 @@
-///! Serializable wrapper around vector of bytes
-use std::{ops, fmt};
-use hex::{ToHex, FromHex};
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::{Visitor, Error};
+use hex::{FromHex, ToHex};
 use primitives::bytes::Bytes as GlobalBytes;
+use serde::de::{Error, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+///! Serializable wrapper around vector of bytes
+use std::{fmt, ops};
 
 /// Wrapper structure around vector of bytes.
 #[derive(Debug, PartialEq, Eq, Default, Hash, Clone)]
@@ -21,7 +21,10 @@ impl Bytes {
 	}
 }
 
-impl<T> From<T> for Bytes where GlobalBytes: From<T> {
+impl<T> From<T> for Bytes
+where
+	GlobalBytes: From<T>,
+{
 	fn from(other: T) -> Self {
 		Bytes(GlobalBytes::from(other).take())
 	}
@@ -35,7 +38,9 @@ impl Into<Vec<u8>> for Bytes {
 
 impl Serialize for Bytes {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where S: Serializer {
+	where
+		S: Serializer,
+	{
 		let mut serialized = String::new();
 		serialized.push_str(self.0.to_hex::<String>().as_ref());
 		serializer.serialize_str(serialized.as_ref())
@@ -44,7 +49,9 @@ impl Serialize for Bytes {
 
 impl<'a> Deserialize<'a> for Bytes {
 	fn deserialize<D>(deserializer: D) -> Result<Bytes, D::Error>
-	where D: Deserializer<'a> {
+	where
+		D: Deserializer<'a>,
+	{
 		deserializer.deserialize_identifier(BytesVisitor)
 	}
 }
@@ -58,7 +65,10 @@ impl<'a> Visitor<'a> for BytesVisitor {
 		formatter.write_str("a bytes")
 	}
 
-	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+	where
+		E: Error,
+	{
 		if value.len() > 0 && value.len() & 1 == 0 {
 			Ok(Bytes::new(FromHex::from_hex(&value).map_err(|_| Error::custom("invalid hex"))?))
 		} else {
@@ -66,7 +76,10 @@ impl<'a> Visitor<'a> for BytesVisitor {
 		}
 	}
 
-	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+	where
+		E: Error,
+	{
 		self.visit_str(value.as_ref())
 	}
 }
@@ -82,8 +95,8 @@ impl ops::Deref for Bytes {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use serde_json;
 	use hex::FromHex;
+	use serde_json;
 
 	#[test]
 	fn test_bytes_serialize() {

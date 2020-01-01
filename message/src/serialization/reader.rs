@@ -1,7 +1,10 @@
 use ser::Reader;
-use {Payload, Error};
+use {Error, Payload};
 
-pub fn deserialize_payload<T>(buffer: &[u8], version: u32) -> Result<T, Error> where T: Payload {
+pub fn deserialize_payload<T>(buffer: &[u8], version: u32) -> Result<T, Error>
+where
+	T: Payload,
+{
 	let mut reader = PayloadReader::new(buffer, version);
 	let result = reader.read()?;
 	if !reader.is_finished() {
@@ -20,11 +23,14 @@ impl<'a> PayloadReader<&'a [u8]> {
 	pub fn new(buffer: &'a [u8], version: u32) -> Self {
 		PayloadReader {
 			reader: Reader::new(buffer),
-			version: version,
+			version,
 		}
 	}
 
-	pub fn read<T>(&mut self) -> Result<T, Error> where T: Payload {
+	pub fn read<T>(&mut self) -> Result<T, Error>
+	where
+		T: Payload,
+	{
 		if T::version() > self.version {
 			return Err(Error::InvalidVersion);
 		}

@@ -8,7 +8,7 @@ mod consensus;
 mod deployments;
 mod network;
 
-pub use primitives::{hash, compact};
+pub use primitives::{compact, hash};
 
 pub use consensus::ConsensusParams;
 pub use deployments::Deployment;

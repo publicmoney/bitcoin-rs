@@ -15,16 +15,14 @@ impl FeeRateFilter {
 
 	/// Filter transaction using its fee rate
 	pub fn filter_transaction(&self, tx_fee_rate: Option<u64>) -> bool {
-		tx_fee_rate
-			.map(|tx_fee_rate| tx_fee_rate >= self.fee_rate)
-			.unwrap_or(true)
+		tx_fee_rate.map(|tx_fee_rate| tx_fee_rate >= self.fee_rate).unwrap_or(true)
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use message::types;
 	use super::FeeRateFilter;
+	use message::types;
 
 	#[test]
 	fn fee_rate_filter_empty() {

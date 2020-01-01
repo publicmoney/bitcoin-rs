@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use chain::{Transaction, TransactionOutput, OutPoint};
-use storage::TransactionOutputProvider;
-use miner::{DoubleSpendCheckResult, HashedOutPoint, NonFinalDoubleSpendSet};
-use verification::TransactionError;
 use super::super::types::{MemoryPoolRef, StorageRef};
+use chain::{OutPoint, Transaction, TransactionOutput};
+use miner::{DoubleSpendCheckResult, HashedOutPoint, NonFinalDoubleSpendSet};
+use std::collections::HashMap;
+use storage::TransactionOutputProvider;
+use verification::TransactionError;
 
 /// Transaction output observer, which looks into both storage && into memory pool.
 /// It also allows to replace non-final transactions in the memory pool.
@@ -29,21 +29,31 @@ impl MemoryPoolTransactionOutputProvider {
 			// there are no transactions, which are spending same inputs in memory pool
 			DoubleSpendCheckResult::NoDoubleSpend => Ok(MemoryPoolTransactionOutputProvider {
 				storage_provider: storage,
-				mempool_inputs: transaction.inputs.iter()
-					.map(|input| (
-						input.previous_output.clone().into(),
-						memory_pool.transaction_output(&input.previous_output, usize::max_value()),
-					)).collect(),
+				mempool_inputs: transaction
+					.inputs
+					.iter()
+					.map(|input| {
+						(
+							input.previous_output.clone().into(),
+							memory_pool.transaction_output(&input.previous_output, usize::max_value()),
+						)
+					})
+					.collect(),
 				nonfinal_spends: None,
 			}),
 			// there are non-final transactions, which are spending same inputs in memory pool
 			DoubleSpendCheckResult::NonFinalDoubleSpend(nonfinal_spends) => Ok(MemoryPoolTransactionOutputProvider {
 				storage_provider: storage,
-				mempool_inputs: transaction.inputs.iter()
-					.map(|input| (
-						input.previous_output.clone().into(),
-						memory_pool.transaction_output(&input.previous_output, usize::max_value()),
-					)).collect(),
+				mempool_inputs: transaction
+					.inputs
+					.iter()
+					.map(|input| {
+						(
+							input.previous_output.clone().into(),
+							memory_pool.transaction_output(&input.previous_output, usize::max_value()),
+						)
+					})
+					.collect(),
 				nonfinal_spends: Some(nonfinal_spends),
 			}),
 		}
@@ -93,22 +103,33 @@ impl TransactionOutputProvider for MemoryPoolTransactionOutputProvider {
 mod tests {
 	extern crate test_data;
 
-	use std::sync::Arc;
-	use parking_lot::RwLock;
+	use super::MemoryPoolTransactionOutputProvider;
 	use chain::OutPoint;
-	use storage::TransactionOutputProvider;
 	use db::BlockChainDatabase;
 	use miner::{MemoryPool, NonZeroFeeCalculator};
-	use super::MemoryPoolTransactionOutputProvider;
+	use parking_lot::RwLock;
+	use std::sync::Arc;
+	use storage::TransactionOutputProvider;
 
 	#[test]
 	fn when_transaction_depends_on_removed_nonfinal_transaction() {
 		let dchain = &mut test_data::ChainBuilder::new();
 
-		test_data::TransactionBuilder::with_output(10).store(dchain)					// t0
-			.reset().set_input(&dchain.at(0), 0).add_output(20).lock().store(dchain)	// nonfinal: t0[0] -> t1
-			.reset().set_input(&dchain.at(1), 0).add_output(30).store(dchain)			// dependent: t0[0] -> t1[0] -> t2
-			.reset().set_input(&dchain.at(0), 0).add_output(40).store(dchain);			// good replacement: t0[0] -> t3
+		test_data::TransactionBuilder::with_output(10)
+			.store(dchain) // t0
+			.reset()
+			.set_input(&dchain.at(0), 0)
+			.add_output(20)
+			.lock()
+			.store(dchain) // nonfinal: t0[0] -> t1
+			.reset()
+			.set_input(&dchain.at(1), 0)
+			.add_output(30)
+			.store(dchain) // dependent: t0[0] -> t1[0] -> t2
+			.reset()
+			.set_input(&dchain.at(0), 0)
+			.add_output(40)
+			.store(dchain); // good replacement: t0[0] -> t3
 
 		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
 		let memory_pool = Arc::new(RwLock::new(MemoryPool::new()));
@@ -128,11 +149,56 @@ mod tests {
 		// =>
 		// if t3 is also depending on t1[0] || t2[0], it will be rejected by verification as missing inputs
 		let provider = MemoryPoolTransactionOutputProvider::for_transaction(storage, &memory_pool, &dchain.at(3)).unwrap();
-		assert_eq!(provider.is_spent(&OutPoint { hash: dchain.at(0).hash(), index: 0, }), false);
-		assert_eq!(provider.is_spent(&OutPoint { hash: dchain.at(1).hash(), index: 0, }), false);
-		assert_eq!(provider.is_spent(&OutPoint { hash: dchain.at(2).hash(), index: 0, }), false);
-		assert_eq!(provider.transaction_output(&OutPoint { hash: dchain.at(0).hash(), index: 0, }, 0), Some(dchain.at(0).outputs[0].clone()));
-		assert_eq!(provider.transaction_output(&OutPoint { hash: dchain.at(1).hash(), index: 0, }, 0), None);
-		assert_eq!(provider.transaction_output(&OutPoint { hash: dchain.at(2).hash(), index: 0, }, 0), None);
+		assert_eq!(
+			provider.is_spent(&OutPoint {
+				hash: dchain.at(0).hash(),
+				index: 0,
+			}),
+			false
+		);
+		assert_eq!(
+			provider.is_spent(&OutPoint {
+				hash: dchain.at(1).hash(),
+				index: 0,
+			}),
+			false
+		);
+		assert_eq!(
+			provider.is_spent(&OutPoint {
+				hash: dchain.at(2).hash(),
+				index: 0,
+			}),
+			false
+		);
+		assert_eq!(
+			provider.transaction_output(
+				&OutPoint {
+					hash: dchain.at(0).hash(),
+					index: 0,
+				},
+				0
+			),
+			Some(dchain.at(0).outputs[0].clone())
+		);
+		assert_eq!(
+			provider.transaction_output(
+				&OutPoint {
+					hash: dchain.at(1).hash(),
+					index: 0,
+				},
+				0
+			),
+			None
+		);
+		assert_eq!(
+			provider.transaction_output(
+				&OutPoint {
+					hash: dchain.at(2).hash(),
+					index: 0,
+				},
+				0
+			),
+			None
+		);
 	}
 }

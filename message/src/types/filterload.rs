@@ -1,7 +1,7 @@
-use std::io;
 use bytes::Bytes;
-use ser::{Serializable, Deserializable, Stream, Reader, Error as ReaderError};
-use {Payload, MessageResult};
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 pub const FILTERLOAD_MAX_FILTER_LEN: usize = 36_000;
 pub const FILTERLOAD_MAX_HASH_FUNCS: usize = 50;
@@ -37,7 +37,10 @@ impl Payload for FilterLoad {
 		"filterload"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let filterload = FilterLoad {
 			filter: reader.read()?,
 			hash_functions: reader.read()?,
@@ -82,7 +85,10 @@ impl Serializable for FilterFlags {
 }
 
 impl Deserializable for FilterFlags {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let t: u8 = reader.read()?;
 		FilterFlags::from_u8(t).ok_or(ReaderError::MalformedData)
 	}

@@ -1,12 +1,12 @@
 extern crate ansi_term;
-extern crate log;
 extern crate env_logger;
+extern crate log;
 extern crate time;
 
-use std::env;
 use ansi_term::Colour as Color;
-use log::{Record, Level};
 use env_logger::Builder;
+use log::{Level, Record};
+use std::env;
 use std::io::Write;
 
 fn strftime() -> String {
@@ -38,15 +38,20 @@ impl LogFormatter for DateAndColorLogFormatter {
 			Level::Debug => Color::Fixed(14).paint(record.level().to_string()),
 			Level::Trace => Color::Fixed(12).paint(record.level().to_string()),
 		};
-		format!("{} {} {} {}"
-			, Color::Fixed(8).bold().paint(timestamp)
-			, log_level
-			, Color::Fixed(8).paint(record.target())
-			, record.args())
+		format!(
+			"{} {} {} {}",
+			Color::Fixed(8).bold().paint(timestamp),
+			log_level,
+			Color::Fixed(8).paint(record.target()),
+			record.args()
+		)
 	}
 }
 
-pub fn init<T>(filters: &str, formatter: T) where T: LogFormatter {
+pub fn init<T>(filters: &str, formatter: T)
+where
+	T: LogFormatter,
+{
 	let mut builder = Builder::new();
 
 	let filters = match env::var("RUST_LOG") {
@@ -55,9 +60,7 @@ pub fn init<T>(filters: &str, formatter: T) where T: LogFormatter {
 	};
 
 	builder.parse_filters(&filters);
-	builder.format(move |buf, record| {
-		writeln!(buf, "{}", formatter.format(record))
-	});
+	builder.format(move |buf, record| writeln!(buf, "{}", formatter.format(record)));
 
 	builder.init();
 }

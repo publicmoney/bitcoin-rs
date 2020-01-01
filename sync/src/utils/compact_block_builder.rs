@@ -1,11 +1,11 @@
-use std::collections::HashSet;
-use rand::{thread_rng, Rng};
 use bitcrypto::{sha256, siphash24};
-use byteorder::{LittleEndian, ByteOrder};
-use chain::{BlockHeader, ShortTransactionID, IndexedBlock};
+use byteorder::{ByteOrder, LittleEndian};
+use chain::{BlockHeader, IndexedBlock, ShortTransactionID};
 use message::common::{BlockHeaderAndIDs, PrefilledTransaction};
 use primitives::hash::H256;
-use ser::{Stream, Serializable};
+use rand::{thread_rng, Rng};
+use ser::{Serializable, Stream};
+use std::collections::HashSet;
 
 /// Maximum size of prefilled transactions in compact block
 const MAX_COMPACT_BLOCK_PREFILLED_SIZE: usize = 10 * 1024;
@@ -22,7 +22,8 @@ pub fn build_compact_block(block: &IndexedBlock, prefilled_transactions_indexes:
 	for (transaction_index, transaction) in block.transactions.iter().enumerate() {
 		let transaction_size = transaction.raw.serialized_size();
 		if prefilled_transactions_size + transaction_size < MAX_COMPACT_BLOCK_PREFILLED_SIZE
-			&& prefilled_transactions_indexes.contains(&transaction_index) {
+			&& prefilled_transactions_indexes.contains(&transaction_index)
+		{
 			prefilled_transactions_size += transaction_size;
 			prefilled_transactions.push(PrefilledTransaction {
 				index: transaction_index,
@@ -35,9 +36,9 @@ pub fn build_compact_block(block: &IndexedBlock, prefilled_transactions_indexes:
 
 	BlockHeaderAndIDs {
 		header: block.header.raw.clone(),
-		nonce: nonce,
-		short_ids: short_ids,
-		prefilled_transactions: prefilled_transactions,
+		nonce,
+		short_ids,
+		prefilled_transactions,
 	}
 }
 
@@ -73,10 +74,10 @@ pub fn short_transaction_id(key0: u64, key1: u64, transaction_hash: &H256) -> Sh
 mod tests {
 	extern crate test_data;
 
-	use std::collections::HashSet;
-	use chain::{BlockHeader, Transaction, ShortTransactionID};
-	use message::common::{BlockHeaderAndIDs, PrefilledTransaction};
 	use super::*;
+	use chain::{BlockHeader, ShortTransactionID, Transaction};
+	use message::common::{BlockHeaderAndIDs, PrefilledTransaction};
+	use std::collections::HashSet;
 
 	#[test]
 	fn short_transaction_id_is_correct() {
@@ -94,6 +95,7 @@ mod tests {
 
 	#[test]
 	fn compact_block_is_built_correctly() {
+		#[rustfmt::skip]
 		let block = test_data::block_builder().header().parent(test_data::genesis().hash()).build()
 			.transaction().output().value(10).build().build()
 			.transaction().output().value(20).build().build()
@@ -106,16 +108,17 @@ mod tests {
 			short_transaction_id(key0, key1, &block.transactions[0].hash()),
 			short_transaction_id(key0, key1, &block.transactions[2].hash()),
 		];
-		assert_eq!(compact_block, BlockHeaderAndIDs {
-			header: block.block_header.clone(),
-			nonce: compact_block.nonce,
-			short_ids: short_ids,
-			prefilled_transactions: vec![
-				PrefilledTransaction {
+		assert_eq!(
+			compact_block,
+			BlockHeaderAndIDs {
+				header: block.block_header.clone(),
+				nonce: compact_block.nonce,
+				short_ids,
+				prefilled_transactions: vec![PrefilledTransaction {
 					index: 1,
 					transaction: block.transactions[1].clone(),
-				}
-			],
-		});
+				}],
+			}
+		);
 	}
 }

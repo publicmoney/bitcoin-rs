@@ -1,7 +1,7 @@
-use std::io;
 use bytes::Bytes;
-use ser::{Stream, Reader};
-use {Payload, MessageResult};
+use ser::{Reader, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 pub const FILTERADD_MAX_DATA_LEN: usize = 520;
 
@@ -20,10 +20,11 @@ impl Payload for FilterAdd {
 		"filteradd"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
-		let filteradd = FilterAdd {
-			data: reader.read()?,
-		};
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
+		let filteradd = FilterAdd { data: reader.read()? };
 
 		Ok(filteradd)
 	}

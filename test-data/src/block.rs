@@ -1,20 +1,20 @@
 //! Block builder
 
-use std::cell::Cell;
-use primitives::hash::H256;
+use super::genesis;
+use chain;
+use invoke::{Identity, Invoke};
 use primitives::bytes::Bytes;
 use primitives::compact::Compact;
-use ser::{Serializable, serialized_list_size};
-use chain;
+use primitives::hash::H256;
 use script::{Builder as ScriptBuilder, Opcode};
-use invoke::{Invoke, Identity};
-use super::genesis;
+use ser::{serialized_list_size, Serializable};
+use std::cell::Cell;
 
 thread_local! {
 	pub static TIMESTAMP_COUNTER: Cell<u32> = Cell::new(0);
 }
 
-pub struct BlockHashBuilder<F=Identity> {
+pub struct BlockHashBuilder<F = Identity> {
 	callback: F,
 	block: Option<chain::Block>,
 }
@@ -25,12 +25,12 @@ impl BlockHashBuilder {
 	}
 }
 
-impl<F> BlockHashBuilder<F> where F: Invoke<(H256, chain::Block)> {
+impl<F> BlockHashBuilder<F>
+where
+	F: Invoke<(H256, chain::Block)>,
+{
 	pub fn with_callback(callback: F) -> Self {
-		BlockHashBuilder {
-			block: None,
-			callback: callback,
-		}
+		BlockHashBuilder { block: None, callback }
 	}
 
 	pub fn block(self) -> BlockBuilder<Self> {
@@ -44,15 +44,13 @@ impl<F> BlockHashBuilder<F> where F: Invoke<(H256, chain::Block)> {
 
 	pub fn build(self) -> F::Result {
 		let block = self.block.expect("Block is supposed to be build here to get hash");
-		self.callback.invoke((
-			block.hash(),
-			block
-		))
+		self.callback.invoke((block.hash(), block))
 	}
 }
 
 impl<F> Invoke<chain::Block> for BlockHashBuilder<F>
-	where F: Invoke<(H256, chain::Block)>
+where
+	F: Invoke<(H256, chain::Block)>,
 {
 	type Result = Self;
 
@@ -61,7 +59,7 @@ impl<F> Invoke<chain::Block> for BlockHashBuilder<F>
 	}
 }
 
-pub struct BlockBuilder<F=Identity> {
+pub struct BlockBuilder<F = Identity> {
 	callback: F,
 	header: Option<chain::BlockHeader>,
 	transactions: Vec<chain::Transaction>,
@@ -73,10 +71,13 @@ impl BlockBuilder {
 	}
 }
 
-impl<F> BlockBuilder<F> where F: Invoke<chain::Block> {
+impl<F> BlockBuilder<F>
+where
+	F: Invoke<chain::Block>,
+{
 	pub fn with_callback(callback: F) -> Self {
 		BlockBuilder {
-			callback: callback,
+			callback,
 			header: None,
 			transactions: Vec::new(),
 		}
@@ -93,7 +94,8 @@ impl<F> BlockBuilder<F> where F: Invoke<chain::Block> {
 	}
 
 	pub fn with_transactions<I>(mut self, txs: I) -> Self
-		where I: IntoIterator<Item=chain::Transaction>
+	where
+		I: IntoIterator<Item = chain::Transaction>,
 	{
 		self.transactions.extend(txs);
 		self
@@ -122,7 +124,11 @@ impl<F> BlockBuilder<F> where F: Invoke<chain::Block> {
 
 	pub fn transaction_with_sigops(self, sigops: usize) -> TransactionBuilder<Self> {
 		// calling `index` creates previous output
-		TransactionBuilder::with_callback(self).input().index(0).signature_with_sigops(sigops).build()
+		TransactionBuilder::with_callback(self)
+			.input()
+			.index(0)
+			.signature_with_sigops(sigops)
+			.build()
 	}
 
 	pub fn transaction_with_size(self, size: usize) -> TransactionBuilder<Self> {
@@ -135,22 +141,32 @@ impl<F> BlockBuilder<F> where F: Invoke<chain::Block> {
 	}
 
 	pub fn derived_transaction(self, tx_idx: usize, output_idx: u32) -> TransactionBuilder<Self> {
-		let tx = self.transactions.get(tx_idx).expect(&format!("using derive_transaction with the wrong index ({})", tx_idx)).clone();
-		TransactionBuilder::with_callback(self).input().hash(tx.hash()).index(output_idx).build()
+		let tx = self
+			.transactions
+			.get(tx_idx)
+			.expect(&format!("using derive_transaction with the wrong index ({})", tx_idx))
+			.clone();
+		TransactionBuilder::with_callback(self)
+			.input()
+			.hash(tx.hash())
+			.index(output_idx)
+			.build()
 	}
 
 	// use vec![(0, 1), (0, 2), (1, 1)]
 	pub fn derived_transactions<I>(self, outputs: I) -> TransactionBuilder<Self>
-		where I: IntoIterator<Item=(usize, u32)>
+	where
+		I: IntoIterator<Item = (usize, u32)>,
 	{
 		let mut derives = Vec::new();
 		for (tx_idx, output_idx) in outputs {
-			derives.push(
-				(
-					self.transactions.get(tx_idx).expect(&format!("using derive_transaction with the wrong index ({})", tx_idx)).hash(),
-					output_idx
-				)
-			);
+			derives.push((
+				self.transactions
+					.get(tx_idx)
+					.expect(&format!("using derive_transaction with the wrong index ({})", tx_idx))
+					.hash(),
+				output_idx,
+			));
 		}
 
 		let mut builder = TransactionBuilder::with_callback(self);
@@ -161,17 +177,13 @@ impl<F> BlockBuilder<F> where F: Invoke<chain::Block> {
 	}
 
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(
-			chain::Block::new(
-				self.header.unwrap(),
-				self.transactions,
-			)
-		)
+		self.callback.invoke(chain::Block::new(self.header.unwrap(), self.transactions))
 	}
 }
 
 impl<F> Invoke<chain::BlockHeader> for BlockBuilder<F>
-	where F: Invoke<chain::Block>
+where
+	F: Invoke<chain::Block>,
 {
 	type Result = Self;
 
@@ -181,7 +193,8 @@ impl<F> Invoke<chain::BlockHeader> for BlockBuilder<F>
 }
 
 impl<F> Invoke<chain::Transaction> for BlockBuilder<F>
-	where F: Invoke<chain::Block>
+where
+	F: Invoke<chain::Block>,
 {
 	type Result = Self;
 
@@ -190,7 +203,7 @@ impl<F> Invoke<chain::Transaction> for BlockBuilder<F>
 	}
 }
 
-pub struct BlockHeaderBuilder<F=Identity> {
+pub struct BlockHeaderBuilder<F = Identity> {
 	callback: F,
 	time: u32,
 	parent: H256,
@@ -200,11 +213,18 @@ pub struct BlockHeaderBuilder<F=Identity> {
 	merkle_root: H256,
 }
 
-impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
+impl<F> BlockHeaderBuilder<F>
+where
+	F: Invoke<chain::BlockHeader>,
+{
 	pub fn with_callback(callback: F) -> Self {
 		BlockHeaderBuilder {
-			callback: callback,
-			time: TIMESTAMP_COUNTER.with(|counter| { let val = counter.get(); counter.set(val+1); val }),
+			callback,
+			time: TIMESTAMP_COUNTER.with(|counter| {
+				let val = counter.get();
+				counter.set(val + 1);
+				val
+			}),
 			nonce: 0,
 			merkle_root: 0.into(),
 			parent: 0.into(),
@@ -240,20 +260,18 @@ impl<F> BlockHeaderBuilder<F> where F: Invoke<chain::BlockHeader> {
 	}
 
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(
-			chain::BlockHeader {
-				time: self.time,
-				previous_header_hash: self.parent,
-				bits: self.bits,
-				nonce: self.nonce,
-				merkle_root_hash: self.merkle_root,
-				version: self.version,
-			}
-		)
+		self.callback.invoke(chain::BlockHeader {
+			time: self.time,
+			previous_header_hash: self.parent,
+			bits: self.bits,
+			nonce: self.nonce,
+			merkle_root_hash: self.merkle_root,
+			version: self.version,
+		})
 	}
 }
 
-pub struct TransactionBuilder<F=Identity> {
+pub struct TransactionBuilder<F = Identity> {
 	callback: F,
 	version: i32,
 	lock_time: u32,
@@ -261,10 +279,13 @@ pub struct TransactionBuilder<F=Identity> {
 	outputs: Vec<chain::TransactionOutput>,
 }
 
-impl<F> TransactionBuilder<F> where F: Invoke<chain::Transaction> {
+impl<F> TransactionBuilder<F>
+where
+	F: Invoke<chain::Transaction>,
+{
 	fn with_callback(callback: F) -> Self {
 		TransactionBuilder {
-			callback: callback,
+			callback,
 			version: 1,
 			lock_time: 0,
 			inputs: Vec::new(),
@@ -283,10 +304,10 @@ impl<F> TransactionBuilder<F> where F: Invoke<chain::Transaction> {
 	}
 
 	fn size(&self) -> usize {
-		self.version.serialized_size() +
-			self.lock_time.serialized_size() +
-			serialized_list_size(&self.inputs) +
-			serialized_list_size(&self.outputs)
+		self.version.serialized_size()
+			+ self.lock_time.serialized_size()
+			+ serialized_list_size(&self.inputs)
+			+ serialized_list_size(&self.outputs)
 	}
 
 	pub fn lock_time(mut self, time: u32) -> Self {
@@ -329,20 +350,18 @@ impl<F> TransactionBuilder<F> where F: Invoke<chain::Transaction> {
 	}
 
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(
-			chain::Transaction {
-				lock_time: self.lock_time,
-				version: self.version,
-				inputs: self.inputs,
-				outputs: self.outputs,
-			}
-		)
+		self.callback.invoke(chain::Transaction {
+			lock_time: self.lock_time,
+			version: self.version,
+			inputs: self.inputs,
+			outputs: self.outputs,
+		})
 	}
 }
 
-
 impl<F> Invoke<chain::TransactionInput> for TransactionBuilder<F>
-	where F: Invoke<chain::Transaction>
+where
+	F: Invoke<chain::Transaction>,
 {
 	type Result = Self;
 
@@ -352,7 +371,8 @@ impl<F> Invoke<chain::TransactionInput> for TransactionBuilder<F>
 }
 
 impl<F> Invoke<chain::TransactionOutput> for TransactionBuilder<F>
-	where F: Invoke<chain::Transaction>
+where
+	F: Invoke<chain::Transaction>,
 {
 	type Result = Self;
 
@@ -361,17 +381,20 @@ impl<F> Invoke<chain::TransactionOutput> for TransactionBuilder<F>
 	}
 }
 
-pub struct TransactionInputBuilder<F=Identity> {
+pub struct TransactionInputBuilder<F = Identity> {
 	callback: F,
 	output: Option<chain::OutPoint>,
 	signature: Bytes,
 	sequence: u32,
 }
 
-impl<F> TransactionInputBuilder<F> where F: Invoke<chain::TransactionInput> {
+impl<F> TransactionInputBuilder<F>
+where
+	F: Invoke<chain::TransactionInput>,
+{
 	fn with_callback(callback: F) -> Self {
 		TransactionInputBuilder {
-			callback: callback,
+			callback,
 			output: None,
 			signature: Bytes::new_with_len(0),
 			sequence: 0,
@@ -391,10 +414,7 @@ impl<F> TransactionInputBuilder<F> where F: Invoke<chain::TransactionInput> {
 	pub fn signature_with_sigops(mut self, sigops: usize) -> Self {
 		let mut builder = ScriptBuilder::default();
 		for _ in 0..sigops {
-			builder = builder
-				.push_data(&[])
-				.push_data(&[])
-				.push_opcode(Opcode::OP_CHECKSIG);
+			builder = builder.push_data(&[]).push_data(&[]).push_opcode(Opcode::OP_CHECKSIG);
 		}
 		self.signature = builder.into_script().into();
 		self
@@ -415,48 +435,57 @@ impl<F> TransactionInputBuilder<F> where F: Invoke<chain::TransactionInput> {
 	}
 
 	pub fn hash(mut self, hash: H256) -> Self {
-		let mut output = self.output.unwrap_or(chain::OutPoint { hash: hash.clone(), index: 0 });
+		let mut output = self.output.unwrap_or(chain::OutPoint {
+			hash: hash.clone(),
+			index: 0,
+		});
 		output.hash = hash;
 		self.output = Some(output);
 		self
 	}
 
 	pub fn index(mut self, index: u32) -> Self {
-		let mut output = self.output.unwrap_or(chain::OutPoint { hash: H256::from(0), index: index });
+		let mut output = self.output.unwrap_or(chain::OutPoint {
+			hash: H256::from(0),
+			index,
+		});
 		output.index = index;
 		self.output = Some(output);
 		self
 	}
 
 	pub fn coinbase(mut self) -> Self {
-		self.output = Some(chain::OutPoint { hash: H256::from(0), index: 0xffffffff });
+		self.output = Some(chain::OutPoint {
+			hash: H256::from(0),
+			index: 0xffffffff,
+		});
 		self.signature = vec![0u8; 2].into();
 		self
 	}
 
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(
-			chain::TransactionInput {
-				previous_output: self.output.expect("Building input without previous output"),
-				script_sig: self.signature,
-				sequence: self.sequence,
-				script_witness: vec![],
-			}
-		)
+		self.callback.invoke(chain::TransactionInput {
+			previous_output: self.output.expect("Building input without previous output"),
+			script_sig: self.signature,
+			sequence: self.sequence,
+			script_witness: vec![],
+		})
 	}
 }
 
-
-pub struct TransactionOutputBuilder<F=Identity> {
+pub struct TransactionOutputBuilder<F = Identity> {
 	callback: F,
 	value: u64,
 	script_pubkey: Bytes,
 }
 
-impl<F> TransactionOutputBuilder<F> where F: Invoke<chain::TransactionOutput> {
+impl<F> TransactionOutputBuilder<F>
+where
+	F: Invoke<chain::TransactionOutput>,
+{
 	fn with_callback(callback: F) -> Self {
 		TransactionOutputBuilder {
-			callback: callback,
+			callback,
 			// always spendable by default
 			script_pubkey: ScriptBuilder::default().push_opcode(Opcode::OP_1).into_script().into(),
 			value: 0,
@@ -481,10 +510,7 @@ impl<F> TransactionOutputBuilder<F> where F: Invoke<chain::TransactionOutput> {
 	pub fn script_pubkey_with_sigops(mut self, sigops: usize) -> Self {
 		let mut builder = ScriptBuilder::default();
 		for _ in 0..sigops {
-			builder = builder
-				.push_data(&[])
-				.push_data(&[])
-				.push_opcode(Opcode::OP_CHECKSIG);
+			builder = builder.push_data(&[]).push_data(&[]).push_opcode(Opcode::OP_CHECKSIG);
 		}
 		builder = builder.push_opcode(Opcode::OP_1);
 		self.script_pubkey = builder.into_script().into();
@@ -492,17 +518,19 @@ impl<F> TransactionOutputBuilder<F> where F: Invoke<chain::TransactionOutput> {
 	}
 
 	pub fn build(self) -> F::Result {
-		self.callback.invoke(
-			chain::TransactionOutput {
-				script_pubkey: self.script_pubkey,
-				value: self.value,
-			}
-		)
+		self.callback.invoke(chain::TransactionOutput {
+			script_pubkey: self.script_pubkey,
+			value: self.value,
+		})
 	}
 }
 
-pub fn block_builder() -> BlockBuilder { BlockBuilder::new() }
-pub fn block_hash_builder() -> BlockHashBuilder { BlockHashBuilder::new() }
+pub fn block_builder() -> BlockBuilder {
+	BlockBuilder::new()
+}
+pub fn block_hash_builder() -> BlockHashBuilder {
+	BlockHashBuilder::new()
+}
 
 pub fn build_n_empty_blocks_from(n: u32, start_nonce: u32, previous: &chain::BlockHeader) -> Vec<chain::Block> {
 	let mut result = Vec::new();
@@ -537,6 +565,7 @@ fn example1() {
 
 #[test]
 fn example2() {
+	#[rustfmt::skip]
 	let block = BlockBuilder::new()
 		.header().build()
 		.transaction().lock_time(100500).build()
@@ -547,6 +576,7 @@ fn example2() {
 
 #[test]
 fn example3() {
+	#[rustfmt::skip]
 	let block = block_builder().header().build()
 		.transaction().coinbase().build()
 		.build();
@@ -556,6 +586,7 @@ fn example3() {
 
 #[test]
 fn example4() {
+	#[rustfmt::skip]
 	let block = block_builder().header().build()
 		.transaction().coinbase()
 			.output().value(10).build()
@@ -571,6 +602,7 @@ fn example4() {
 
 #[test]
 fn example5() {
+	#[rustfmt::skip]
 	let (hash, block) = block_hash_builder()
 		.block()
 			.header().parent(H256::from(0)).build()
@@ -578,11 +610,15 @@ fn example5() {
 		.build();
 
 	assert_eq!(hash, "3e24319d69a77c58e2da8c7331a21729482835c96834dafb3e1793c1253847c7".into());
-	assert_eq!(block.header().previous_header_hash, "0000000000000000000000000000000000000000000000000000000000000000".into());
+	assert_eq!(
+		block.header().previous_header_hash,
+		"0000000000000000000000000000000000000000000000000000000000000000".into()
+	);
 }
 
 #[test]
 fn transaction_with_size() {
+	#[rustfmt::skip]
 	let block = block_builder().header().build()
 		.transaction().coinbase()
 			.output().value(10).build()

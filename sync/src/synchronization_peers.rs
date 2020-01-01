@@ -1,11 +1,11 @@
-use std::collections::HashMap;
-use parking_lot::RwLock;
 use chain::{IndexedBlock, IndexedTransaction};
 use message::{types, Services};
 use p2p::OutboundSyncConnectionRef;
+use parking_lot::RwLock;
 use primitives::hash::H256;
+use std::collections::HashMap;
 use types::PeerIndex;
-use utils::{KnownHashType, ConnectionFilter};
+use utils::{ConnectionFilter, KnownHashType};
 
 /// Block announcement type
 #[derive(Debug, Clone, Copy)]
@@ -39,7 +39,7 @@ pub struct MerkleBlockArtefacts {
 }
 
 /// Connected peers
-pub trait Peers : Send + Sync + PeersContainer + PeersFilters + PeersOptions {
+pub trait Peers: Send + Sync + PeersContainer + PeersFilters + PeersOptions {
 	/// Require peers services.
 	fn require_peer_services(&self, services: Services);
 	/// Get peer connection
@@ -73,7 +73,12 @@ pub trait PeersFilters {
 	/// Is block passing filters for the connection
 	fn filter_block(&self, peer_index: PeerIndex, block: &IndexedBlock) -> BlockAnnouncementType;
 	/// Is block passing filters for the connection
-	fn filter_transaction(&self, peer_index: PeerIndex, transaction: &IndexedTransaction, transaction_fee_rate: Option<u64>) -> TransactionAnnouncementType;
+	fn filter_transaction(
+		&self,
+		peer_index: PeerIndex,
+		transaction: &IndexedTransaction,
+		transaction_fee_rate: Option<u64>,
+	) -> TransactionAnnouncementType;
 	/// Remember known hash
 	fn hash_known_as(&self, peer_index: PeerIndex, hash: H256, hash_type: KnownHashType);
 	/// Is given hash known by peer as hash of given type
@@ -119,8 +124,8 @@ pub struct PeersImpl {
 impl Peer {
 	pub fn new(services: Services, connection: OutboundSyncConnectionRef) -> Self {
 		Peer {
-			connection: connection,
-			services: services,
+			connection,
+			services,
 			filter: ConnectionFilter::default(),
 			block_announcement_type: BlockAnnouncementType::SendInventory,
 			transaction_announcement_type: TransactionAnnouncementType::SendInventory,
@@ -133,8 +138,13 @@ impl Peers for PeersImpl {
 		// possible optimization: force p2p level to establish connections to SegWit-nodes only
 		// without it, all other nodes will be eventually banned (this could take some time, though)
 		let mut peers = self.peers.write();
-		for peer_index in peers.iter().filter(|&(_, p)| p.services.includes(&services)).map(|(p, _)| *p).collect::<Vec<_>>() {
-			let peer = peers.remove(&peer_index).expect("iterating peers keys; qed"); 
+		for peer_index in peers
+			.iter()
+			.filter(|&(_, p)| p.services.includes(&services))
+			.map(|(p, _)| *p)
+			.collect::<Vec<_>>()
+		{
+			let peer = peers.remove(&peer_index).expect("iterating peers keys; qed");
 			let expected_services: u64 = services.into();
 			let actual_services: u64 = peer.services.into();
 			warn!(target: "sync", "Disconnecting from peer#{} because of insufficient services. Expected {:x}, actual: {:x}", peer_index, expected_services, actual_services);
@@ -206,17 +216,22 @@ impl PeersFilters for PeersImpl {
 	fn filter_block(&self, peer_index: PeerIndex, block: &IndexedBlock) -> BlockAnnouncementType {
 		if let Some(peer) = self.peers.read().get(&peer_index) {
 			if peer.filter.filter_block(&block.header.hash) {
-				return peer.block_announcement_type
+				return peer.block_announcement_type;
 			}
 		}
 
 		BlockAnnouncementType::DoNotAnnounce
 	}
 
-	fn filter_transaction(&self, peer_index: PeerIndex, transaction: &IndexedTransaction, transaction_fee_rate: Option<u64>) -> TransactionAnnouncementType {
+	fn filter_transaction(
+		&self,
+		peer_index: PeerIndex,
+		transaction: &IndexedTransaction,
+		transaction_fee_rate: Option<u64>,
+	) -> TransactionAnnouncementType {
 		if let Some(peer) = self.peers.read().get(&peer_index) {
 			if peer.filter.filter_transaction(transaction, transaction_fee_rate) {
-				return peer.transaction_announcement_type
+				return peer.transaction_announcement_type;
 			}
 		}
 
@@ -230,25 +245,32 @@ impl PeersFilters for PeersImpl {
 	}
 
 	fn is_hash_known_as(&self, peer_index: PeerIndex, hash: &H256, hash_type: KnownHashType) -> bool {
-		self.peers.read().get(&peer_index)
+		self.peers
+			.read()
+			.get(&peer_index)
 			.map(|peer| peer.filter.is_hash_known_as(hash, hash_type))
 			.unwrap_or(false)
 	}
 
 	fn build_compact_block(&self, peer_index: PeerIndex, block: &IndexedBlock) -> Option<types::CompactBlock> {
-		self.peers.read().get(&peer_index)
+		self.peers
+			.read()
+			.get(&peer_index)
 			.map(|peer| peer.filter.build_compact_block(block))
 	}
 
 	fn build_merkle_block(&self, peer_index: PeerIndex, block: &IndexedBlock) -> Option<MerkleBlockArtefacts> {
-		self.peers.read().get(&peer_index)
+		self.peers
+			.read()
+			.get(&peer_index)
 			.and_then(|peer| peer.filter.build_merkle_block(block))
 	}
 }
 
 impl PeersOptions for PeersImpl {
 	fn is_segwit_enabled(&self, peer_index: PeerIndex) -> bool {
-		self.peers.read()
+		self.peers
+			.read()
 			.get(&peer_index)
 			.map(|peer| peer.services.witness())
 			.unwrap_or_default()

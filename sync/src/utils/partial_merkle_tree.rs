@@ -1,7 +1,7 @@
-use std::cmp::min;
 use bit_vec::BitVec;
 use chain::merkle_node_hash;
 use primitives::hash::H256;
+use std::cmp::min;
 
 /// Partial merkle tree
 pub struct PartialMerkleTree {
@@ -51,23 +51,15 @@ struct PartialMerkleTreeBuilder {
 
 impl PartialMerkleTree {
 	/// Create new merkle tree with given data
-	pub fn new(tx_count:usize, hashes: Vec<H256>, flags: BitVec) -> Self {
-		PartialMerkleTree {
-			tx_count: tx_count,
-			hashes: hashes,
-			flags: flags,
-		}
+	pub fn new(tx_count: usize, hashes: Vec<H256>, flags: BitVec) -> Self {
+		PartialMerkleTree { tx_count, hashes, flags }
 	}
 }
 
 #[cfg(test)]
 impl ParsedPartialMerkleTree {
 	pub fn new(root: H256, hashes: Vec<H256>, flags: BitVec) -> Self {
-		ParsedPartialMerkleTree {
-			root: root,
-			hashes: hashes,
-			flags: flags,
-		}
+		ParsedPartialMerkleTree { root, hashes, flags }
 	}
 }
 
@@ -77,8 +69,8 @@ impl PartialMerkleTreeBuilder {
 	pub fn build(all_hashes: Vec<H256>, all_matches: BitVec) -> PartialMerkleTree {
 		let mut partial_merkle_tree = PartialMerkleTreeBuilder {
 			all_len: all_hashes.len(),
-			all_hashes: all_hashes,
-			all_matches: all_matches,
+			all_hashes,
+			all_matches,
 			hashes: Vec::new(),
 			matches: BitVec::new(),
 		};
@@ -99,7 +91,11 @@ impl PartialMerkleTreeBuilder {
 		};
 
 		let merkle_root = partial_merkle_tree.parse_tree()?;
-		Ok(ParsedPartialMerkleTree::new(merkle_root, partial_merkle_tree.all_hashes, partial_merkle_tree.all_matches))
+		Ok(ParsedPartialMerkleTree::new(
+			merkle_root,
+			partial_merkle_tree.all_hashes,
+			partial_merkle_tree.all_matches,
+		))
 	}
 
 	fn build_tree(&mut self) {
@@ -234,9 +230,9 @@ impl PartialMerkleTreeBuilder {
 mod tests {
 	extern crate test_data;
 
-	use chain::{Transaction, merkle_root};
-	use primitives::hash::H256;
 	use super::{build_partial_merkle_tree, parse_partial_merkle_tree};
+	use chain::{merkle_root, Transaction};
+	use primitives::hash::H256;
 
 	#[test]
 	// test from core implementation (slow)
@@ -252,7 +248,9 @@ mod tests {
 		let tx_counts: Vec<usize> = vec![1, 4, 7, 17, 56, 100, 127, 256, 312, 513, 1000, 4095];
 		for tx_count in tx_counts {
 			// build block with given transactions number
-			let transactions: Vec<Transaction> = (0..tx_count).map(|n| test_data::TransactionBuilder::with_version(n as i32).into()).collect();
+			let transactions: Vec<Transaction> = (0..tx_count)
+				.map(|n| test_data::TransactionBuilder::with_version(n as i32).into())
+				.collect();
 			let hashes: Vec<_> = transactions.iter().map(|t| t.hash()).collect();
 			let merkle_root = merkle_root(&hashes);
 

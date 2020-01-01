@@ -1,10 +1,10 @@
-use std::{fmt, ops};
-use secp256k1::key;
-use secp256k1::{Message as SecpMessage, RecoveryId, RecoverableSignature, Error as SecpError, Signature as SecpSignature};
-use hex::ToHex;
 use crypto::dhash160;
 use hash::{H264, H520};
-use {AddressHash, Error, CompactSignature, Signature, Message, SECP256K1};
+use hex::ToHex;
+use secp256k1::key;
+use secp256k1::{Error as SecpError, Message as SecpMessage, RecoverableSignature, RecoveryId, Signature as SecpSignature};
+use std::{fmt, ops};
+use {AddressHash, CompactSignature, Error, Message, Signature, SECP256K1};
 
 /// Secret public key
 pub enum Public {
@@ -21,13 +21,13 @@ impl Public {
 				let mut public = H264::default();
 				public.copy_from_slice(data);
 				Ok(Public::Compressed(public))
-			},
+			}
 			65 => {
 				let mut public = H520::default();
 				public.copy_from_slice(data);
 				Ok(Public::Normal(public))
-			},
-			_ => Err(Error::InvalidPublic)
+			}
+			_ => Err(Error::InvalidPublic),
 		}
 	}
 

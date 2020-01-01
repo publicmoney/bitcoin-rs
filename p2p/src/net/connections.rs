@@ -1,11 +1,11 @@
-use std::{mem, net};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::collections::{HashMap, HashSet};
-use parking_lot::RwLock;
-use net::{Connection, Channel};
+use net::{Channel, Connection};
 use p2p::Context;
-use session::{SessionFactory};
+use parking_lot::RwLock;
+use session::SessionFactory;
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::{mem, net};
 use util::{Direction, PeerInfo};
 use PeerId;
 
@@ -47,14 +47,17 @@ impl Connections {
 
 	/// Stores new channel.
 	/// Returnes a shared pointer to it.
-	pub fn store<T>(&self, context: Arc<Context>, connection: Connection, direction: Direction) -> Arc<Channel> where T: SessionFactory {
+	pub fn store<T>(&self, context: Arc<Context>, connection: Connection, direction: Direction) -> Arc<Channel>
+	where
+		T: SessionFactory,
+	{
 		let id = self.peer_counter.fetch_add(1, Ordering::AcqRel);
 
 		let peer_info = PeerInfo {
-			id: id,
+			id,
 			address: connection.address,
 			user_agent: connection.version_message.user_agent().unwrap_or("unknown".into()),
-			direction: direction,
+			direction,
 			version: connection.version,
 			version_message: connection.version_message,
 			magic: connection.magic,

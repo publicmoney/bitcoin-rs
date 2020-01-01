@@ -1,9 +1,6 @@
-use std::io;
-use ser::{
-	Serializable, Stream, CompactInteger,
-	Deserializable, Reader, Error as ReaderError
-};
 use chain::Transaction;
+use ser::{CompactInteger, Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::io;
 
 #[derive(Debug, PartialEq)]
 pub struct PrefilledTransaction {
@@ -13,14 +10,15 @@ pub struct PrefilledTransaction {
 
 impl Serializable for PrefilledTransaction {
 	fn serialize(&self, stream: &mut Stream) {
-		stream
-			.append(&CompactInteger::from(self.index))
-			.append(&self.transaction);
+		stream.append(&CompactInteger::from(self.index)).append(&self.transaction);
 	}
 }
 
 impl Deserializable for PrefilledTransaction {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let compact: CompactInteger = reader.read()?;
 		let tx = PrefilledTransaction {
 			index: compact.into(),

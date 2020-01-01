@@ -1,7 +1,10 @@
-use std::{io, fs, path, cmp};
+use std::{cmp, fs, io, path};
 
 /// Creates an iterator over all blk .dat files
-pub fn read_blk_dir<P>(path: P) -> Result<ReadBlkDir, io::Error> where P: AsRef<path::Path> {
+pub fn read_blk_dir<P>(path: P) -> Result<ReadBlkDir, io::Error>
+where
+	P: AsRef<path::Path>,
+{
 	let read_blk_dir = ReadBlkDir {
 		read_dir: fs::read_dir(path)?,
 	};
@@ -58,9 +61,7 @@ impl BlkEntry {
 			}
 		}
 
-		let entry = BlkEntry {
-			path: dir_entry.path(),
-		};
+		let entry = BlkEntry { path: dir_entry.path() };
 
 		Some(entry)
 	}

@@ -1,6 +1,6 @@
 use chain::Transaction;
 use ser::Serializable;
-use storage::{TransactionOutputProvider, DuplexTransactionOutputProvider};
+use storage::{DuplexTransactionOutputProvider, TransactionOutputProvider};
 use MemoryPool;
 
 /// Transaction fee calculator for memory pool
@@ -33,10 +33,12 @@ impl MemoryPoolFeeCalculator for NonZeroFeeCalculator {
 }
 
 pub fn transaction_fee(store: &dyn TransactionOutputProvider, tx: &Transaction) -> u64 {
-	let input_value = tx.inputs.iter().fold(0, |acc, input| acc + store
-		.transaction_output(&input.previous_output, ::std::usize::MAX)
-		.map(|output| output.value)
-		.unwrap_or(0));
+	let input_value = tx.inputs.iter().fold(0, |acc, input| {
+		acc + store
+			.transaction_output(&input.previous_output, ::std::usize::MAX)
+			.map(|output| output.value)
+			.unwrap_or(0)
+	});
 	let output_value = tx.outputs.iter().fold(0, |acc, output| acc + output.value);
 
 	input_value.saturating_sub(output_value)
@@ -50,13 +52,14 @@ pub fn transaction_fee_rate(store: &dyn TransactionOutputProvider, tx: &Transact
 mod tests {
 	extern crate test_data;
 
-	use std::sync::Arc;
-	use storage::{AsSubstore};
-	use db::BlockChainDatabase;
 	use super::*;
+	use db::BlockChainDatabase;
+	use std::sync::Arc;
+	use storage::AsSubstore;
 
 	#[test]
 	fn test_transaction_fee() {
+		#[rustfmt::skip]
 		let b0 = test_data::block_builder().header().nonce(1).build()
 			.transaction()
 				.output().value(1_000_000).build()
@@ -65,6 +68,7 @@ mod tests {
 			.build();
 		let tx0 = b0.transactions[0].clone();
 		let tx0_hash = tx0.hash();
+		#[rustfmt::skip]
 		let b1 = test_data::block_builder().header().parent(b0.hash().clone()).nonce(2).build()
 			.transaction()
 				.input().hash(tx0_hash.clone()).index(0).build()

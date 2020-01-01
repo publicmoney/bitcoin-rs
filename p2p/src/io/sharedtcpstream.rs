@@ -1,9 +1,9 @@
-use std::sync::Arc;
-use std::net::Shutdown;
-use std::io::{Read, Write, Error};
 use futures::Poll;
-use tokio_io::{AsyncRead, AsyncWrite};
+use std::io::{Error, Read, Write};
+use std::net::Shutdown;
+use std::sync::Arc;
 use tokio_core::net::TcpStream;
+use tokio_io::{AsyncRead, AsyncWrite};
 
 pub struct SharedTcpStream {
 	io: Arc<TcpStream>,
@@ -11,9 +11,7 @@ pub struct SharedTcpStream {
 
 impl SharedTcpStream {
 	pub fn new(a: Arc<TcpStream>) -> Self {
-		SharedTcpStream {
-			io: a,
-		}
+		SharedTcpStream { io: a }
 	}
 
 	pub fn shutdown(&self) {

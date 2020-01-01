@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::collections::hash_map::Entry;
-use linked_hash_map::LinkedHashMap;
-use time;
 use chain::IndexedTransaction;
+use linked_hash_map::LinkedHashMap;
 use primitives::hash::H256;
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet, VecDeque};
+use time;
 
 #[derive(Debug)]
 /// Storage for transactions, for which we have no parent transactions yet.
@@ -54,10 +54,13 @@ impl OrphanTransactionsPool {
 	/// Insert orphan transaction
 	pub fn insert(&mut self, transaction: IndexedTransaction, unknown_parents: HashSet<H256>) {
 		assert!(!self.by_hash.contains_key(&transaction.hash));
-		assert!(unknown_parents.iter().all(|h| transaction.raw.inputs.iter().any(|i| &i.previous_output.hash == h)));
+		assert!(unknown_parents
+			.iter()
+			.all(|h| transaction.raw.inputs.iter().any(|i| &i.previous_output.hash == h)));
 
 		for unknown_parent in &unknown_parents {
-			self.by_parent.entry(unknown_parent.clone())
+			self.by_parent
+				.entry(unknown_parent.clone())
 				.or_insert_with(HashSet::new)
 				.insert(transaction.hash.clone());
 		}
@@ -118,8 +121,8 @@ impl OrphanTransaction {
 	pub fn new(transaction: IndexedTransaction, unknown_parents: HashSet<H256>) -> Self {
 		OrphanTransaction {
 			insertion_time: time::precise_time_s(),
-			transaction: transaction,
-			unknown_parents: unknown_parents,
+			transaction,
+			unknown_parents,
 		}
 	}
 
@@ -134,10 +137,10 @@ impl OrphanTransaction {
 mod tests {
 	extern crate test_data;
 
-	use std::collections::HashSet;
-	use self::test_data::{TransactionBuilder, ChainBuilder};
-	use primitives::hash::H256;
+	use self::test_data::{ChainBuilder, TransactionBuilder};
 	use super::OrphanTransactionsPool;
+	use primitives::hash::H256;
+	use std::collections::HashSet;
 
 	#[test]
 	fn orphan_transaction_pool_empty_on_start() {
@@ -148,11 +151,20 @@ mod tests {
 	#[test]
 	fn orphan_transaction_pool_insert_dependent_transactions() {
 		let chain = &mut ChainBuilder::new();
-		TransactionBuilder::with_output(100).store(chain)			// t1
-			.into_input(0).add_output(200).store(chain)				// t1 -> t2
-			.into_input(0).add_output(300).store(chain)				// t1 -> t2 -> t3
-			.set_default_input(0).set_output(400).store(chain)		// t4
-			.into_input(0).set_output(500).store(chain);			// t4 -> t5
+		TransactionBuilder::with_output(100)
+			.store(chain) // t1
+			.into_input(0)
+			.add_output(200)
+			.store(chain) // t1 -> t2
+			.into_input(0)
+			.add_output(300)
+			.store(chain) // t1 -> t2 -> t3
+			.set_default_input(0)
+			.set_output(400)
+			.store(chain) // t4
+			.into_input(0)
+			.set_output(500)
+			.store(chain); // t4 -> t5
 		let t2_unknown: HashSet<H256> = chain.at(1).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		let t3_unknown: HashSet<H256> = chain.at(2).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		let t5_unknown: HashSet<H256> = chain.at(4).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
@@ -177,13 +189,26 @@ mod tests {
 	#[test]
 	fn orphan_transaction_pool_remove_transactions() {
 		let chain = &mut ChainBuilder::new();
-		TransactionBuilder::with_output(100).store(chain)			// t1
-			.into_input(0).add_output(200).store(chain)				// t1 -> t2
-			.into_input(0).add_output(300).store(chain)				// t1 -> t2 -> t3
-			.set_default_input(0).set_output(400).store(chain)		// t4
-			.into_input(0).set_output(500).store(chain)				// t4 -> t5
-			.set_default_input(0).set_output(600).store(chain)		// t6
-			.into_input(0).set_output(700).store(chain);			// t6 -> t7
+		TransactionBuilder::with_output(100)
+			.store(chain) // t1
+			.into_input(0)
+			.add_output(200)
+			.store(chain) // t1 -> t2
+			.into_input(0)
+			.add_output(300)
+			.store(chain) // t1 -> t2 -> t3
+			.set_default_input(0)
+			.set_output(400)
+			.store(chain) // t4
+			.into_input(0)
+			.set_output(500)
+			.store(chain) // t4 -> t5
+			.set_default_input(0)
+			.set_output(600)
+			.store(chain) // t6
+			.into_input(0)
+			.set_output(700)
+			.store(chain); // t6 -> t7
 		let t2_unknown: HashSet<H256> = chain.at(1).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		let t3_unknown: HashSet<H256> = chain.at(2).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		let t5_unknown: HashSet<H256> = chain.at(4).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
@@ -210,9 +235,14 @@ mod tests {
 	#[test]
 	fn orphan_transaction_pool_remove_transactions_child_before_parent() {
 		let chain = &mut ChainBuilder::new();
-		TransactionBuilder::with_output(100).store(chain)			// t1
-			.into_input(0).add_output(200).store(chain)				// t1 -> t2
-			.into_input(0).add_output(300).store(chain);			// t1 -> t2 -> t3
+		TransactionBuilder::with_output(100)
+			.store(chain) // t1
+			.into_input(0)
+			.add_output(200)
+			.store(chain) // t1 -> t2
+			.into_input(0)
+			.add_output(300)
+			.store(chain); // t1 -> t2 -> t3
 		let t2_unknown: HashSet<H256> = chain.at(1).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		let t3_unknown: HashSet<H256> = chain.at(2).inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 

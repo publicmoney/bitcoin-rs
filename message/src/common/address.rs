@@ -1,6 +1,6 @@
 use bytes::Bytes;
+use common::{IpAddress, Port, Services};
 use ser::deserialize;
-use common::{Port, IpAddress, Services};
 
 #[derive(Debug, Default, PartialEq, Clone, Serializable, Deserializable)]
 pub struct NetAddress {
@@ -18,12 +18,13 @@ impl From<&'static str> for NetAddress {
 
 #[cfg(test)]
 mod tests {
-	use ser::{serialize, deserialize};
-	use common::Services;
 	use super::NetAddress;
+	use common::Services;
+	use ser::{deserialize, serialize};
 
 	#[test]
 	fn test_net_address_serialize() {
+		#[rustfmt::skip]
 		let expected = vec![
 			0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x00, 0x00, 0x01,
@@ -41,6 +42,7 @@ mod tests {
 
 	#[test]
 	fn test_net_address_deserialize() {
+		#[rustfmt::skip]
 		let bytes = vec![
 			0x01u8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x00, 0x00, 0x01,
@@ -62,7 +64,6 @@ mod tests {
 			services: Services::default().with_network(true),
 			address: "::ffff:a00:1".into(),
 			port: 8333.into(),
-
 		};
 		let s = "010000000000000000000000000000000000ffff0a000001208d";
 		assert_eq!(expected, s.into());

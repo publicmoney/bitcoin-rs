@@ -1,19 +1,21 @@
 //! Bitcoin chain verifier
 
-use hash::H256;
-use chain::{IndexedBlock, IndexedBlockHeader, BlockHeader, IndexedTransaction};
-use storage::{SharedStore, TransactionOutputProvider, BlockHeaderProvider, BlockOrigin,
-	DuplexTransactionOutputProvider, NoopStore, CachedTransactionOutputProvider};
-use network::ConsensusParams;
-use error::{Error, TransactionError};
+use accept_chain::ChainAcceptor;
+use accept_transaction::MemoryPoolTransactionAcceptor;
 use canon::{CanonBlock, CanonTransaction};
+use chain::{BlockHeader, IndexedBlock, IndexedBlockHeader, IndexedTransaction};
+use deployments::{BlockDeployments, Deployments};
+use error::{Error, TransactionError};
+use hash::H256;
+use network::ConsensusParams;
+use storage::{
+	BlockHeaderProvider, BlockOrigin, CachedTransactionOutputProvider, DuplexTransactionOutputProvider, NoopStore, SharedStore,
+	TransactionOutputProvider,
+};
 use verify_chain::ChainVerifier;
 use verify_header::HeaderVerifier;
 use verify_transaction::MemoryPoolTransactionVerifier;
-use accept_chain::ChainAcceptor;
-use accept_transaction::MemoryPoolTransactionAcceptor;
-use deployments::{Deployments, BlockDeployments};
-use {Verify, VerificationLevel};
+use {VerificationLevel, Verify};
 
 pub struct BackwardsCompatibleChainVerifier {
 	store: SharedStore,
@@ -40,7 +42,10 @@ impl BackwardsCompatibleChainVerifier {
 		let chain_verifier = ChainVerifier::new(block, self.consensus.network, current_time);
 		chain_verifier.check()?;
 
-		assert_eq!(Some(self.store.best_block().hash), self.store.block_hash(self.store.best_block().number));
+		assert_eq!(
+			Some(self.store.best_block().hash),
+			self.store.block_hash(self.store.best_block().number)
+		);
 		let block_origin = self.store.block_origin(&block.header)?;
 		trace!(
 			target: "verification",
@@ -55,7 +60,7 @@ impl BackwardsCompatibleChainVerifier {
 			BlockOrigin::KnownBlock => {
 				// there should be no known blocks at this point
 				unreachable!();
-			},
+			}
 			BlockOrigin::CanonChain { block_number } => {
 				let tx_out_provider = CachedTransactionOutputProvider::new(self.store.as_store().as_transaction_output_provider());
 				let tx_meta_provider = self.store.as_store().as_transaction_meta_provider();
@@ -72,7 +77,7 @@ impl BackwardsCompatibleChainVerifier {
 					&deployments,
 				);
 				chain_acceptor.check()?;
-			},
+			}
 			BlockOrigin::SideChain(origin) => {
 				let block_number = origin.block_number;
 				let fork = self.store.fork(origin)?;
@@ -91,7 +96,7 @@ impl BackwardsCompatibleChainVerifier {
 					&deployments,
 				);
 				chain_acceptor.check()?;
-			},
+			}
 			BlockOrigin::SideChainBecomingCanonChain(origin) => {
 				let block_number = origin.block_number;
 				let fork = self.store.fork(origin)?;
@@ -110,10 +115,13 @@ impl BackwardsCompatibleChainVerifier {
 					&deployments,
 				);
 				chain_acceptor.check()?;
-			},
+			}
 		};
 
-		assert_eq!(Some(self.store.best_block().hash), self.store.block_hash(self.store.best_block().number));
+		assert_eq!(
+			Some(self.store.best_block().hash),
+			self.store.block_hash(self.store.best_block().number)
+		);
 		Ok(())
 	}
 
@@ -121,7 +129,7 @@ impl BackwardsCompatibleChainVerifier {
 		&self,
 		_block_header_provider: &dyn BlockHeaderProvider,
 		hash: &H256,
-		header: &BlockHeader
+		header: &BlockHeader,
 	) -> Result<(), Error> {
 		// let's do only preverifcation
 		// TODO: full verification
@@ -138,7 +146,10 @@ impl BackwardsCompatibleChainVerifier {
 		height: u32,
 		time: u32,
 		transaction: &IndexedTransaction,
-	) -> Result<(), TransactionError> where T: TransactionOutputProvider {
+	) -> Result<(), TransactionError>
+	where
+		T: TransactionOutputProvider,
+	{
 		// let's do preverification first
 		let deployments = BlockDeployments::new(&self.deployments, height, block_header_provider, &self.consensus);
 		let tx_verifier = MemoryPoolTransactionVerifier::new(&transaction, &self.consensus, &deployments);
@@ -178,22 +189,25 @@ impl Verify for BackwardsCompatibleChainVerifier {
 mod tests {
 	extern crate test_data;
 
-	use std::sync::Arc;
-	use chain::{IndexedBlock, Transaction, Block};
-	use storage::Error as DBError;
-	use db::BlockChainDatabase;
-	use network::{Network, ConsensusParams};
-	use script;
-	use constants::DOUBLE_SPACING_SECONDS;
 	use super::BackwardsCompatibleChainVerifier as ChainVerifier;
-	use {Verify, Error, TransactionError, VerificationLevel};
+	use chain::{Block, IndexedBlock, Transaction};
+	use constants::DOUBLE_SPACING_SECONDS;
+	use db::BlockChainDatabase;
+	use network::{ConsensusParams, Network};
+	use script;
+	use std::sync::Arc;
+	use storage::Error as DBError;
+	use {Error, TransactionError, VerificationLevel, Verify};
 
 	#[test]
 	fn verify_orphan() {
 		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
 		let b2 = test_data::block_h2().into();
 		let verifier = ChainVerifier::new(storage, ConsensusParams::new(Network::Unitest));
-		assert_eq!(Err(Error::Database(DBError::UnknownParent)), verifier.verify(VerificationLevel::Full, &b2));
+		assert_eq!(
+			Err(Error::Database(DBError::UnknownParent)),
+			verifier.verify(VerificationLevel::Full, &b2)
+		);
 	}
 
 	#[test]
@@ -206,11 +220,7 @@ mod tests {
 
 	#[test]
 	fn first_tx() {
-		let storage = BlockChainDatabase::init_test_chain(
-			vec![
-				test_data::block_h0().into(),
-				test_data::block_h1().into(),
-			]);
+		let storage = BlockChainDatabase::init_test_chain(vec![test_data::block_h0().into(), test_data::block_h1().into()]);
 		let b1 = test_data::block_h2();
 		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest));
 		assert!(verifier.verify(VerificationLevel::Full, &b1.into()).is_ok());
@@ -218,6 +228,7 @@ mod tests {
 
 	#[test]
 	fn coinbase_maturity() {
+		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -229,6 +240,7 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let genesis_coinbase = genesis.transactions()[0].hash();
 
+		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -243,16 +255,14 @@ mod tests {
 
 		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest));
 
-		let expected = Err(Error::Transaction(
-			1,
-			TransactionError::Maturity,
-		));
+		let expected = Err(Error::Transaction(1, TransactionError::Maturity));
 
 		assert_eq!(expected, verifier.verify(VerificationLevel::Full, &block.into()));
 	}
 
 	#[test]
 	fn non_coinbase_happy() {
+		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -267,6 +277,7 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let reference_tx = genesis.transactions()[1].hash();
 
+		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -285,6 +296,7 @@ mod tests {
 
 	#[test]
 	fn transaction_references_same_block_happy() {
+		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -298,7 +310,7 @@ mod tests {
 
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let first_tx_hash = genesis.transactions()[1].hash();
-
+		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -321,6 +333,7 @@ mod tests {
 
 	#[test]
 	fn transaction_references_same_block_overspend() {
+		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -335,6 +348,7 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let first_tx_hash = genesis.transactions()[1].hash();
 
+		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -362,6 +376,7 @@ mod tests {
 
 	#[test]
 	fn transaction_references_same_block_and_goes_before_previous() {
+		#[rustfmt::skip]
 		let mut blocks = vec![test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -373,6 +388,7 @@ mod tests {
 		let mut parent_hash = blocks[0].hash();
 		// waiting 100 blocks for genesis coinbase to become valid
 		for _ in 0..100 {
+			#[rustfmt::skip]
 			let block: Block = test_data::block_builder()
 				.transaction().coinbase().build()
 				.merkled_header().parent(parent_hash).build()
@@ -386,27 +402,38 @@ mod tests {
 
 		let tx1: Transaction = test_data::TransactionBuilder::with_version(4)
 			.add_input(&input_tx, 0)
-			.add_output(10).add_output(10).add_output(10)
-			.add_output(5).add_output(5).add_output(5)
+			.add_output(10)
+			.add_output(10)
+			.add_output(10)
+			.add_output(5)
+			.add_output(5)
+			.add_output(5)
 			.into();
 		let tx2: Transaction = test_data::TransactionBuilder::with_version(1)
 			.add_input(&tx1, 0)
-			.add_output(1).add_output(1).add_output(1)
-			.add_output(2).add_output(2).add_output(2)
+			.add_output(1)
+			.add_output(1)
+			.add_output(1)
+			.add_output(2)
+			.add_output(2)
+			.add_output(2)
 			.into();
 		assert!(tx1.hash() > tx2.hash());
 
 		let block = test_data::block_builder()
 			.transaction()
-				.coinbase()
-				.output().value(2).script_pubkey_with_sigops(100).build()
-				.build()
+			.coinbase()
+			.output()
+			.value(2)
+			.script_pubkey_with_sigops(100)
+			.build()
+			.build()
 			.with_transaction(tx2)
 			.with_transaction(tx1)
 			.merkled_header()
-				.time(DOUBLE_SPACING_SECONDS + 101) // to pass BCH work check
-				.parent(parent_hash)
-				.build()
+			.time(DOUBLE_SPACING_SECONDS + 101) // to pass BCH work check
+			.parent(parent_hash)
+			.build()
 			.build();
 
 		let consensus = ConsensusParams::new(Network::Unitest);
@@ -418,6 +445,7 @@ mod tests {
 	#[test]
 	#[ignore]
 	fn coinbase_happy() {
+		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -432,8 +460,12 @@ mod tests {
 		// waiting 100 blocks for genesis coinbase to become valid
 		for _ in 0..100 {
 			let block: IndexedBlock = test_data::block_builder()
-				.transaction().coinbase().build()
-				.merkled_header().parent(genesis.hash()).build()
+				.transaction()
+				.coinbase()
+				.build()
+				.merkled_header()
+				.parent(genesis.hash())
+				.build()
 				.build()
 				.into();
 			let hash = block.hash().clone();
@@ -443,6 +475,7 @@ mod tests {
 
 		let best_hash = storage.best_block().hash;
 
+		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.transaction().coinbase().build()
 			.transaction()
@@ -457,6 +490,7 @@ mod tests {
 
 	#[test]
 	fn absoulte_sigops_overflow_block() {
+		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -480,6 +514,7 @@ mod tests {
 			builder_tx2 = builder_tx2.push_opcode(script::Opcode::OP_CHECKSIG)
 		}
 
+		#[rustfmt::skip]
 		let block: IndexedBlock = test_data::block_builder()
 			.transaction().coinbase().build()
 			.transaction()
@@ -505,12 +540,13 @@ mod tests {
 
 	#[test]
 	fn coinbase_overspend() {
+		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction().coinbase().build()
 			.merkled_header().build()
 			.build();
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
-
+		#[rustfmt::skip]
 		let block: IndexedBlock = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -524,7 +560,7 @@ mod tests {
 
 		let expected = Err(Error::CoinbaseOverspend {
 			expected_max: 5000000000,
-			actual: 5000000001
+			actual: 5000000001,
 		});
 
 		assert_eq!(expected, verifier.verify(VerificationLevel::Full, &block.into()));

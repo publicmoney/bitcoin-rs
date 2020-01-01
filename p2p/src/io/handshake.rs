@@ -1,22 +1,28 @@
-use std::{io, cmp};
-use futures::{Future, Poll, Async};
-use tokio_io::{AsyncRead, AsyncWrite};
-use message::{Message, MessageResult, Error};
-use message::types::{Version, Verack};
+use futures::{Async, Future, Poll};
+use io::{read_message, write_message, ReadMessage, WriteMessage};
+use message::types::{Verack, Version};
+use message::{Error, Message, MessageResult};
 use network::Magic;
-use io::{write_message, WriteMessage, ReadMessage, read_message};
+use std::{cmp, io};
+use tokio_io::{AsyncRead, AsyncWrite};
 
-pub fn handshake<A>(a: A, magic: Magic, version: Version, min_version: u32) -> Handshake<A> where A: AsyncWrite + AsyncRead {
+pub fn handshake<A>(a: A, magic: Magic, version: Version, min_version: u32) -> Handshake<A>
+where
+	A: AsyncWrite + AsyncRead,
+{
 	Handshake {
 		version: version.version(),
 		nonce: version.nonce(),
 		state: HandshakeState::SendVersion(write_message(a, version_message(magic, version))),
-		magic: magic,
-		min_version: min_version,
+		magic,
+		min_version,
 	}
 }
 
-pub fn accept_handshake<A>(a: A, magic: Magic, version: Version, min_version: u32) -> AcceptHandshake<A> where A: AsyncWrite + AsyncRead {
+pub fn accept_handshake<A>(a: A, magic: Magic, version: Version, min_version: u32) -> AcceptHandshake<A>
+where
+	A: AsyncWrite + AsyncRead,
+{
 	AcceptHandshake {
 		version: version.version(),
 		nonce: version.nonce(),
@@ -24,8 +30,8 @@ pub fn accept_handshake<A>(a: A, magic: Magic, version: Version, min_version: u3
 			local_version: Some(version),
 			future: read_message(a, magic, 0),
 		},
-		magic: magic,
-		min_version: min_version,
+		magic,
+		min_version,
 	}
 }
 
@@ -63,7 +69,7 @@ enum HandshakeState<A> {
 enum AcceptHandshakeState<A> {
 	ReceiveVersion {
 		local_version: Option<Version>,
-		future: ReadMessage<Version, A>
+		future: ReadMessage<Version, A>,
 	},
 	SendVersion {
 		version: Option<Version>,
@@ -91,7 +97,10 @@ pub struct AcceptHandshake<A> {
 	min_version: u32,
 }
 
-impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
+impl<A> Future for Handshake<A>
+where
+	A: AsyncRead + AsyncWrite,
+{
 	type Item = (A, MessageResult<HandshakeResult>);
 	type Error = io::Error;
 
@@ -101,7 +110,7 @@ impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
 				HandshakeState::SendVersion(ref mut future) => {
 					let (stream, _) = try_ready!(future.poll());
 					HandshakeState::ReceiveVersion(read_message(stream, self.magic, 0))
-				},
+				}
 				HandshakeState::ReceiveVersion(ref mut future) => {
 					let (stream, version) = try_ready!(future.poll());
 					let version = match version {
@@ -122,8 +131,11 @@ impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
 						version: Some(version),
 						future: write_message(stream, verack_message(self.magic)),
 					}
-				},
-				HandshakeState::SendVerack { ref mut version, ref mut future } => {
+				}
+				HandshakeState::SendVerack {
+					ref mut version,
+					ref mut future,
+				} => {
 					let (stream, _) = try_ready!(future.poll());
 
 					let version = version.take().expect("verack must be preceded by version");
@@ -132,32 +144,41 @@ impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
 						version: Some(version),
 						future: read_message(stream, self.magic, 0),
 					}
-				},
-				HandshakeState::ReceiveVerack { ref mut version, ref mut future } => {
+				}
+				HandshakeState::ReceiveVerack {
+					ref mut version,
+					ref mut future,
+				} => {
 					let (stream, _verack) = try_ready!(future.poll());
 					let version = version.take().expect("verack must be preceded by version");
 
 					let result = HandshakeResult {
 						negotiated_version: negotiate_version(self.version, version.version()),
-						version: version,
+						version,
 					};
 
 					return Ok(Async::Ready((stream, Ok(result))));
-				},
+				}
 			};
 			self.state = next_state;
 		}
 	}
 }
 
-impl<A> Future for AcceptHandshake<A> where A: AsyncRead + AsyncWrite {
+impl<A> Future for AcceptHandshake<A>
+where
+	A: AsyncRead + AsyncWrite,
+{
 	type Item = (A, MessageResult<HandshakeResult>);
 	type Error = io::Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		loop {
 			let next_state = match self.state {
-				AcceptHandshakeState::ReceiveVersion { ref mut local_version, ref mut future } => {
+				AcceptHandshakeState::ReceiveVersion {
+					ref mut local_version,
+					ref mut future,
+				} => {
 					let (stream, version) = try_ready!(future.poll());
 					let version = match version {
 						Ok(version) => version,
@@ -178,26 +199,32 @@ impl<A> Future for AcceptHandshake<A> where A: AsyncRead + AsyncWrite {
 						version: Some(version),
 						future: write_message(stream, version_message(self.magic, local_version)),
 					}
-				},
-				AcceptHandshakeState::SendVersion { ref mut version, ref mut future } => {
+				}
+				AcceptHandshakeState::SendVersion {
+					ref mut version,
+					ref mut future,
+				} => {
 					let (stream, _) = try_ready!(future.poll());
 					AcceptHandshakeState::SendVerack {
 						version: version.take(),
 						future: write_message(stream, verack_message(self.magic)),
 					}
-				},
-				AcceptHandshakeState::SendVerack { ref mut version, ref mut future } => {
+				}
+				AcceptHandshakeState::SendVerack {
+					ref mut version,
+					ref mut future,
+				} => {
 					let (stream, _) = try_ready!(future.poll());
 
 					let version = version.take().expect("verack must be preceded by version");
 
 					let result = HandshakeResult {
 						negotiated_version: negotiate_version(self.version, version.version()),
-						version: version,
+						version,
 					};
 
 					return Ok(Async::Ready((stream, Ok(result))));
-				},
+				}
 			};
 			self.state = next_state;
 		}
@@ -206,16 +233,16 @@ impl<A> Future for AcceptHandshake<A> where A: AsyncRead + AsyncWrite {
 
 #[cfg(test)]
 mod tests {
-	use std::io;
-	use futures::{Future, Poll};
-	use tokio_io::{AsyncRead, AsyncWrite};
+	use super::{accept_handshake, handshake, HandshakeResult};
 	use bytes::Bytes;
-	use ser::Stream;
-	use network::Network;
-	use message::{Message, Error};
-	use message::types::Verack;
+	use futures::{Future, Poll};
 	use message::types::version::{Version, V0, V106, V70001};
-	use super::{handshake, accept_handshake, HandshakeResult};
+	use message::types::Verack;
+	use message::{Error, Message};
+	use network::Network;
+	use ser::Stream;
+	use std::io;
+	use tokio_io::{AsyncRead, AsyncWrite};
 
 	pub struct TestIo {
 		read: io::Cursor<Bytes>,
@@ -247,42 +274,46 @@ mod tests {
 	}
 
 	fn local_version() -> Version {
-		Version::V70001(V0 {
-			version: 70001,
-			services: 1u64.into(),
-			timestamp: 0x4d1015e6,
-			// address and port of remote
-			// services set to 0, cause we know nothing about the node
-			receiver: "00000000000000000000000000000000000000002f5a0808208d".into(),
-		}, V106 {
-			// our local address (not sure if it is valid, or if it is checked at all
-			// services set to 0, because we support nothing
-			from: "00000000000000000000000000000000000000007f000001208d".into(),
-			nonce: 0x3c76a409eb48a227,
-			user_agent: "pbtc".into(),
-			start_height: 0,
-		}, V70001 {
-			relay: true,
-		})
+		Version::V70001(
+			V0 {
+				version: 70001,
+				services: 1u64.into(),
+				timestamp: 0x4d1015e6,
+				// address and port of remote
+				// services set to 0, cause we know nothing about the node
+				receiver: "00000000000000000000000000000000000000002f5a0808208d".into(),
+			},
+			V106 {
+				// our local address (not sure if it is valid, or if it is checked at all
+				// services set to 0, because we support nothing
+				from: "00000000000000000000000000000000000000007f000001208d".into(),
+				nonce: 0x3c76a409eb48a227,
+				user_agent: "pbtc".into(),
+				start_height: 0,
+			},
+			V70001 { relay: true },
+		)
 	}
 
 	fn remote_version() -> Version {
-		Version::V70001(V0 {
-			version: 70012,
-			services: 1u64.into(),
-			timestamp: 0x4d1015e6,
-			// services set to 1, house receiver supports at least the network
-			receiver: "010000000000000000000000000000000000ffffc2b5936adde9".into(),
-		}, V106 {
-			// remote address, port
-			// and supported protocols
-			from: "050000000000000000000000000000000000ffff2f5a0808208d".into(),
-			nonce: 0x3c76a409eb48a228,
-			user_agent: "/Satoshi:0.12.1/".into(),
-			start_height: 0,
-		}, V70001 {
-			relay: true,
-		})
+		Version::V70001(
+			V0 {
+				version: 70012,
+				services: 1u64.into(),
+				timestamp: 0x4d1015e6,
+				// services set to 1, house receiver supports at least the network
+				receiver: "010000000000000000000000000000000000ffffc2b5936adde9".into(),
+			},
+			V106 {
+				// remote address, port
+				// and supported protocols
+				from: "050000000000000000000000000000000000ffff2f5a0808208d".into(),
+				nonce: 0x3c76a409eb48a228,
+				user_agent: "/Satoshi:0.12.1/".into(),
+				start_height: 0,
+			},
+			V70001 { relay: true },
+		)
 	}
 
 	#[test]
