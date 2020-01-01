@@ -1,14 +1,14 @@
-use network::ConsensusParams;
+use canon::CanonBlock;
 use crypto::dhash256;
-use storage::{DuplexTransactionOutputProvider, TransactionOutputProvider, BlockHeaderProvider};
+use deployments::BlockDeployments;
+use error::{Error, TransactionError};
+use network::ConsensusParams;
 use script;
 use ser::Stream;
-use sigops::{transaction_sigops, transaction_sigops_cost}	;
-use work::block_reward_satoshi;
-use deployments::BlockDeployments;
-use canon::CanonBlock;
-use error::{Error, TransactionError};
+use sigops::{transaction_sigops, transaction_sigops_cost};
+use storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionOutputProvider};
 use timestamp::median_timestamp;
+use work::block_reward_satoshi;
 
 /// Flexible verification of ordered block
 pub struct BlockAcceptor<'a> {
@@ -76,7 +76,12 @@ impl<'a> BlockFinality<'a> {
 			self.block.header.raw.time
 		};
 
-		if self.block.transactions.iter().all(|tx| tx.raw.is_final_in_block(self.height, time_cutoff)) {
+		if self
+			.block
+			.transactions
+			.iter()
+			.all(|tx| tx.raw.is_final_in_block(self.height, time_cutoff))
+		{
 			Ok(())
 		} else {
 			Err(Error::NonFinalBlock)
@@ -131,30 +136,31 @@ pub struct BlockSigops<'a> {
 }
 
 impl<'a> BlockSigops<'a> {
-	fn new(
-		block: CanonBlock<'a>,
-		store: &'a dyn TransactionOutputProvider,
-		consensus: &'a ConsensusParams,
-	) -> Self {
+	fn new(block: CanonBlock<'a>, store: &'a dyn TransactionOutputProvider, consensus: &'a ConsensusParams) -> Self {
 		let bip16_active = block.header.raw.time >= consensus.bip16_time;
 
 		BlockSigops {
-			block: block,
-			store: store,
-			consensus: consensus,
+			block,
+			store,
+			consensus,
 			bip16_active,
 		}
 	}
 
 	fn check(&self) -> Result<(), Error> {
 		let store = DuplexTransactionOutputProvider::new(self.store, &*self.block);
-		let (sigops, sigops_cost) = self.block.transactions.iter()
+		let (sigops, sigops_cost) = self
+			.block
+			.transactions
+			.iter()
 			.map(|tx| {
 				let tx_sigops = transaction_sigops(&tx.raw, &store, self.bip16_active);
 				let tx_sigops_cost = transaction_sigops_cost(&tx.raw, &store, tx_sigops);
 				(tx_sigops, tx_sigops_cost)
 			})
-			.fold((0, 0), |acc, (tx_sigops, tx_sigops_cost)| (acc.0 + tx_sigops, acc.1 + tx_sigops_cost));
+			.fold((0, 0), |acc, (tx_sigops, tx_sigops_cost)| {
+				(acc.0 + tx_sigops, acc.1 + tx_sigops_cost)
+			});
 
 		// sigops check is valid for all forks:
 		// before SegWit: 20_000
@@ -176,20 +182,12 @@ impl<'a> BlockSigops<'a> {
 pub struct BlockCoinbaseClaim<'a> {
 	block: CanonBlock<'a>,
 	store: &'a dyn TransactionOutputProvider,
-	height: u32
+	height: u32,
 }
 
 impl<'a> BlockCoinbaseClaim<'a> {
-	fn new(
-		block: CanonBlock<'a>,
-		store: &'a dyn TransactionOutputProvider,
-		height: u32,
-	) -> Self {
-		BlockCoinbaseClaim {
-			block: block,
-			store: store,
-			height: height
-		}
+	fn new(block: CanonBlock<'a>, store: &'a dyn TransactionOutputProvider, height: u32) -> Self {
+		BlockCoinbaseClaim { block, store, height }
 	}
 
 	fn check(&self) -> Result<(), Error> {
@@ -215,13 +213,13 @@ impl<'a> BlockCoinbaseClaim<'a> {
 			// Difference between (1) and (2)
 			let (difference, overflow) = incoming.overflowing_sub(spends);
 			if overflow {
-				return Err(Error::Transaction(tx_idx, TransactionError::Overspend))
+				return Err(Error::Transaction(tx_idx, TransactionError::Overspend));
 			}
 
 			// Adding to total fees (with possible overflow)
 			let (sum, overflow) = fees.overflowing_add(difference);
 			if overflow {
-				return Err(Error::TransactionFeesOverflow)
+				return Err(Error::TransactionFeesOverflow);
 			}
 
 			fees = sum;
@@ -235,7 +233,10 @@ impl<'a> BlockCoinbaseClaim<'a> {
 		}
 
 		if claim > reward {
-			Err(Error::CoinbaseOverspend { expected_max: reward, actual: claim })
+			Err(Error::CoinbaseOverspend {
+				expected_max: reward,
+				actual: claim,
+			})
 		} else {
 			Ok(())
 		}
@@ -251,22 +252,23 @@ pub struct BlockCoinbaseScript<'a> {
 impl<'a> BlockCoinbaseScript<'a> {
 	fn new(block: CanonBlock<'a>, consensus_params: &ConsensusParams, height: u32) -> Self {
 		BlockCoinbaseScript {
-			block: block,
+			block,
 			bip34_active: height >= consensus_params.bip34_height,
-			height: height,
+			height,
 		}
 	}
 
 	fn check(&self) -> Result<(), Error> {
 		if !self.bip34_active {
-			return Ok(())
+			return Ok(());
 		}
 
-		let prefix = script::Builder::default()
-			.push_num(self.height.into())
-			.into_script();
+		let prefix = script::Builder::default().push_num(self.height.into()).into_script();
 
-		let matches = self.block.transactions.first()
+		let matches = self
+			.block
+			.transactions
+			.first()
 			.and_then(|tx| tx.raw.inputs.first())
 			.map(|input| input.script_sig.starts_with(&prefix))
 			.unwrap_or(false);
@@ -288,10 +290,7 @@ impl<'a> BlockWitness<'a> {
 	fn new(block: CanonBlock<'a>, deployments: &'a BlockDeployments<'a>) -> Self {
 		let segwit_active = deployments.segwit();
 
-		BlockWitness {
-			block: block,
-			segwit_active: segwit_active,
-		}
+		BlockWitness { block, segwit_active }
 	}
 
 	fn check(&self) -> Result<(), Error> {
@@ -302,12 +301,17 @@ impl<'a> BlockWitness<'a> {
 		// check witness from coinbase transaction
 		let mut has_witness = false;
 		if let Some(coinbase) = self.block.transactions.first() {
-			let commitment = coinbase.raw.outputs.iter().rev()
+			let commitment = coinbase
+				.raw
+				.outputs
+				.iter()
+				.rev()
 				.find(|output| script::is_witness_commitment_script(&output.script_pubkey));
 			if let Some(commitment) = commitment {
 				let witness_merkle_root = self.block.witness_merkle_root();
-				if coinbase.raw.inputs.get(0).map(|i| i.script_witness.len()).unwrap_or_default() != 1 ||
-					coinbase.raw.inputs[0].script_witness[0].len() != 32 {
+				if coinbase.raw.inputs.get(0).map(|i| i.script_witness.len()).unwrap_or_default() != 1
+					|| coinbase.raw.inputs[0].script_witness[0].len() != 32
+				{
 					return Err(Error::WitnessInvalidNonceSize);
 				}
 
@@ -337,8 +341,8 @@ impl<'a> BlockWitness<'a> {
 mod tests {
 	extern crate test_data;
 
-	use {Error, CanonBlock};
 	use super::BlockCoinbaseScript;
+	use {CanonBlock, Error};
 
 	#[test]
 	fn test_block_coinbase_script() {
@@ -346,9 +350,11 @@ mod tests {
 		// https://blockchain.info/rawtx/7cf05175ce9c8dbfff9aafa8263edc613fc08f876e476553009afcf7e3868a0c?format=hex
 		let tx = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff3f033d0a070004b663ec58049cba630608733867a0787a02000a425720537570706f727420384d200a666973686572206a696e78696e092f425720506f6f6c2fffffffff01903d9d4e000000001976a914721afdf638d570285d02d3076d8be6a03ee0794d88ac00000000".into();
 		let block_number = 461373;
+		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.with_transaction(tx)
-			.header().build()
+			.header()
+				.build()
 			.build()
 			.into();
 

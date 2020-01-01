@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
-use parking_lot::Mutex;
-use network::{ConsensusParams, Deployment};
 use hash::H256;
-use storage::{BlockHeaderProvider, BlockRef, BlockAncestors, BlockIterator};
+use network::{ConsensusParams, Deployment};
+use parking_lot::Mutex;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use storage::{BlockAncestors, BlockHeaderProvider, BlockIterator, BlockRef};
 use timestamp::median_timestamp;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -73,9 +73,17 @@ impl Deployments {
 		match consensus.csv_deployment {
 			Some(csv) => {
 				let mut cache = self.cache.lock();
-				threshold_state(&mut cache, csv, number, headers, consensus.miner_confirmation_window, consensus.rule_change_activation_threshold).is_active()
-			},
-			None => false
+				threshold_state(
+					&mut cache,
+					csv,
+					number,
+					headers,
+					consensus.miner_confirmation_window,
+					consensus.rule_change_activation_threshold,
+				)
+				.is_active()
+			}
+			None => false,
 		}
 	}
 
@@ -84,9 +92,17 @@ impl Deployments {
 		match consensus.segwit_deployment {
 			Some(segwit) => {
 				let mut cache = self.cache.lock();
-				threshold_state(&mut cache, segwit, number, headers, consensus.miner_confirmation_window, consensus.rule_change_activation_threshold).is_active()
-			},
-			None => false
+				threshold_state(
+					&mut cache,
+					segwit,
+					number,
+					headers,
+					consensus.miner_confirmation_window,
+					consensus.rule_change_activation_threshold,
+				)
+				.is_active()
+			}
+			None => false,
 		}
 	}
 }
@@ -94,10 +110,10 @@ impl Deployments {
 impl<'a> BlockDeployments<'a> {
 	pub fn new(deployments: &'a Deployments, number: u32, headers: &'a dyn BlockHeaderProvider, consensus: &'a ConsensusParams) -> Self {
 		BlockDeployments {
-			deployments: deployments,
-			number: number,
-			headers: headers,
-			consensus: consensus,
+			deployments,
+			number,
+			headers,
+			consensus,
 		}
 	}
 
@@ -123,7 +139,14 @@ impl<'a> AsRef<Deployments> for BlockDeployments<'a> {
 }
 
 /// Calculates threshold state of given deployment
-fn threshold_state(cache: &mut DeploymentStateCache, deployment: Deployment, number: u32, headers: &dyn BlockHeaderProvider, miner_confirmation_window: u32, rule_change_activation_threshold: u32) -> ThresholdState {
+fn threshold_state(
+	cache: &mut DeploymentStateCache,
+	deployment: Deployment,
+	number: u32,
+	headers: &dyn BlockHeaderProvider,
+	miner_confirmation_window: u32,
+	rule_change_activation_threshold: u32,
+) -> ThresholdState {
 	// deployments are checked using previous block index
 	if let Some(activation) = deployment.activation {
 		if activation <= number {
@@ -148,24 +171,36 @@ fn threshold_state(cache: &mut DeploymentStateCache, deployment: Deployment, num
 
 	match cache.entry(deployment.name) {
 		// by checking hash, we make sure we are on the same branch
-		Entry::Occupied(ref entry) if entry.get().block_number == number && entry.get().block_hash == hash => {
-			entry.get().state
-		},
+		Entry::Occupied(ref entry) if entry.get().block_number == number && entry.get().block_hash == hash => entry.get().state,
 		// otherwise we need to recalculate threshold state
 		Entry::Occupied(mut entry) => {
 			let deployment_state = entry.get().clone();
 			if deployment_state.state.is_final() {
-				return deployment_state.state
+				return deployment_state.state;
 			}
 			let threshold_state = deployment_state.state;
-			let deployment_iter = ThresholdIterator::new(deployment, headers, number, miner_confirmation_window, rule_change_activation_threshold, threshold_state);
+			let deployment_iter = ThresholdIterator::new(
+				deployment,
+				headers,
+				number,
+				miner_confirmation_window,
+				rule_change_activation_threshold,
+				threshold_state,
+			);
 			let state = deployment_iter.last().expect("iter must have at least one item");
 			let result = state.state;
 			entry.insert(state);
 			result
-		},
+		}
 		Entry::Vacant(entry) => {
-			let deployment_iter = ThresholdIterator::new(deployment, headers, miner_confirmation_window - 1, miner_confirmation_window, rule_change_activation_threshold, ThresholdState::Defined);
+			let deployment_iter = ThresholdIterator::new(
+				deployment,
+				headers,
+				miner_confirmation_window - 1,
+				miner_confirmation_window,
+				rule_change_activation_threshold,
+				ThresholdState::Defined,
+			);
 			let state = deployment_iter.last().unwrap_or_else(|| DeploymentState {
 				block_number: number,
 				block_hash: hash,
@@ -174,7 +209,7 @@ fn threshold_state(cache: &mut DeploymentStateCache, deployment: Deployment, num
 			let result = state.state;
 			entry.insert(state);
 			result
-		},
+		}
 	}
 }
 
@@ -203,13 +238,20 @@ struct ThresholdIterator<'a> {
 }
 
 impl<'a> ThresholdIterator<'a> {
-	fn new(deployment: Deployment, headers: &'a dyn BlockHeaderProvider, to_check: u32, miner_confirmation_window: u32, rule_change_activation_threshold: u32, state: ThresholdState) -> Self {
+	fn new(
+		deployment: Deployment,
+		headers: &'a dyn BlockHeaderProvider,
+		to_check: u32,
+		miner_confirmation_window: u32,
+		rule_change_activation_threshold: u32,
+		state: ThresholdState,
+	) -> Self {
 		ThresholdIterator {
-			deployment: deployment,
+			deployment,
 			block_iterator: BlockIterator::new(to_check, miner_confirmation_window, headers),
-			headers: headers,
-			miner_confirmation_window: miner_confirmation_window,
-			rule_change_activation_threshold: rule_change_activation_threshold,
+			headers,
+			miner_confirmation_window,
+			rule_change_activation_threshold,
 			last_state: state,
 		}
 	}
@@ -233,7 +275,7 @@ impl<'a> Iterator for ThresholdIterator<'a> {
 				} else if median >= self.deployment.start_time {
 					self.last_state = ThresholdState::Started;
 				}
-			},
+			}
 			ThresholdState::Started => {
 				if median >= self.deployment.timeout {
 					self.last_state = ThresholdState::Failed;
@@ -243,17 +285,15 @@ impl<'a> Iterator for ThresholdIterator<'a> {
 						self.last_state = ThresholdState::LockedIn;
 					}
 				}
-			},
+			}
 			ThresholdState::LockedIn => {
 				self.last_state = ThresholdState::Active;
-			},
-			ThresholdState::Failed | ThresholdState::Active => {
-				return None
 			}
+			ThresholdState::Failed | ThresholdState::Active => return None,
 		}
 
 		let result = DeploymentState {
-			block_number: block_number,
+			block_number,
 			block_hash: header.hash,
 			state: self.last_state,
 		};
@@ -264,14 +304,14 @@ impl<'a> Iterator for ThresholdIterator<'a> {
 
 #[cfg(test)]
 mod tests {
-	use std::sync::atomic::{AtomicUsize, Ordering};
-	use std::collections::HashMap;
+	use super::{first_of_the_period, threshold_state, DeploymentStateCache, ThresholdState};
 	use chain::{BlockHeader, IndexedBlockHeader};
-	use storage::{BlockHeaderProvider, BlockRef};
-	use network::Deployment;
 	use hash::H256;
+	use network::Deployment;
 	use primitives::bytes::Bytes;
-	use super::{DeploymentStateCache, ThresholdState, first_of_the_period, threshold_state};
+	use std::collections::HashMap;
+	use std::sync::atomic::{AtomicUsize, Ordering};
+	use storage::{BlockHeaderProvider, BlockRef};
 
 	const MINER_CONFIRMATION_WINDOW: u32 = 1000;
 	const RULE_CHANGE_ACTIVATION_THRESHOLD: u32 = 900;
@@ -285,13 +325,17 @@ mod tests {
 
 	impl DeploymentHeaderProvider {
 		pub fn mine(&mut self, height: u32, time: u32, version: u32) {
-			let mut previous_header_hash = self.by_height.last().map(|h| h.previous_header_hash.clone()).unwrap_or(H256::default());
+			let mut previous_header_hash = self
+				.by_height
+				.last()
+				.map(|h| h.previous_header_hash.clone())
+				.unwrap_or(H256::default());
 			while self.by_height.len() < height as usize {
 				let header = BlockHeader {
-					version: version,
-					previous_header_hash: previous_header_hash,
+					version,
+					previous_header_hash,
 					merkle_root_hash: Default::default(),
-					time: time,
+					time,
 					bits: 0.into(),
 					nonce: height,
 				};
@@ -313,7 +357,8 @@ mod tests {
 			match block_ref {
 				BlockRef::Number(height) => self.by_height.get(height as usize).cloned(),
 				BlockRef::Hash(hash) => self.by_hash.get(&hash).and_then(|height| self.by_height.get(*height)).cloned(),
-			}.map(Into::into)
+			}
+			.map(Into::into)
 		}
 	}
 
@@ -334,8 +379,28 @@ mod tests {
 			},
 		);
 
-		assert_eq!(threshold_state(&mut cache, deployment, 0, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), ThresholdState::Defined);
-		assert_eq!(threshold_state(&mut DeploymentStateCache::default(), deployment, 0, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), ThresholdState::Defined);
+		assert_eq!(
+			threshold_state(
+				&mut cache,
+				deployment,
+				0,
+				&headers,
+				MINER_CONFIRMATION_WINDOW,
+				RULE_CHANGE_ACTIVATION_THRESHOLD
+			),
+			ThresholdState::Defined
+		);
+		assert_eq!(
+			threshold_state(
+				&mut DeploymentStateCache::default(),
+				deployment,
+				0,
+				&headers,
+				MINER_CONFIRMATION_WINDOW,
+				RULE_CHANGE_ACTIVATION_THRESHOLD
+			),
+			ThresholdState::Defined
+		);
 
 		(cache, headers, deployment)
 	}
@@ -358,23 +423,43 @@ mod tests {
 	fn test_threshold_state_defined_to_failed() {
 		let (mut cache, mut headers, deployment) = prepare_deployments();
 		let test_cases = vec![
-			(1,		make_test_time(1),		0x20000001,	ThresholdState::Defined),
-			(11,	make_test_time(11),		0x20000001,	ThresholdState::Defined),
-			(989,	make_test_time(989),	0x20000001,	ThresholdState::Defined),
-			(999,	make_test_time(20000),	0x20000001,	ThresholdState::Defined),
-			(1000,	make_test_time(30000),	0x20000001,	ThresholdState::Failed),
-			(1999,	make_test_time(30001),	0x20000001,	ThresholdState::Failed),
-			(2000,	make_test_time(30002),	0x20000001,	ThresholdState::Failed),
-			(2001,	make_test_time(30003),	0x20000001,	ThresholdState::Failed),
-			(2999,	make_test_time(30004),	0x20000001,	ThresholdState::Failed),
-			(3000,	make_test_time(30005),	0x20000001,	ThresholdState::Failed),
+			(1, make_test_time(1), 0x20000001, ThresholdState::Defined),
+			(11, make_test_time(11), 0x20000001, ThresholdState::Defined),
+			(989, make_test_time(989), 0x20000001, ThresholdState::Defined),
+			(999, make_test_time(20000), 0x20000001, ThresholdState::Defined),
+			(1000, make_test_time(30000), 0x20000001, ThresholdState::Failed),
+			(1999, make_test_time(30001), 0x20000001, ThresholdState::Failed),
+			(2000, make_test_time(30002), 0x20000001, ThresholdState::Failed),
+			(2001, make_test_time(30003), 0x20000001, ThresholdState::Failed),
+			(2999, make_test_time(30004), 0x20000001, ThresholdState::Failed),
+			(3000, make_test_time(30005), 0x20000001, ThresholdState::Failed),
 		];
 
 		for (height, time, version, state) in test_cases {
 			headers.mine(height, time, version);
 
-			assert_eq!(threshold_state(&mut cache, deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
-			assert_eq!(threshold_state(&mut DeploymentStateCache::default(), deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
+			assert_eq!(
+				threshold_state(
+					&mut cache,
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
+			assert_eq!(
+				threshold_state(
+					&mut DeploymentStateCache::default(),
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
 		}
 	}
 
@@ -383,21 +468,40 @@ mod tests {
 	fn test_threshold_state_defined_to_started_to_failed() {
 		let (mut cache, mut headers, deployment) = prepare_deployments();
 		let test_cases = vec![
-			(1,		make_test_time(1),			0x20000000,	ThresholdState::Defined),
-			(1000,	make_test_time(10000) - 1,	0x20000001,	ThresholdState::Defined),
-			(2000,	make_test_time(10000),		0x20000001,	ThresholdState::Started),
-			(2051,	make_test_time(10010),		0x20000000,	ThresholdState::Started),
-			(2950,	make_test_time(10020),		0x20000001,	ThresholdState::Started),
-			(3000,	make_test_time(20000),		0x20000000,	ThresholdState::Failed),
-			(4000,	make_test_time(20010),		0x20000001,	ThresholdState::Failed),
+			(1, make_test_time(1), 0x20000000, ThresholdState::Defined),
+			(1000, make_test_time(10000) - 1, 0x20000001, ThresholdState::Defined),
+			(2000, make_test_time(10000), 0x20000001, ThresholdState::Started),
+			(2051, make_test_time(10010), 0x20000000, ThresholdState::Started),
+			(2950, make_test_time(10020), 0x20000001, ThresholdState::Started),
+			(3000, make_test_time(20000), 0x20000000, ThresholdState::Failed),
+			(4000, make_test_time(20010), 0x20000001, ThresholdState::Failed),
 		];
-
 
 		for (height, time, version, state) in test_cases {
 			headers.mine(height, time, version);
 
-			assert_eq!(threshold_state(&mut cache, deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
-			assert_eq!(threshold_state(&mut DeploymentStateCache::default(), deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
+			assert_eq!(
+				threshold_state(
+					&mut cache,
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
+			assert_eq!(
+				threshold_state(
+					&mut DeploymentStateCache::default(),
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
 		}
 	}
 
@@ -406,22 +510,42 @@ mod tests {
 	fn test_threshold_state_defined_to_started_to_failed_when_threshold_reached() {
 		let (mut cache, mut headers, deployment) = prepare_deployments();
 		let test_cases = vec![
-			(1,		make_test_time(1),			0x20000000,	ThresholdState::Defined),
-			(1000,	make_test_time(10000) - 1,	0x20000001,	ThresholdState::Defined),
-			(2000,	make_test_time(10000),		0x20000001,	ThresholdState::Started),
-			(2999,	make_test_time(30000),		0x20000001,	ThresholdState::Started),
-			(3000,	make_test_time(30000),		0x20000001,	ThresholdState::Failed),
-			(3999,	make_test_time(30001),		0x20000000,	ThresholdState::Failed),
-			(4000,	make_test_time(30002),		0x20000000,	ThresholdState::Failed),
-			(14333,	make_test_time(30003),		0x20000000,	ThresholdState::Failed),
-			(20000,	make_test_time(40000),		0x20000000,	ThresholdState::Failed),
+			(1, make_test_time(1), 0x20000000, ThresholdState::Defined),
+			(1000, make_test_time(10000) - 1, 0x20000001, ThresholdState::Defined),
+			(2000, make_test_time(10000), 0x20000001, ThresholdState::Started),
+			(2999, make_test_time(30000), 0x20000001, ThresholdState::Started),
+			(3000, make_test_time(30000), 0x20000001, ThresholdState::Failed),
+			(3999, make_test_time(30001), 0x20000000, ThresholdState::Failed),
+			(4000, make_test_time(30002), 0x20000000, ThresholdState::Failed),
+			(14333, make_test_time(30003), 0x20000000, ThresholdState::Failed),
+			(20000, make_test_time(40000), 0x20000000, ThresholdState::Failed),
 		];
 
 		for (height, time, version, state) in test_cases {
 			headers.mine(height, time, version);
 
-			assert_eq!(threshold_state(&mut cache, deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
-			assert_eq!(threshold_state(&mut DeploymentStateCache::default(), deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
+			assert_eq!(
+				threshold_state(
+					&mut cache,
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
+			assert_eq!(
+				threshold_state(
+					&mut DeploymentStateCache::default(),
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
 		}
 	}
 
@@ -430,24 +554,34 @@ mod tests {
 	fn test_threshold_state_defined_to_started_to_lockedin() {
 		let (mut cache, mut headers, deployment) = prepare_deployments();
 		let test_cases = vec![
-			(1,		make_test_time(1),			0x20000000,	ThresholdState::Defined, false),
-			(1000,	make_test_time(10000) - 1,	0x20000001,	ThresholdState::Defined, false),
-			(2000,	make_test_time(10000),		0x20000001,	ThresholdState::Started, false),
-			(2050,	make_test_time(10010),		0x20000000,	ThresholdState::Started, true),
-			(2950,	make_test_time(10020),		0x20000001,	ThresholdState::Started, true),
-			(2999,	make_test_time(19999),		0x20000000,	ThresholdState::Started, true),
-			(3000,	make_test_time(29999),		0x20000000,	ThresholdState::LockedIn, false),
-			(3999,	make_test_time(30001),		0x20000000,	ThresholdState::LockedIn, true),
-			(4000,	make_test_time(30002),		0x20000000,	ThresholdState::Active, false),
-			(14333,	make_test_time(30003),		0x20000000,	ThresholdState::Active, false),
-			(24000,	make_test_time(40000),		0x20000000,	ThresholdState::Active, false),
+			(1, make_test_time(1), 0x20000000, ThresholdState::Defined, false),
+			(1000, make_test_time(10000) - 1, 0x20000001, ThresholdState::Defined, false),
+			(2000, make_test_time(10000), 0x20000001, ThresholdState::Started, false),
+			(2050, make_test_time(10010), 0x20000000, ThresholdState::Started, true),
+			(2950, make_test_time(10020), 0x20000001, ThresholdState::Started, true),
+			(2999, make_test_time(19999), 0x20000000, ThresholdState::Started, true),
+			(3000, make_test_time(29999), 0x20000000, ThresholdState::LockedIn, false),
+			(3999, make_test_time(30001), 0x20000000, ThresholdState::LockedIn, true),
+			(4000, make_test_time(30002), 0x20000000, ThresholdState::Active, false),
+			(14333, make_test_time(30003), 0x20000000, ThresholdState::Active, false),
+			(24000, make_test_time(40000), 0x20000000, ThresholdState::Active, false),
 		];
 
 		for (height, time, version, state, is_single_request) in test_cases {
 			headers.mine(height, time, version);
 
 			let req_old = headers.request_count.load(Ordering::Relaxed);
-			assert_eq!(threshold_state(&mut cache, deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
+			assert_eq!(
+				threshold_state(
+					&mut cache,
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
 			let req_new = headers.request_count.load(Ordering::Relaxed);
 
 			// also check that same-period states are read from cache
@@ -457,7 +591,17 @@ mod tests {
 				assert!(req_old < req_new);
 			}
 
-			assert_eq!(threshold_state(&mut DeploymentStateCache::default(), deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
+			assert_eq!(
+				threshold_state(
+					&mut DeploymentStateCache::default(),
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
 		}
 	}
 
@@ -466,21 +610,41 @@ mod tests {
 	fn test_threshold_state_defined_multiple_to_started_multiple_to_failed() {
 		let (mut cache, mut headers, deployment) = prepare_deployments();
 		let test_cases = vec![
-			(999,	make_test_time(999),		0x20000000,	ThresholdState::Defined),
-			(1000,	make_test_time(1000),		0x20000000,	ThresholdState::Defined),
-			(2000,	make_test_time(2000),		0x20000000,	ThresholdState::Defined),
-			(3000,	make_test_time(10000),		0x20000000,	ThresholdState::Started),
-			(4000,	make_test_time(10000),		0x20000000,	ThresholdState::Started),
-			(5000,	make_test_time(10000),		0x20000000,	ThresholdState::Started),
-			(6000,	make_test_time(20000),		0x20000000,	ThresholdState::Failed),
-			(7000,	make_test_time(20000),		0x20000001,	ThresholdState::Failed),
+			(999, make_test_time(999), 0x20000000, ThresholdState::Defined),
+			(1000, make_test_time(1000), 0x20000000, ThresholdState::Defined),
+			(2000, make_test_time(2000), 0x20000000, ThresholdState::Defined),
+			(3000, make_test_time(10000), 0x20000000, ThresholdState::Started),
+			(4000, make_test_time(10000), 0x20000000, ThresholdState::Started),
+			(5000, make_test_time(10000), 0x20000000, ThresholdState::Started),
+			(6000, make_test_time(20000), 0x20000000, ThresholdState::Failed),
+			(7000, make_test_time(20000), 0x20000001, ThresholdState::Failed),
 		];
 
 		for (height, time, version, state) in test_cases {
 			headers.mine(height, time, version);
 
-			assert_eq!(threshold_state(&mut cache, deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
-			assert_eq!(threshold_state(&mut DeploymentStateCache::default(), deployment, height, &headers, MINER_CONFIRMATION_WINDOW, RULE_CHANGE_ACTIVATION_THRESHOLD), state);
+			assert_eq!(
+				threshold_state(
+					&mut cache,
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
+			assert_eq!(
+				threshold_state(
+					&mut DeploymentStateCache::default(),
+					deployment,
+					height,
+					&headers,
+					MINER_CONFIRMATION_WINDOW,
+					RULE_CHANGE_ACTIVATION_THRESHOLD
+				),
+				state
+			);
 		}
 	}
 }

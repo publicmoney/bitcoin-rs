@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use std::path::PathBuf;
-use std::fs::create_dir_all;
 use app_dirs::{app_dir, AppDataType};
-use {storage, APP_INFO};
-use db;
 use config::Config;
+use db;
+use std::fs::create_dir_all;
+use std::path::PathBuf;
+use std::sync::Arc;
+use {storage, APP_INFO};
 
 pub fn open_db(data_dir: &Option<String>, db_cache: usize) -> storage::SharedStore {
 	let db_path = match *data_dir {
@@ -27,11 +27,15 @@ pub fn init_db(cfg: &Config) -> Result<(), String> {
 	// insert genesis block if db is empty
 	let genesis_block = cfg.network.genesis_block();
 	match cfg.db.block_hash(0) {
-		Some(ref db_genesis_block_hash) if db_genesis_block_hash != genesis_block.hash() => Err("Trying to open database with incompatible genesis block".into()),
+		Some(ref db_genesis_block_hash) if db_genesis_block_hash != genesis_block.hash() => {
+			Err("Trying to open database with incompatible genesis block".into())
+		}
 		Some(_) => Ok(()),
 		None => {
 			let hash = genesis_block.hash().clone();
-			cfg.db.insert(genesis_block).expect("Failed to insert genesis block to the database");
+			cfg.db
+				.insert(genesis_block)
+				.expect("Failed to insert genesis block to the database");
 			cfg.db.canonize(&hash).expect("Failed to canonize genesis block");
 			Ok(())
 		}

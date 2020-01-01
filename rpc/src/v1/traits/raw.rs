@@ -1,12 +1,12 @@
-use jsonrpc_macros::Trailing;
 use jsonrpc_core::Error;
+use jsonrpc_macros::Trailing;
 
-use v1::types::H256;
+use v1::types::GetRawTransactionResponse;
 use v1::types::RawTransaction;
 use v1::types::Transaction;
 use v1::types::TransactionInput;
 use v1::types::TransactionOutputs;
-use v1::types::GetRawTransactionResponse;
+use v1::types::H256;
 
 build_rpc_trait! {
 	/// Parity-bitcoin raw data interface.

@@ -57,18 +57,18 @@ extern crate log;
 extern crate parking_lot;
 extern crate rayon;
 
-extern crate storage;
-extern crate chain;
-extern crate network;
-extern crate primitives;
-extern crate serialization as ser;
-extern crate script;
 extern crate bitcrypto as crypto;
+extern crate chain;
 #[cfg(test)]
 extern crate db;
+extern crate network;
+extern crate primitives;
+extern crate script;
+extern crate serialization as ser;
+extern crate storage;
 
-pub mod constants;
 mod canon;
+pub mod constants;
 mod deployments;
 mod error;
 mod sigops;
@@ -90,25 +90,25 @@ mod accept_transaction;
 // backwards compatibility
 mod chain_verifier;
 
-pub use primitives::{bigint, hash, compact};
+pub use primitives::{bigint, compact, hash};
 
-pub use canon::{CanonBlock, CanonHeader, CanonTransaction};
 pub use accept_block::BlockAcceptor;
 pub use accept_chain::ChainAcceptor;
 pub use accept_header::HeaderAcceptor;
-pub use accept_transaction::{TransactionAcceptor, MemoryPoolTransactionAcceptor};
+pub use accept_transaction::{MemoryPoolTransactionAcceptor, TransactionAcceptor};
+pub use canon::{CanonBlock, CanonHeader, CanonTransaction};
 
 pub use verify_block::BlockVerifier;
 pub use verify_chain::ChainVerifier;
 pub use verify_header::HeaderVerifier;
-pub use verify_transaction::{TransactionVerifier, MemoryPoolTransactionVerifier};
+pub use verify_transaction::{MemoryPoolTransactionVerifier, TransactionVerifier};
 
 pub use chain_verifier::BackwardsCompatibleChainVerifier;
+pub use deployments::Deployments;
 pub use error::{Error, TransactionError};
 pub use sigops::transaction_sigops;
 pub use timestamp::{median_timestamp, median_timestamp_inclusive};
-pub use work::{work_required, is_valid_proof_of_work, is_valid_proof_of_work_hash, block_reward_satoshi};
-pub use deployments::Deployments;
+pub use work::{block_reward_satoshi, is_valid_proof_of_work, is_valid_proof_of_work_hash, work_required};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Blocks verification level.
@@ -122,6 +122,6 @@ pub enum VerificationLevel {
 }
 
 /// Interface for block verification
-pub trait Verify : Send + Sync {
+pub trait Verify: Send + Sync {
 	fn verify(&self, level: VerificationLevel, block: &chain::IndexedBlock) -> Result<(), Error>;
 }

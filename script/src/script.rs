@@ -1,9 +1,9 @@
 //! Serialized script, used inside transaction inputs and outputs.
 
-use std::{fmt, ops};
 use bytes::Bytes;
 use keys::{self, AddressHash, Public};
-use {Opcode, Error};
+use std::{fmt, ops};
+use {Error, Opcode};
 
 /// Maximum number of bytes pushable to the stack
 pub const MAX_SCRIPT_ELEMENT_SIZE: usize = 520;
@@ -44,7 +44,7 @@ impl ScriptAddress {
 	pub fn new_p2pkh(hash: AddressHash) -> Self {
 		ScriptAddress {
 			kind: keys::Type::P2PKH,
-			hash: hash,
+			hash,
 		}
 	}
 
@@ -52,7 +52,7 @@ impl ScriptAddress {
 	pub fn new_p2sh(hash: AddressHash) -> Self {
 		ScriptAddress {
 			kind: keys::Type::P2SH,
-			hash: hash,
+			hash,
 		}
 	}
 }
@@ -90,9 +90,7 @@ impl From<Script> for Bytes {
 impl Script {
 	/// Script constructor.
 	pub fn new(data: Bytes) -> Self {
-		Script {
-			data: data,
-		}
+		Script { data }
 	}
 
 	pub fn to_bytes(&self) -> Bytes {
@@ -106,12 +104,12 @@ impl Script {
 
 	/// Extra-fast test for pay-to-public-key-hash (P2PKH) scripts.
 	pub fn is_pay_to_public_key_hash(&self) -> bool {
-		self.data.len() == 25 &&
-			self.data[0] == Opcode::OP_DUP as u8 &&
-			self.data[1] == Opcode::OP_HASH160 as u8 &&
-			self.data[2] == Opcode::OP_PUSHBYTES_20 as u8 &&
-			self.data[23] == Opcode::OP_EQUALVERIFY as u8 &&
-			self.data[24] == Opcode::OP_CHECKSIG as u8
+		self.data.len() == 25
+			&& self.data[0] == Opcode::OP_DUP as u8
+			&& self.data[1] == Opcode::OP_HASH160 as u8
+			&& self.data[2] == Opcode::OP_PUSHBYTES_20 as u8
+			&& self.data[23] == Opcode::OP_EQUALVERIFY as u8
+			&& self.data[24] == Opcode::OP_CHECKSIG as u8
 	}
 
 	/// Extra-fast test for pay-to-public-key (P2PK) scripts.
@@ -131,17 +129,15 @@ impl Script {
 
 	/// Extra-fast test for pay-to-script-hash (P2SH) scripts.
 	pub fn is_pay_to_script_hash(&self) -> bool {
-		self.data.len() == 23 &&
-			self.data[0] == Opcode::OP_HASH160 as u8 &&
-			self.data[1] == Opcode::OP_PUSHBYTES_20 as u8 &&
-			self.data[22] == Opcode::OP_EQUAL as u8
+		self.data.len() == 23
+			&& self.data[0] == Opcode::OP_HASH160 as u8
+			&& self.data[1] == Opcode::OP_PUSHBYTES_20 as u8
+			&& self.data[22] == Opcode::OP_EQUAL as u8
 	}
 
 	/// Extra-fast test for pay-to-witness-key-hash scripts.
 	pub fn is_pay_to_witness_key_hash(&self) -> bool {
-		self.data.len() == 22 &&
-			self.data[0] == Opcode::OP_0 as u8 &&
-			self.data[1] == Opcode::OP_PUSHBYTES_20 as u8
+		self.data.len() == 22 && self.data[0] == Opcode::OP_0 as u8 && self.data[1] == Opcode::OP_PUSHBYTES_20 as u8
 	}
 
 	/// Parse witness program. Returns Some(witness program version, code) or None if not a witness program.
@@ -160,9 +156,7 @@ impl Script {
 
 	/// Extra-fast test for pay-to-witness-script-hash scripts.
 	pub fn is_pay_to_witness_script_hash(&self) -> bool {
-		self.data.len() == 34 &&
-			self.data[0] == Opcode::OP_0 as u8 &&
-			self.data[1] == Opcode::OP_PUSHBYTES_32 as u8
+		self.data.len() == 34 && self.data[0] == Opcode::OP_0 as u8 && self.data[1] == Opcode::OP_PUSHBYTES_32 as u8
 	}
 
 	/// Extra-fast test for multisig scripts.
@@ -200,8 +194,7 @@ impl Script {
 			};
 
 			match instruction.opcode {
-				Opcode::OP_PUSHBYTES_33 |
-				Opcode::OP_PUSHBYTES_65 => keys += 1,
+				Opcode::OP_PUSHBYTES_33 | Opcode::OP_PUSHBYTES_65 => keys += 1,
 				_ => return false,
 			}
 
@@ -213,9 +206,7 @@ impl Script {
 
 	pub fn is_null_data_script(&self) -> bool {
 		// TODO: optimise it
-		!self.data.is_empty() &&
-			self.data[0] == Opcode::OP_RETURN as u8 &&
-			self.subscript(1).is_push_only()
+		!self.data.is_empty() && self.data[0] == Opcode::OP_RETURN as u8 && self.subscript(1).is_push_only()
 	}
 
 	pub fn subscript(&self, from: usize) -> Script {
@@ -229,7 +220,7 @@ impl Script {
 		let end = self.data.len();
 
 		if len > end || len == 0 {
-			return self.data.to_vec().into()
+			return self.data.to_vec().into();
 		}
 
 		while current < end - len {
@@ -252,9 +243,7 @@ impl Script {
 	pub fn get_instruction(&self, position: usize) -> Result<Instruction, Error> {
 		let opcode = self.get_opcode(position)?;
 		let instruction = match opcode {
-			Opcode::OP_PUSHDATA1 |
-			Opcode::OP_PUSHDATA2 |
-			Opcode::OP_PUSHDATA4 => {
+			Opcode::OP_PUSHDATA1 | Opcode::OP_PUSHDATA2 | Opcode::OP_PUSHDATA4 => {
 				let len = match opcode {
 					Opcode::OP_PUSHDATA1 => 1,
 					Opcode::OP_PUSHDATA2 => 2,
@@ -265,11 +254,11 @@ impl Script {
 				let n = read_usize(slice, len)?;
 				let bytes = self.take(position + 1 + len, n)?;
 				Instruction {
-					opcode: opcode,
+					opcode,
 					step: len + n + 1,
 					data: Some(bytes),
 				}
-			},
+			}
 			o if o <= Opcode::OP_PUSHBYTES_75 => {
 				let bytes = self.take(position + 1, opcode as usize)?;
 				Instruction {
@@ -277,12 +266,12 @@ impl Script {
 					step: opcode as usize + 1,
 					data: Some(bytes),
 				}
-			},
+			}
 			_ => Instruction {
-				opcode: opcode,
+				opcode,
 				step: 1,
 				data: None,
-			}
+			},
 		};
 
 		Ok(instruction)
@@ -310,7 +299,7 @@ impl Script {
 					}
 
 					pc += instruction.step;
-				},
+				}
 				_ => {
 					result.push(self[pc]);
 					pc += 1;
@@ -380,14 +369,14 @@ impl Script {
 			match opcode {
 				Opcode::OP_CHECKSIG | Opcode::OP_CHECKSIGVERIFY => {
 					total += 1;
-				},
+				}
 				Opcode::OP_CHECKMULTISIG | Opcode::OP_CHECKMULTISIGVERIFY => {
 					if serialized_script && last_opcode.is_within_op_n() {
 						total += last_opcode.decode_op_n() as usize;
 					} else {
 						total += MAX_PUBKEYS_PER_MULTISIG;
 					}
-				},
+				}
 				_ => (),
 			};
 
@@ -409,9 +398,7 @@ impl Script {
 
 	pub fn extract_destinations(&self) -> Result<Vec<ScriptAddress>, keys::Error> {
 		match self.script_type() {
-			ScriptType::NonStandard => {
-				Ok(vec![])
-			},
+			ScriptType::NonStandard => Ok(vec![]),
 			ScriptType::PubKey => {
 				Public::from_slice(match self.data[0] {
 					x if x == Opcode::OP_PUSHBYTES_33 as u8 => &self.data[1..34],
@@ -419,38 +406,30 @@ impl Script {
 					_ => unreachable!(), // because we are relying on script_type() checks here
 				})
 				.map(|public| vec![ScriptAddress::new_p2pkh(public.address_hash())])
-			},
-			ScriptType::PubKeyHash => {
-				Ok(vec![
-					ScriptAddress::new_p2pkh(self.data[3..23].into()),
-				])
-			},
-			ScriptType::ScriptHash => {
-				Ok(vec![
-					ScriptAddress::new_p2sh(self.data[2..22].into()),
-				])
-			},
+			}
+			ScriptType::PubKeyHash => Ok(vec![ScriptAddress::new_p2pkh(self.data[3..23].into())]),
+			ScriptType::ScriptHash => Ok(vec![ScriptAddress::new_p2sh(self.data[2..22].into())]),
 			ScriptType::Multisig => {
 				let mut addresses: Vec<ScriptAddress> = Vec::new();
 				let mut pc = 1;
 				while pc < self.len() - 2 {
-					let instruction = self.get_instruction(pc).expect("this method depends on previous check in script_type()");
+					let instruction = self
+						.get_instruction(pc)
+						.expect("this method depends on previous check in script_type()");
 					let data = instruction.data.expect("this method depends on previous check in script_type()");
 					let address = Public::from_slice(data)?.address_hash();
 					addresses.push(ScriptAddress::new_p2pkh(address));
 					pc += instruction.step;
 				}
 				Ok(addresses)
-			},
-			ScriptType::NullData => {
-				Ok(vec![])
-			},
+			}
+			ScriptType::NullData => Ok(vec![]),
 			ScriptType::WitnessScript => {
 				Ok(vec![]) // TODO
-			},
+			}
 			ScriptType::WitnessKey => {
 				Ok(vec![]) // TODO
-			},
+			}
 		}
 	}
 
@@ -463,10 +442,13 @@ impl Script {
 			return 0;
 		}
 
-		let script: Script = self.iter().last()
+		let script: Script = self
+			.iter()
+			.last()
 			.expect("self.data.is_empty() == false; qed")
 			.expect("self.data.is_push_only()")
-			.data.expect("self.data.is_push_only()")
+			.data
+			.expect("self.data.is_push_only()")
 			.to_vec()
 			.into();
 
@@ -488,8 +470,9 @@ impl<'a> Iterator for Instructions<'a> {
 	type Item = Result<Instruction<'a>, Error>;
 
 	fn next(&mut self) -> Option<Result<Instruction<'a>, Error>> {
-
-		if self.script.len() <= self.position { return None; }
+		if self.script.len() <= self.position {
+			return None;
+		}
 
 		let instruction = match self.script.get_instruction(self.position) {
 			Ok(x) => x,
@@ -502,13 +485,13 @@ impl<'a> Iterator for Instructions<'a> {
 	}
 }
 
-
 impl<'a> Iterator for Opcodes<'a> {
 	type Item = Result<Opcode, Error>;
 
 	fn next(&mut self) -> Option<Result<Opcode, Error>> {
-
-		if self.script.len() <= self.position { return None; }
+		if self.script.len() <= self.position {
+			return None;
+		}
 
 		let instruction = match self.script.get_instruction(self.position) {
 			Ok(x) => x,
@@ -575,20 +558,20 @@ pub type ScriptWitness = Vec<Bytes>;
 /// Passed bytes array is a commitment script?
 /// https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#Commitment_structure
 pub fn is_witness_commitment_script(script: &[u8]) -> bool {
-	script.len() >= 38 &&
-		script[0] == Opcode::OP_RETURN as u8 &&
-		script[1] == 0x24 &&
-		script[2] == 0xAA &&
-		script[3] == 0x21 &&
-		script[4] == 0xA9 &&
-		script[5] == 0xED
+	script.len() >= 38
+		&& script[0] == Opcode::OP_RETURN as u8
+		&& script[1] == 0x24
+		&& script[2] == 0xAA
+		&& script[3] == 0x21
+		&& script[4] == 0xA9
+		&& script[5] == 0xED
 }
 
 #[cfg(test)]
 mod tests {
-	use {Builder, Opcode};
-	use super::{Script, ScriptType, ScriptAddress, MAX_SCRIPT_ELEMENT_SIZE};
+	use super::{Script, ScriptAddress, ScriptType, MAX_SCRIPT_ELEMENT_SIZE};
 	use keys::{Address, Public};
+	use {Builder, Opcode};
 
 	#[test]
 	fn test_is_pay_to_script_hash() {
@@ -661,18 +644,30 @@ OP_ADD
 	// https://github.com/libbtc/libbtc/blob/998badcdac95a226a8f8c00c8f6abbd8a77917c1/test/tx_tests.c#L640
 	#[test]
 	fn test_script_type() {
-		assert_eq!(ScriptType::PubKeyHash, Script::from("76a914aab76ba4877d696590d94ea3e02948b55294815188ac").script_type());
+		assert_eq!(
+			ScriptType::PubKeyHash,
+			Script::from("76a914aab76ba4877d696590d94ea3e02948b55294815188ac").script_type()
+		);
 		assert_eq!(ScriptType::Multisig, Script::from("522102004525da5546e7603eefad5ef971e82f7dad2272b34e6b3036ab1fe3d299c22f21037d7f2227e6c646707d1c61ecceb821794124363a2cf2c1d2a6f28cf01e5d6abe52ae").script_type());
-		assert_eq!(ScriptType::ScriptHash, Script::from("a9146262b64aec1f4a4c1d21b32e9c2811dd2171fd7587").script_type());
+		assert_eq!(
+			ScriptType::ScriptHash,
+			Script::from("a9146262b64aec1f4a4c1d21b32e9c2811dd2171fd7587").script_type()
+		);
 		assert_eq!(ScriptType::PubKey, Script::from("4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac").script_type());
 	}
 
 	#[test]
 	fn test_sigops_count() {
-		assert_eq!(1usize, Script::from("76a914aab76ba4877d696590d94ea3e02948b55294815188ac").sigops_count(false));
+		assert_eq!(
+			1usize,
+			Script::from("76a914aab76ba4877d696590d94ea3e02948b55294815188ac").sigops_count(false)
+		);
 		assert_eq!(2usize, Script::from("522102004525da5546e7603eefad5ef971e82f7dad2272b34e6b3036ab1fe3d299c22f21037d7f2227e6c646707d1c61ecceb821794124363a2cf2c1d2a6f28cf01e5d6abe52ae").sigops_count(true));
 		assert_eq!(20usize, Script::from("522102004525da5546e7603eefad5ef971e82f7dad2272b34e6b3036ab1fe3d299c22f21037d7f2227e6c646707d1c61ecceb821794124363a2cf2c1d2a6f28cf01e5d6abe52ae").sigops_count(false));
-		assert_eq!(0usize, Script::from("a9146262b64aec1f4a4c1d21b32e9c2811dd2171fd7587").sigops_count(false));
+		assert_eq!(
+			0usize,
+			Script::from("a9146262b64aec1f4a4c1d21b32e9c2811dd2171fd7587").sigops_count(false)
+		);
 		assert_eq!(1usize, Script::from("4104ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84cac").sigops_count(false));
 	}
 
@@ -721,9 +716,7 @@ OP_ADD
 			.push_opcode(Opcode::OP_CHECKSIG)
 			.into_script();
 		assert_eq!(script.script_type(), ScriptType::PubKey);
-		assert_eq!(script.extract_destinations(), Ok(vec![
-			ScriptAddress::new_p2pkh(address),
-		]));
+		assert_eq!(script.extract_destinations(), Ok(vec![ScriptAddress::new_p2pkh(address),]));
 	}
 
 	#[test]
@@ -735,9 +728,7 @@ OP_ADD
 			.push_opcode(Opcode::OP_CHECKSIG)
 			.into_script();
 		assert_eq!(script.script_type(), ScriptType::PubKey);
-		assert_eq!(script.extract_destinations(), Ok(vec![
-			ScriptAddress::new_p2pkh(address),
-		]));
+		assert_eq!(script.extract_destinations(), Ok(vec![ScriptAddress::new_p2pkh(address),]));
 	}
 
 	#[test]
@@ -745,9 +736,7 @@ OP_ADD
 		let address = Address::from("13NMTpfNVVJQTNH4spP4UeqBGqLdqDo27S").hash;
 		let script = Builder::build_p2pkh(&address);
 		assert_eq!(script.script_type(), ScriptType::PubKeyHash);
-		assert_eq!(script.extract_destinations(), Ok(vec![
-			ScriptAddress::new_p2pkh(address),
-		]));
+		assert_eq!(script.extract_destinations(), Ok(vec![ScriptAddress::new_p2pkh(address),]));
 	}
 
 	#[test]
@@ -755,9 +744,7 @@ OP_ADD
 		let address = Address::from("13NMTpfNVVJQTNH4spP4UeqBGqLdqDo27S").hash;
 		let script = Builder::build_p2sh(&address);
 		assert_eq!(script.script_type(), ScriptType::ScriptHash);
-		assert_eq!(script.extract_destinations(), Ok(vec![
-			ScriptAddress::new_p2sh(address),
-		]));
+		assert_eq!(script.extract_destinations(), Ok(vec![ScriptAddress::new_p2sh(address),]));
 	}
 
 	#[test]
@@ -774,10 +761,10 @@ OP_ADD
 			.push_opcode(Opcode::OP_CHECKMULTISIG)
 			.into_script();
 		assert_eq!(script.script_type(), ScriptType::Multisig);
-		assert_eq!(script.extract_destinations(), Ok(vec![
-			ScriptAddress::new_p2pkh(address1),
-			ScriptAddress::new_p2pkh(address2),
-		]));
+		assert_eq!(
+			script.extract_destinations(),
+			Ok(vec![ScriptAddress::new_p2pkh(address1), ScriptAddress::new_p2pkh(address2),])
+		);
 	}
 
 	#[test]

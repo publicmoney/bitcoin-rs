@@ -1,8 +1,8 @@
-use std::net;
-use network::Magic;
+use io::SharedTcpStream;
 use message::common::Services;
 use message::types;
-use io::SharedTcpStream;
+use network::Magic;
+use std::net;
 
 pub struct Connection {
 	pub stream: SharedTcpStream,

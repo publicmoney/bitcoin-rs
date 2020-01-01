@@ -1,6 +1,6 @@
+use ser::{Reader, Stream};
 use std::io;
-use ser::{Stream, Reader};
-use {Payload, MessageResult};
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct FeeFilter {
@@ -9,9 +9,7 @@ pub struct FeeFilter {
 
 impl FeeFilter {
 	pub fn with_fee_rate(fee_rate: u64) -> Self {
-		FeeFilter {
-			fee_rate: fee_rate,
-		}
+		FeeFilter { fee_rate }
 	}
 }
 
@@ -24,10 +22,11 @@ impl Payload for FeeFilter {
 		"feefilter"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
-		let fee_filter = FeeFilter {
-			fee_rate: reader.read()?,
-		};
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
+		let fee_filter = FeeFilter { fee_rate: reader.read()? };
 
 		Ok(fee_filter)
 	}

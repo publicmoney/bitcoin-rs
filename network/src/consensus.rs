@@ -1,5 +1,5 @@
 use hash::H256;
-use {Network, Magic, Deployment};
+use {Deployment, Magic, Network};
 
 #[derive(Debug, Clone)]
 /// Parameters that influence chain consensus.
@@ -45,10 +45,10 @@ impl ConsensusParams {
 		match network {
 			Network::Mainnet | Network::Other(_) => ConsensusParams {
 				network,
-				bip16_time: 1333238400,	// Apr 1 2012
-				bip34_height: 227931,	// 000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8
-				bip65_height: 388381,	// 000000000000000004c2b624ed5d7756c508d90fd0da2c7c679febfa6c4735f0
-				bip66_height: 363725,	// 00000000000000000379eaa19dce8c9b722d46ae6a57c2f1a988119488b50931
+				bip16_time: 1333238400, // Apr 1 2012
+				bip34_height: 227931,   // 000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8
+				bip65_height: 388381,   // 000000000000000004c2b624ed5d7756c508d90fd0da2c7c679febfa6c4735f0
+				bip66_height: 363725,   // 00000000000000000379eaa19dce8c9b722d46ae6a57c2f1a988119488b50931
 				segwit_deployment: Some(Deployment {
 					name: "segwit",
 					bit: 1,
@@ -60,7 +60,7 @@ impl ConsensusParams {
 				absolute_maximum_block_sigops: 160_000,
 				witness_scale_factor: 4,
 				max_transaction_size: 1_000_000,
-				max_block_size:  1_000_000,
+				max_block_size: 1_000_000,
 				max_block_sigops: 20_000,
 				max_block_sigops_cost: 80_000,
 				max_block_weight: 4_000_000,
@@ -76,10 +76,10 @@ impl ConsensusParams {
 			},
 			Network::Testnet => ConsensusParams {
 				network,
-				bip16_time: 1333238400,	// Apr 1 2012
-				bip34_height: 21111,	// 0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8
-				bip65_height: 581885,	// 00000000007f6655f22f98e72ed80d8b06dc761d5da09df0fa1dc4be4f861eb6
-				bip66_height: 330776,	// 000000002104c8c45e99a8853285a3b592602a3ccde2b832481da85e9e4ba182
+				bip16_time: 1333238400, // Apr 1 2012
+				bip34_height: 21111,    // 0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8
+				bip65_height: 581885,   // 00000000007f6655f22f98e72ed80d8b06dc761d5da09df0fa1dc4be4f861eb6
+				bip66_height: 330776,   // 000000002104c8c45e99a8853285a3b592602a3ccde2b832481da85e9e4ba182
 				segwit_deployment: Some(Deployment {
 					name: "segwit",
 					bit: 1,
@@ -91,7 +91,7 @@ impl ConsensusParams {
 				absolute_maximum_block_sigops: 160_000,
 				witness_scale_factor: 4,
 				max_transaction_size: 1_000_000,
-				max_block_size:  1_000_000,
+				max_block_size: 1_000_000,
 				max_block_sigops: 20_000,
 				max_block_sigops_cost: 80_000,
 				max_block_weight: 4_000_000,
@@ -107,10 +107,10 @@ impl ConsensusParams {
 			},
 			Network::Regtest | Network::Unitest => ConsensusParams {
 				network,
-				bip16_time: 1333238400,	// Apr 1 2012
-				bip34_height: 100000000,	// not activated on regtest
+				bip16_time: 1333238400,  // Apr 1 2012
+				bip34_height: 100000000, // not activated on regtest
 				bip65_height: 1351,
-				bip66_height: 1251,		// used only in rpc tests
+				bip66_height: 1251, // used only in rpc tests
 				segwit_deployment: Some(Deployment {
 					name: "segwit",
 					bit: 1,
@@ -122,7 +122,7 @@ impl ConsensusParams {
 				absolute_maximum_block_sigops: 160_000,
 				witness_scale_factor: 4,
 				max_transaction_size: 1_000_000,
-				max_block_size:  1_000_000,
+				max_block_size: 1_000_000,
 				max_block_sigops: 20_000,
 				max_block_sigops_cost: 80_000,
 				max_block_weight: 4_000_000,
@@ -144,8 +144,8 @@ impl ConsensusParams {
 	}
 
 	pub fn is_bip30_exception(&self, hash: &H256, height: u32) -> bool {
-		(height == 91842 && hash == &H256::from_reversed_str("00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
-		(height == 91880 && hash == &H256::from_reversed_str("00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721"))
+		(height == 91842 && hash == &H256::from_reversed_str("00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec"))
+			|| (height == 91880 && hash == &H256::from_reversed_str("00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721"))
 	}
 
 	/// Absolute (across all forks) maximum block size.

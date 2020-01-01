@@ -1,5 +1,5 @@
-use std::{str, fmt};
 use hash::H96;
+use std::{fmt, str};
 use Error;
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq, Serializable, Deserializable)]
@@ -54,16 +54,15 @@ impl fmt::Display for Command {
 
 impl<'a> PartialEq<&'a str> for Command {
 	fn eq(&self, other: &&'a str) -> bool {
-		self.len() == other.len() &&
-		&self.0[..other.len()] == other.as_ref() as &[u8]
+		self.len() == other.len() && &self.0[..other.len()] == other.as_ref() as &[u8]
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use bytes::Bytes;
-	use ser::{serialize, deserialize};
 	use super::Command;
+	use bytes::Bytes;
+	use ser::{deserialize, serialize};
 
 	#[test]
 	fn test_command_parse() {
@@ -101,5 +100,4 @@ mod tests {
 		assert!(command != "ver");
 		assert!(command != "versionx");
 	}
-
 }

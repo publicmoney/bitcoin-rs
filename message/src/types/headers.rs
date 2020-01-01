@@ -1,7 +1,7 @@
-use std::io;
 use chain::BlockHeader;
-use ser::{Stream, Reader, Serializable, Deserializable, CompactInteger, Error as ReaderError};
-use {Payload, MessageResult};
+use ser::{CompactInteger, Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 pub const HEADERS_MAX_HEADERS_LEN: usize = 2000;
 
@@ -12,9 +12,7 @@ pub struct Headers {
 
 impl Headers {
 	pub fn with_headers(headers: Vec<BlockHeader>) -> Self {
-		Headers {
-			headers: headers,
-		}
+		Headers { headers }
 	}
 }
 
@@ -36,9 +34,7 @@ struct HeaderWithTxnCountRef<'a> {
 
 impl<'a> From<&'a BlockHeader> for HeaderWithTxnCountRef<'a> {
 	fn from(header: &'a BlockHeader) -> Self {
-		HeaderWithTxnCountRef {
-			header: header,
-		}
+		HeaderWithTxnCountRef { header }
 	}
 }
 
@@ -51,7 +47,10 @@ impl Payload for Headers {
 		"headers"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let headers_with_txn_count: Vec<HeaderWithTxnCount> = reader.read_list()?;
 		let headers = Headers {
 			headers: headers_with_txn_count.into_iter().map(Into::into).collect(),
@@ -69,17 +68,16 @@ impl Payload for Headers {
 
 impl<'a> Serializable for HeaderWithTxnCountRef<'a> {
 	fn serialize(&self, stream: &mut Stream) {
-		stream
-			.append(self.header)
-			.append(&CompactInteger::from(0u32));
+		stream.append(self.header).append(&CompactInteger::from(0u32));
 	}
 }
 
 impl Deserializable for HeaderWithTxnCount {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
-		let header = HeaderWithTxnCount {
-			header: reader.read()?,
-		};
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
+		let header = HeaderWithTxnCount { header: reader.read()? };
 
 		let txn_count: CompactInteger = reader.read()?;
 		if txn_count != 0u32.into() {

@@ -1,6 +1,6 @@
 //! Compact representation of `U256`
 
-use bigint::{U256, Uint};
+use bigint::{Uint, U256};
 
 /// Compact representation of `U256`
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -54,9 +54,7 @@ impl Compact {
 		};
 
 		let is_negative = word != 0 && (self.0 & 0x00800000) != 0;
-		let is_overflow = (word != 0 && size > 34) ||
-				(word > 0xff && size > 33) ||
-				(word > 0xffff && size > 32);
+		let is_overflow = (word != 0 && size > 34) || (word > 0xff && size > 33) || (word > 0xffff && size > 32);
 
 		if is_negative || is_overflow {
 			Err(result)
@@ -101,8 +99,8 @@ impl Compact {
 
 #[cfg(test)]
 mod tests {
-	use bigint::{U256, Uint};
 	use super::Compact;
+	use bigint::{Uint, U256};
 
 	#[test]
 	fn test_compact_to_u256() {
@@ -120,7 +118,7 @@ mod tests {
 		let test1 = U256::from(1000u64);
 		assert_eq!(Compact::new(0x0203e800), Compact::from_u256(test1));
 
-		let test2 = U256::from(2).pow(U256::from(256-32)) - U256::from(1);
+		let test2 = U256::from(2).pow(U256::from(256 - 32)) - U256::from(1);
 		assert_eq!(Compact::new(0x1d00ffff), Compact::from_u256(test2));
 	}
 
@@ -143,7 +141,7 @@ mod tests {
 		}
 
 		assert!(compare_f64(Compact::new(0x1b0404cb).to_f64(), 16307.42094));
-	
+
 		// tests from original bitcoin client:
 		// https://github.com/bitcoin/bitcoin/blob/1e8f88e071019907785b260477bd359bef6f9a8f/src/test/blockchain_tests.cpp
 

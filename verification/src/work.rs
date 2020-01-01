@@ -1,15 +1,12 @@
-use std::cmp;
+use chain::IndexedBlockHeader;
+use network::{ConsensusParams, Network};
+use primitives::bigint::U256;
 use primitives::compact::Compact;
 use primitives::hash::H256;
-use primitives::bigint::U256;
-use chain::IndexedBlockHeader;
-use network::{Network, ConsensusParams};
+use std::cmp;
 use storage::{BlockHeaderProvider, BlockRef};
 
-use constants::{
-	DOUBLE_SPACING_SECONDS, TARGET_TIMESPAN_SECONDS,
-	MIN_TIMESPAN, MAX_TIMESPAN, RETARGETING_INTERVAL
-};
+use constants::{DOUBLE_SPACING_SECONDS, MAX_TIMESPAN, MIN_TIMESPAN, RETARGETING_INTERVAL, TARGET_TIMESPAN_SECONDS};
 
 pub fn is_retarget_height(height: u32) -> bool {
 	height % RETARGETING_INTERVAL == 0
@@ -69,7 +66,7 @@ pub fn work_required(parent_hash: H256, time: u32, height: u32, store: &dyn Bloc
 	}
 
 	if consensus.network == Network::Testnet {
-		return work_required_testnet(parent_hash, time, height, store, Network::Testnet)
+		return work_required_testnet(parent_hash, time, height, store, Network::Testnet);
 	}
 
 	parent_header.raw.bits
@@ -92,7 +89,9 @@ pub fn work_required_testnet(parent_hash: H256, time: u32, height: u32, store: &
 	for _ in 0..RETARGETING_INTERVAL {
 		let previous_header = match store.block_header(block_ref) {
 			Some(h) => h,
-			None => { break; }
+			None => {
+				break;
+			}
 		};
 		bits.push(previous_header.raw.bits);
 		block_ref = previous_header.raw.previous_header_hash.into();
@@ -108,9 +107,16 @@ pub fn work_required_testnet(parent_hash: H256, time: u32, height: u32, store: &
 }
 
 /// Algorithm used for retargeting work every 2 weeks
-pub fn work_required_retarget(parent_header: IndexedBlockHeader, height: u32, store: &dyn BlockHeaderProvider, max_work_bits: Compact) -> Compact {
+pub fn work_required_retarget(
+	parent_header: IndexedBlockHeader,
+	height: u32,
+	store: &dyn BlockHeaderProvider,
+	max_work_bits: Compact,
+) -> Compact {
 	let retarget_ref = (height - RETARGETING_INTERVAL).into();
-	let retarget_header = store.block_header(retarget_ref).expect("self.height != 0 && self.height % RETARGETING_INTERVAL == 0; qed");
+	let retarget_header = store
+		.block_header(retarget_ref)
+		.expect("self.height != 0 && self.height % RETARGETING_INTERVAL == 0; qed");
 
 	// timestamp of block(height - RETARGETING_INTERVAL)
 	let retarget_timestamp = retarget_header.raw.time;
@@ -134,33 +140,55 @@ pub fn work_required_retarget(parent_header: IndexedBlockHeader, height: u32, st
 
 pub fn block_reward_satoshi(block_height: u32) -> u64 {
 	let mut res = 50 * 100 * 1000 * 1000;
-	for _ in 0..block_height / 210000 { res /= 2 }
+	for _ in 0..block_height / 210000 {
+		res /= 2
+	}
 	res
 }
 
 #[cfg(test)]
 mod tests {
-	use primitives::hash::H256;
-	use primitives::compact::Compact;
+	use super::{block_reward_satoshi, is_valid_proof_of_work, is_valid_proof_of_work_hash};
 	use network::Network;
-	use super::{is_valid_proof_of_work_hash, is_valid_proof_of_work, block_reward_satoshi};
+	use primitives::compact::Compact;
+	use primitives::hash::H256;
 
 	fn is_valid_pow(max: Compact, bits: u32, hash: &'static str) -> bool {
-		is_valid_proof_of_work_hash(bits.into(), &H256::from_reversed_str(hash)) &&
-		is_valid_proof_of_work(max.into(), bits.into(), &H256::from_reversed_str(hash))
+		is_valid_proof_of_work_hash(bits.into(), &H256::from_reversed_str(hash))
+			&& is_valid_proof_of_work(max.into(), bits.into(), &H256::from_reversed_str(hash))
 	}
 
 	#[test]
 	fn test_is_valid_proof_of_work() {
 		// block 2
-		assert!(is_valid_pow(Network::Mainnet.max_bits().into(), 486604799u32, "000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd"));
+		assert!(is_valid_pow(
+			Network::Mainnet.max_bits().into(),
+			486604799u32,
+			"000000006a625f06636b8bb6ac7b960a8d03705d1ace08b1a19da3fdcc99ddbd"
+		));
 		// block 400_000
-		assert!(is_valid_pow(Network::Mainnet.max_bits().into(), 403093919u32, "000000000000000004ec466ce4732fe6f1ed1cddc2ed4b328fff5224276e3f6f"));
+		assert!(is_valid_pow(
+			Network::Mainnet.max_bits().into(),
+			403093919u32,
+			"000000000000000004ec466ce4732fe6f1ed1cddc2ed4b328fff5224276e3f6f"
+		));
 
 		// other random tests
-		assert!(is_valid_pow(Network::Regtest.max_bits().into(), 0x181bc330u32, "00000000000000001bc330000000000000000000000000000000000000000000"));
-		assert!(!is_valid_pow(Network::Regtest.max_bits().into(), 0x181bc330u32, "00000000000000001bc330000000000000000000000000000000000000000001"));
-		assert!(!is_valid_pow(Network::Regtest.max_bits().into(), 0x181bc330u32, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+		assert!(is_valid_pow(
+			Network::Regtest.max_bits().into(),
+			0x181bc330u32,
+			"00000000000000001bc330000000000000000000000000000000000000000000"
+		));
+		assert!(!is_valid_pow(
+			Network::Regtest.max_bits().into(),
+			0x181bc330u32,
+			"00000000000000001bc330000000000000000000000000000000000000000001"
+		));
+		assert!(!is_valid_pow(
+			Network::Regtest.max_bits().into(),
+			0x181bc330u32,
+			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		));
 	}
 
 	#[test]

@@ -1,12 +1,12 @@
+use ethcore_rpc::{start_http, Compatibility, MetaIoHandler, Remote, Server};
+use network::Network;
+use p2p;
+use rpc_apis::{self, ApiSet};
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use rpc_apis::{self, ApiSet};
-use ethcore_rpc::{Server, start_http, MetaIoHandler, Compatibility, Remote};
-use network::Network;
-use std::io;
-use sync;
 use storage;
-use p2p;
+use sync;
 
 pub struct Dependencies {
 	pub network: Network,
@@ -31,7 +31,7 @@ impl HttpConfiguration {
 		HttpConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
-			port: port,
+			port,
 			apis: ApiSet::default(),
 			cors: None,
 			hosts: Some(Vec::new()),
@@ -45,7 +45,9 @@ pub fn new_http(conf: HttpConfiguration, deps: Dependencies) -> Result<Option<Se
 	}
 
 	let url = format!("{}:{}", conf.interface, conf.port);
-	let addr = url.parse().map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url))?;
+	let addr = url
+		.parse()
+		.map_err(|_| format!("Invalid JSONRPC listen host/port given: {}", url))?;
 	Ok(Some(setup_http_rpc_server(&addr, conf.cors, conf.hosts, conf.apis, deps)?))
 }
 

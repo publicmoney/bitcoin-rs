@@ -1,9 +1,9 @@
-use std::collections::HashSet;
 use chain::IndexedBlock;
+use error::{Error, TransactionError};
 use network::ConsensusParams;
 use sigops::transaction_sigops;
+use std::collections::HashSet;
 use storage::NoopStore;
-use error::{Error, TransactionError};
 
 pub struct BlockVerifier<'a> {
 	pub empty: BlockEmpty<'a>,
@@ -46,9 +46,7 @@ pub struct BlockEmpty<'a> {
 
 impl<'a> BlockEmpty<'a> {
 	fn new(block: &'a IndexedBlock) -> Self {
-		BlockEmpty {
-			block: block,
-		}
+		BlockEmpty { block }
 	}
 
 	fn check(&self) -> Result<(), Error> {
@@ -67,10 +65,7 @@ pub struct BlockSerializedSize<'a> {
 
 impl<'a> BlockSerializedSize<'a> {
 	fn new(block: &'a IndexedBlock, max_size: usize) -> Self {
-		BlockSerializedSize {
-			block: block,
-			max_size: max_size,
-		}
+		BlockSerializedSize { block, max_size }
 	}
 
 	fn check(&self) -> Result<(), Error> {
@@ -89,9 +84,7 @@ pub struct BlockCoinbase<'a> {
 
 impl<'a> BlockCoinbase<'a> {
 	fn new(block: &'a IndexedBlock) -> Self {
-		BlockCoinbase {
-			block: block,
-		}
+		BlockCoinbase { block }
 	}
 
 	fn check(&self) -> Result<(), Error> {
@@ -109,15 +102,11 @@ pub struct BlockExtraCoinbases<'a> {
 
 impl<'a> BlockExtraCoinbases<'a> {
 	fn new(block: &'a IndexedBlock) -> Self {
-		BlockExtraCoinbases {
-			block: block,
-		}
+		BlockExtraCoinbases { block }
 	}
 
 	fn check(&self) -> Result<(), Error> {
-		let misplaced = self.block.transactions.iter()
-			.skip(1)
-			.position(|tx| tx.raw.is_coinbase());
+		let misplaced = self.block.transactions.iter().skip(1).position(|tx| tx.raw.is_coinbase());
 
 		match misplaced {
 			Some(index) => Err(Error::Transaction(index + 1, TransactionError::MisplacedCoinbase)),
@@ -132,9 +121,7 @@ pub struct BlockTransactionsUniqueness<'a> {
 
 impl<'a> BlockTransactionsUniqueness<'a> {
 	fn new(block: &'a IndexedBlock) -> Self {
-		BlockTransactionsUniqueness {
-			block: block,
-		}
+		BlockTransactionsUniqueness { block }
 	}
 
 	fn check(&self) -> Result<(), Error> {
@@ -154,15 +141,15 @@ pub struct BlockSigops<'a> {
 
 impl<'a> BlockSigops<'a> {
 	fn new(block: &'a IndexedBlock, max_sigops: usize) -> Self {
-		BlockSigops {
-			block: block,
-			max_sigops: max_sigops,
-		}
+		BlockSigops { block, max_sigops }
 	}
 
 	fn check(&self) -> Result<(), Error> {
 		// We cannot know if bip16 is enabled at this point so we disable it.
-		let sigops = self.block.transactions.iter()
+		let sigops = self
+			.block
+			.transactions
+			.iter()
 			.map(|tx| transaction_sigops(&tx.raw, &NoopStore, false))
 			.sum::<usize>();
 
@@ -180,9 +167,7 @@ pub struct BlockMerkleRoot<'a> {
 
 impl<'a> BlockMerkleRoot<'a> {
 	fn new(block: &'a IndexedBlock) -> Self {
-		BlockMerkleRoot {
-			block: block,
-		}
+		BlockMerkleRoot { block }
 	}
 
 	fn check(&self) -> Result<(), Error> {
@@ -193,4 +178,3 @@ impl<'a> BlockMerkleRoot<'a> {
 		}
 	}
 }
-

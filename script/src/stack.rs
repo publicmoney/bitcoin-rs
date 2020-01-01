@@ -8,9 +8,7 @@ pub struct Stack<T> {
 
 impl<T> From<Vec<T>> for Stack<T> {
 	fn from(v: Vec<T>) -> Self {
-		Stack {
-			data: v
-		}
+		Stack { data: v }
 	}
 }
 
@@ -31,9 +29,7 @@ impl<T> ops::DerefMut for Stack<T> {
 impl<T> Stack<T> {
 	#[inline]
 	pub fn new() -> Self {
-		Stack {
-			data: Vec::new()
-		}
+		Stack { data: Vec::new() }
 	}
 
 	#[inline]
@@ -89,7 +85,10 @@ impl<T> Stack<T> {
 		Ok(())
 	}
 
-	pub fn dup(&mut self, i: usize) -> Result<(), Error> where T: Clone {
+	pub fn dup(&mut self, i: usize) -> Result<(), Error>
+	where
+		T: Clone,
+	{
 		self.require(i)?;
 		let mut j = i;
 		while j > 0 {
@@ -100,7 +99,10 @@ impl<T> Stack<T> {
 		Ok(())
 	}
 
-	pub fn over(&mut self, i: usize) -> Result<(), Error> where T: Clone {
+	pub fn over(&mut self, i: usize) -> Result<(), Error>
+	where
+		T: Clone,
+	{
 		let mut j = i * 2;
 		self.require(j)?;
 		let to_clone = j;
@@ -145,7 +147,10 @@ impl<T> Stack<T> {
 		Ok(())
 	}
 
-	pub fn tuck(&mut self) -> Result<(), Error> where T: Clone {
+	pub fn tuck(&mut self) -> Result<(), Error>
+	where
+		T: Clone,
+	{
 		self.require(2)?;
 		let len = self.data.len();
 		let v = self.data[len - 1].clone();
@@ -156,8 +161,8 @@ impl<T> Stack<T> {
 
 #[cfg(test)]
 mod tests {
-	use Error;
 	use super::Stack;
+	use Error;
 
 	#[test]
 	fn test_stack_require() {

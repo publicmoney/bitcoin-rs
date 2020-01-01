@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-use parking_lot::RwLock;
-use hash::H256;
 use bytes::Bytes;
 use chain::{IndexedTransaction, OutPoint, TransactionOutput};
-use {TransactionMeta};
+use hash::H256;
+use parking_lot::RwLock;
+use std::collections::HashMap;
+use TransactionMeta;
 
 /// Should be used to obtain all transactions from canon chain and forks.
 pub trait TransactionProvider {
@@ -63,7 +63,7 @@ impl<'a> TransactionOutputProvider for CachedTransactionOutputProvider<'a> {
 				let value_from_backend = self.backend.transaction_output(outpoint, transaction_index);
 				self.cached_outputs.write().insert(outpoint.clone(), value_from_backend.clone());
 				value_from_backend
-			},
+			}
 		}
 	}
 

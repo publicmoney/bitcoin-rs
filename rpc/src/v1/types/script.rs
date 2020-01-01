@@ -1,7 +1,7 @@
-use std::fmt;
-use serde::{Serialize, Deserialize, Serializer, Deserializer};
-use serde::de::Unexpected;
 use global_script::ScriptType as GlobalScriptType;
+use serde::de::Unexpected;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum ScriptType {
@@ -31,7 +31,10 @@ impl From<GlobalScriptType> for ScriptType {
 }
 
 impl Serialize for ScriptType {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
 		match *self {
 			ScriptType::NonStandard => "nonstandard".serialize(serializer),
 			ScriptType::PubKey => "pubkey".serialize(serializer),
@@ -46,7 +49,10 @@ impl Serialize for ScriptType {
 }
 
 impl<'a> Deserialize<'a> for ScriptType {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'a>,
+	{
 		use serde::de::Visitor;
 
 		struct ScriptTypeVisitor;
@@ -58,7 +64,10 @@ impl<'a> Deserialize<'a> for ScriptType {
 				formatter.write_str("script type")
 			}
 
-			fn visit_str<E>(self, value: &str) -> Result<ScriptType, E> where E: ::serde::de::Error {
+			fn visit_str<E>(self, value: &str) -> Result<ScriptType, E>
+			where
+				E: ::serde::de::Error,
+			{
 				match value {
 					"nonstandard" => Ok(ScriptType::NonStandard),
 					"pubkey" => Ok(ScriptType::PubKey),
@@ -90,19 +99,37 @@ mod tests {
 		assert_eq!(serde_json::to_string(&ScriptType::ScriptHash).unwrap(), r#""scripthash""#);
 		assert_eq!(serde_json::to_string(&ScriptType::Multisig).unwrap(), r#""multisig""#);
 		assert_eq!(serde_json::to_string(&ScriptType::NullData).unwrap(), r#""nulldata""#);
-		assert_eq!(serde_json::to_string(&ScriptType::WitnessScript).unwrap(), r#""witness_v0_scripthash""#);
+		assert_eq!(
+			serde_json::to_string(&ScriptType::WitnessScript).unwrap(),
+			r#""witness_v0_scripthash""#
+		);
 		assert_eq!(serde_json::to_string(&ScriptType::WitnessKey).unwrap(), r#""witness_v0_keyhash""#);
 	}
 
 	#[test]
 	fn script_type_deserialize() {
-		assert_eq!(serde_json::from_str::<ScriptType>(r#""nonstandard""#).unwrap(), ScriptType::NonStandard);
+		assert_eq!(
+			serde_json::from_str::<ScriptType>(r#""nonstandard""#).unwrap(),
+			ScriptType::NonStandard
+		);
 		assert_eq!(serde_json::from_str::<ScriptType>(r#""pubkey""#).unwrap(), ScriptType::PubKey);
-		assert_eq!(serde_json::from_str::<ScriptType>(r#""pubkeyhash""#).unwrap(), ScriptType::PubKeyHash);
-		assert_eq!(serde_json::from_str::<ScriptType>(r#""scripthash""#).unwrap(), ScriptType::ScriptHash);
+		assert_eq!(
+			serde_json::from_str::<ScriptType>(r#""pubkeyhash""#).unwrap(),
+			ScriptType::PubKeyHash
+		);
+		assert_eq!(
+			serde_json::from_str::<ScriptType>(r#""scripthash""#).unwrap(),
+			ScriptType::ScriptHash
+		);
 		assert_eq!(serde_json::from_str::<ScriptType>(r#""multisig""#).unwrap(), ScriptType::Multisig);
 		assert_eq!(serde_json::from_str::<ScriptType>(r#""nulldata""#).unwrap(), ScriptType::NullData);
-		assert_eq!(serde_json::from_str::<ScriptType>(r#""witness_v0_scripthash""#).unwrap(), ScriptType::WitnessScript);
-		assert_eq!(serde_json::from_str::<ScriptType>(r#""witness_v0_keyhash""#).unwrap(), ScriptType::WitnessKey);
+		assert_eq!(
+			serde_json::from_str::<ScriptType>(r#""witness_v0_scripthash""#).unwrap(),
+			ScriptType::WitnessScript
+		);
+		assert_eq!(
+			serde_json::from_str::<ScriptType>(r#""witness_v0_keyhash""#).unwrap(),
+			ScriptType::WitnessKey
+		);
 	}
 }

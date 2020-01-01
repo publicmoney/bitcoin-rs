@@ -1,6 +1,6 @@
+use ser::{Reader, Stream};
 use std::io;
-use ser::{Stream, Reader};
-use {Payload, MessageResult};
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct SendHeaders;
@@ -14,7 +14,10 @@ impl Payload for SendHeaders {
 		"sendheaders"
 	}
 
-	fn deserialize_payload<T>(_reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(_reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		Ok(SendHeaders)
 	}
 

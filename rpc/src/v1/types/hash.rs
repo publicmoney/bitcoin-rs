@@ -1,12 +1,12 @@
-use std::fmt;
-use std::str::FromStr;
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
+use hex::{FromHex, ToHex};
+use primitives::hash::H160 as GlobalH160;
+use primitives::hash::H256 as GlobalH256;
 use serde;
 use serde::de::Unexpected;
-use hex::{ToHex, FromHex};
-use primitives::hash::H256 as GlobalH256;
-use primitives::hash::H160 as GlobalH160;
+use std::cmp::Ordering;
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 
 macro_rules! impl_hash {
 	($name: ident, $other: ident, $size: expr) => {
@@ -26,7 +26,10 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl<T> From<T> for $name where $other: From<T> {
+		impl<T> From<T> for $name
+		where
+			$other: From<T>,
+		{
 			fn from(o: T) -> Self {
 				$name($other::from(o).take())
 			}
@@ -72,7 +75,10 @@ macro_rules! impl_hash {
 		}
 
 		impl Hash for $name {
-			fn hash<H>(&self, state: &mut H) where H: Hasher {
+			fn hash<H>(&self, state: &mut H)
+			where
+				H: Hasher,
+			{
 				$other::from(self.0.clone()).hash(state)
 			}
 		}
@@ -87,7 +93,9 @@ macro_rules! impl_hash {
 
 		impl serde::Serialize for $name {
 			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-			where S: serde::Serializer {
+			where
+				S: serde::Serializer,
+			{
 				let mut hex = String::new();
 				hex.push_str(&$other::from(self.0.clone()).to_hex::<String>());
 				serializer.serialize_str(&hex)
@@ -95,7 +103,10 @@ macro_rules! impl_hash {
 		}
 
 		impl<'a> serde::Deserialize<'a> for $name {
-			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer<'a> {
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error>
+			where
+				D: serde::Deserializer<'a>,
+			{
 				struct HashVisitor;
 
 				impl<'b> serde::de::Visitor<'b> for HashVisitor {
@@ -105,10 +116,12 @@ macro_rules! impl_hash {
 						formatter.write_str("a hash string")
 					}
 
-					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: serde::de::Error {
-
+					fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+					where
+						E: serde::de::Error,
+					{
 						if value.len() != $size * 2 {
-							return Err(E::invalid_value(Unexpected::Str(value), &self))
+							return Err(E::invalid_value(Unexpected::Str(value), &self));
 						}
 
 						match value[..].from_hex::<Vec<u8>>() {
@@ -116,13 +129,15 @@ macro_rules! impl_hash {
 								let mut result = [0u8; $size];
 								result.copy_from_slice(v);
 								Ok($name($other::from(result).take()))
-							},
-							_ => Err(E::invalid_value(Unexpected::Str(value), &self))
-
+							}
+							_ => Err(E::invalid_value(Unexpected::Str(value), &self)),
 						}
 					}
 
-					fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: serde::de::Error {
+					fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+					where
+						E: serde::de::Error,
+					{
 						self.visit_str(value.as_ref())
 					}
 				}
@@ -130,7 +145,7 @@ macro_rules! impl_hash {
 				deserializer.deserialize_identifier(HashVisitor)
 			}
 		}
-	}
+	};
 }
 
 impl_hash!(H256, GlobalH256, 32);

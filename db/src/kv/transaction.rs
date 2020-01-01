@@ -1,8 +1,8 @@
 use bytes::Bytes;
+use chain::{BlockHeader, Transaction as ChainTransaction};
 use hash::H256;
-use ser::{serialize, List, deserialize};
-use chain::{Transaction as ChainTransaction, BlockHeader};
-use storage::{TransactionMeta};
+use ser::{deserialize, serialize, List};
+use storage::TransactionMeta;
 
 pub const COL_COUNT: u32 = 10;
 pub const COL_META: u32 = 0;
@@ -67,7 +67,8 @@ impl Value {
 			Key::TransactionMeta(_) => deserialize(bytes).map(Value::TransactionMeta),
 			Key::BlockNumber(_) => deserialize(bytes).map(Value::BlockNumber),
 			Key::Configuration(_) => deserialize(bytes).map(Value::Configuration),
-		}.map_err(|e| format!("{:?}", e))
+		}
+		.map_err(|e| format!("{:?}", e))
 	}
 
 	pub fn as_meta(self) -> Option<Bytes> {
@@ -141,7 +142,10 @@ impl<V> Default for KeyState<V> {
 }
 
 impl<V> KeyState<V> {
-	pub fn map<U, F>(self, f: F) -> KeyState<U> where F: FnOnce(V) -> U {
+	pub fn map<U, F>(self, f: F) -> KeyState<U>
+	where
+		F: FnOnce(V) -> U,
+	{
 		match self {
 			KeyState::Insert(value) => KeyState::Insert(f(value)),
 			KeyState::Delete => KeyState::Delete,
@@ -158,7 +162,10 @@ impl<V> KeyState<V> {
 	}
 
 	pub fn into_operation<K, I, D>(self, key: K, insert: I, delete: D) -> Option<Operation>
-	where I: FnOnce(K, V) -> KeyValue, D: FnOnce(K) -> Key {
+	where
+		I: FnOnce(K, V) -> KeyValue,
+		D: FnOnce(K) -> Key,
+	{
 		match self {
 			KeyState::Insert(value) => Some(Operation::Insert(insert(key, value))),
 			KeyState::Delete => Some(Operation::Delete(delete(key))),
@@ -232,8 +239,8 @@ impl<'a> From<&'a KeyValue> for RawKeyValue {
 
 		RawKeyValue {
 			location: location.into(),
-			key: key,
-			value: value,
+			key,
+			value,
 		}
 	}
 }
@@ -244,11 +251,11 @@ pub struct RawKey {
 }
 
 impl RawKey {
-	pub fn new<B>(location: Location, key: B) -> Self where B: Into<Bytes> {
-		RawKey {
-			location: location,
-			key: key.into(),
-		}
+	pub fn new<B>(location: Location, key: B) -> Self
+	where
+		B: Into<Bytes>,
+	{
+		RawKey { location, key: key.into() }
 	}
 }
 
@@ -267,7 +274,7 @@ impl<'a> From<&'a Key> for RawKey {
 
 		RawKey {
 			location: location.into(),
-			key: key,
+			key,
 		}
 	}
 }
@@ -288,7 +295,7 @@ pub struct RawTransaction {
 impl<'a> From<&'a Transaction> for RawTransaction {
 	fn from(tx: &'a Transaction) -> Self {
 		RawTransaction {
-			operations: tx.operations.iter().map(Into::into).collect()
+			operations: tx.operations.iter().map(Into::into).collect(),
 		}
 	}
 }
@@ -308,7 +315,7 @@ impl RawTransaction {
 
 	pub fn insert_raw(&mut self, location: Location, key: &[u8], value: &[u8]) {
 		let operation = RawOperation::Insert(RawKeyValue {
-			location: location,
+			location,
 			key: key.into(),
 			value: value.into(),
 		});
@@ -316,10 +323,7 @@ impl RawTransaction {
 	}
 
 	pub fn delete_raw(&mut self, location: Location, key: &[u8]) {
-		let operation = RawOperation::Delete(RawKey {
-			location: location,
-			key: key.into(),
-		});
+		let operation = RawOperation::Delete(RawKey { location, key: key.into() });
 		self.operations.push(operation);
 	}
 }

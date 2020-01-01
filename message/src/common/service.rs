@@ -82,11 +82,8 @@ mod test {
 
 	#[test]
 	fn test_serivces_includes() {
-		let s1 = Services::default()
-			.with_witness(true)
-			.with_xthin(true);
-		let s2 = Services::default()
-			.with_witness(true);
+		let s1 = Services::default().with_witness(true).with_xthin(true);
+		let s2 = Services::default().with_witness(true);
 
 		assert!(s1.witness());
 		assert!(s1.xthin());

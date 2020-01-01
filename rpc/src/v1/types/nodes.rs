@@ -1,7 +1,7 @@
-use std::fmt;
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::Unexpected;
 use p2p::{Direction, PeerInfo};
+use serde::de::Unexpected;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum AddNodeOperation {
@@ -11,7 +11,10 @@ pub enum AddNodeOperation {
 }
 
 impl<'a> Deserialize<'a> for AddNodeOperation {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'a>,
+	{
 		use serde::de::Visitor;
 
 		struct DummyVisitor;
@@ -23,7 +26,10 @@ impl<'a> Deserialize<'a> for AddNodeOperation {
 				formatter.write_str("a node operation string")
 			}
 
-			fn visit_str<E>(self, value: &str) -> Result<AddNodeOperation, E> where E: ::serde::de::Error {
+			fn visit_str<E>(self, value: &str) -> Result<AddNodeOperation, E>
+			where
+				E: ::serde::de::Error,
+			{
 				match value {
 					"add" => Ok(AddNodeOperation::Add),
 					"remove" => Ok(AddNodeOperation::Remove),
@@ -68,7 +74,10 @@ pub enum NodeInfoAddressConnectionType {
 }
 
 impl Serialize for NodeInfoAddressConnectionType {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
 		match *self {
 			NodeInfoAddressConnectionType::Inbound => "inbound".serialize(serializer),
 			NodeInfoAddressConnectionType::Outbound => "outbound".serialize(serializer),

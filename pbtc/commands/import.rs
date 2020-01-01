@@ -1,14 +1,13 @@
 use clap::ArgMatches;
-use sync::{create_sync_blocks_writer, Error};
 use config::Config;
+use sync::{create_sync_blocks_writer, Error};
 use util::init_db;
 
 pub fn import(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 	init_db(&cfg)?;
 
 	let blk_path = matches.value_of("PATH").expect("PATH is required in cli.yml; qed");
-	let blk_dir = ::import::open_blk_dir(blk_path)
-		.map_err(|err| format!("Failed to open import directory: {}", err))?;
+	let blk_dir = ::import::open_blk_dir(blk_path).map_err(|err| format!("Failed to open import directory: {}", err))?;
 
 	let mut writer = create_sync_blocks_writer(cfg.db, cfg.consensus, cfg.verification_params);
 	let mut counter = 0;

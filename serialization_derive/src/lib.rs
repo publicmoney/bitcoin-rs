@@ -3,12 +3,12 @@ extern crate syn;
 #[macro_use]
 extern crate quote;
 
-mod ser;
 mod de;
+mod ser;
 
+use de::impl_deserializable;
 use proc_macro::TokenStream;
 use ser::impl_serializable;
-use de::impl_deserializable;
 
 #[proc_macro_derive(Serializable)]
 pub fn serializable(input: TokenStream) -> TokenStream {
@@ -25,4 +25,3 @@ pub fn deserializable(input: TokenStream) -> TokenStream {
 	let gen = impl_deserializable(&ast);
 	gen.parse().unwrap()
 }
-

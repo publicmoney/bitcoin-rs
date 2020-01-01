@@ -1,6 +1,6 @@
-use std::{net, path};
 use message::common::Services;
 use net::Config as NetConfig;
+use std::{net, path};
 use util::InternetProtocol;
 
 #[derive(Debug, Clone)]

@@ -1,9 +1,9 @@
-use ser::Stream;
-use bytes::{TaggedBytes, Bytes};
-use network::Magic;
+use bytes::{Bytes, TaggedBytes};
 use common::Command;
+use network::Magic;
+use ser::Stream;
 use serialization::serialize_payload_with_flags;
-use {Payload, MessageResult, MessageHeader};
+use {MessageHeader, MessageResult, Payload};
 
 pub fn to_raw_message(magic: Magic, command: Command, payload: &Bytes) -> Bytes {
 	let header = MessageHeader::for_data(magic, command, payload);
@@ -17,7 +17,10 @@ pub struct Message<T> {
 	bytes: TaggedBytes<T>,
 }
 
-impl<T> Message<T> where T: Payload {
+impl<T> Message<T>
+where
+	T: Payload,
+{
 	pub fn new(magic: Magic, version: u32, payload: &T) -> MessageResult<Self> {
 		Self::with_flags(magic, version, payload, 0)
 	}

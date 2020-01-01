@@ -2,13 +2,13 @@ extern crate crypto as rcrypto;
 extern crate primitives;
 extern crate siphasher;
 
+use primitives::hash::{H160, H256, H32};
 pub use rcrypto::digest::Digest;
-use std::hash::Hasher;
+use rcrypto::ripemd160::Ripemd160;
 use rcrypto::sha1::Sha1;
 use rcrypto::sha2::Sha256;
-use rcrypto::ripemd160::Ripemd160;
 use siphasher::sip::SipHasher24;
-use primitives::hash::{H32, H160, H256};
+use std::hash::Hasher;
 
 pub struct DHash160 {
 	sha256: Sha256,
@@ -62,9 +62,7 @@ pub struct DHash256 {
 
 impl Default for DHash256 {
 	fn default() -> Self {
-		DHash256 {
-			hasher: Sha256::new(),
-		}
+		DHash256 { hasher: Sha256::new() }
 	}
 }
 
@@ -173,8 +171,8 @@ pub fn checksum(data: &[u8]) -> H32 {
 
 #[cfg(test)]
 mod tests {
+	use super::{checksum, dhash160, dhash256, ripemd160, sha1, sha256, siphash24};
 	use primitives::bytes::Bytes;
-	use super::{ripemd160, sha1, sha256, dhash160, dhash256, siphash24, checksum};
 
 	#[test]
 	fn test_ripemd160() {

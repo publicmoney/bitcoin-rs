@@ -1,14 +1,15 @@
+use super::Error;
+use chain;
+use network::ConsensusParams;
+use parking_lot::Mutex;
+use primitives::hash::H256;
 use std::collections::VecDeque;
 use std::sync::Arc;
-use parking_lot::Mutex;
-use chain;
 use storage;
-use network::ConsensusParams;
-use primitives::hash::H256;
-use super::Error;
 use synchronization_chain::Chain;
-use synchronization_verifier::{Verifier, SyncVerifier, VerificationTask,
-	VerificationSink, BlockVerificationSink, TransactionVerificationSink};
+use synchronization_verifier::{
+	BlockVerificationSink, SyncVerifier, TransactionVerificationSink, VerificationSink, VerificationTask, Verifier,
+};
 use types::StorageRef;
 use utils::OrphanBlocksPool;
 use VerificationParameters;
@@ -49,9 +50,9 @@ impl BlocksWriter {
 		let sink = Arc::new(BlocksWriterSink::new(sink_data.clone()));
 		let verifier = SyncVerifier::new(consensus, storage.clone(), sink, verification_params);
 		BlocksWriter {
-			storage: storage,
+			storage,
 			orphaned_blocks_pool: OrphanBlocksPool::new(),
-			verifier: verifier,
+			verifier,
 			sink: sink_data,
 		}
 	}
@@ -64,7 +65,10 @@ impl BlocksWriter {
 		}
 
 		// verify && insert only if parent block is already in the storage
-		if !self.storage.contains_block(storage::BlockRef::Hash(block.header.raw.previous_header_hash.clone())) {
+		if !self
+			.storage
+			.contains_block(storage::BlockRef::Hash(block.header.raw.previous_header_hash.clone()))
+		{
 			self.orphaned_blocks_pool.insert_orphaned_block(block);
 			// we can't hold many orphaned blocks in memory during import
 			if self.orphaned_blocks_pool.len() > MAX_ORPHANED_BLOCKS {
@@ -90,9 +94,7 @@ impl BlocksWriter {
 impl BlocksWriterSink {
 	/// Create new verification events receiver
 	pub fn new(data: Arc<Mutex<BlocksWriterSinkData>>) -> Self {
-		BlocksWriterSink {
-			data: data,
-		}
+		BlocksWriterSink { data }
 	}
 }
 
@@ -111,8 +113,7 @@ impl BlocksWriterSinkData {
 	}
 }
 
-impl VerificationSink for BlocksWriterSink {
-}
+impl VerificationSink for BlocksWriterSink {}
 
 impl BlockVerificationSink for BlocksWriterSink {
 	fn on_block_verification_success(&self, block: chain::IndexedBlock) -> Option<Vec<VerificationTask>> {
@@ -143,12 +144,12 @@ impl TransactionVerificationSink for BlocksWriterSink {
 mod tests {
 	extern crate test_data;
 
-	use std::sync::Arc;
-	use db::{BlockChainDatabase};
-	use network::{ConsensusParams, Network};
-	use verification::VerificationLevel;
 	use super::super::Error;
 	use super::{BlocksWriter, MAX_ORPHANED_BLOCKS};
+	use db::BlockChainDatabase;
+	use network::{ConsensusParams, Network};
+	use std::sync::Arc;
+	use verification::VerificationLevel;
 	use VerificationParameters;
 
 	fn default_verification_params() -> VerificationParameters {
@@ -162,7 +163,9 @@ mod tests {
 	fn blocks_writer_appends_blocks() {
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
 		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), default_verification_params());
-		blocks_target.append_block(test_data::block_h1().into()).expect("Expecting no error");
+		blocks_target
+			.append_block(test_data::block_h1().into())
+			.expect("Expecting no error");
 		assert_eq!(db.best_block().number, 1);
 	}
 
@@ -187,8 +190,10 @@ mod tests {
 		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), default_verification_params());
 
 		let wrong_block = test_data::block_builder()
-			.header().parent(test_data::genesis().hash()).build()
-		.build();
+			.header()
+			.parent(test_data::genesis().hash())
+			.build()
+			.build();
 		match blocks_target.append_block(wrong_block.into()).unwrap_err() {
 			Error::Verification(_) => (),
 			_ => panic!("Unexpected error"),
@@ -218,10 +223,14 @@ mod tests {
 		let b3 = test_data::block_builder().header().parent(b2.hash()).build().build();
 
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![b0.into()]));
-		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), VerificationParameters {
-			verification_level: VerificationLevel::NoVerification,
-			verification_edge: 0u8.into(),
-		});
+		let mut blocks_target = BlocksWriter::new(
+			db.clone(),
+			ConsensusParams::new(Network::Testnet),
+			VerificationParameters {
+				verification_level: VerificationLevel::NoVerification,
+				verification_edge: 0u8.into(),
+			},
+		);
 		assert_eq!(blocks_target.append_block(b1.into()), Ok(()));
 		assert_eq!(blocks_target.append_block(b2.into()), Ok(()));
 		assert_eq!(blocks_target.append_block(b3.into()), Ok(()));

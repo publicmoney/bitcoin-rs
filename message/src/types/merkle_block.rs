@@ -1,9 +1,9 @@
-use std::io;
-use hash::H256;
 use bytes::Bytes;
-use ser::{Stream, Reader};
 use chain::BlockHeader;
-use {Payload, MessageResult};
+use hash::H256;
+use ser::{Reader, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct MerkleBlock {
@@ -22,7 +22,10 @@ impl Payload for MerkleBlock {
 		"merkleblock"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let merkle_block = MerkleBlock {
 			block_header: reader.read()?,
 			total_transactions: reader.read()?,

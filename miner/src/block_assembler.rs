@@ -1,11 +1,11 @@
-use std::collections::HashSet;
-use primitives::hash::H256;
-use primitives::compact::Compact;
-use chain::{OutPoint, TransactionOutput, IndexedTransaction};
-use storage::{SharedStore, TransactionOutputProvider};
+use chain::{IndexedTransaction, OutPoint, TransactionOutput};
+use memory_pool::{Entry, MemoryPool, OrderingStrategy};
 use network::ConsensusParams;
-use memory_pool::{MemoryPool, OrderingStrategy, Entry};
-use verification::{work_required, block_reward_satoshi, transaction_sigops};
+use primitives::compact::Compact;
+use primitives::hash::H256;
+use std::collections::HashSet;
+use storage::{SharedStore, TransactionOutputProvider};
+use verification::{block_reward_satoshi, transaction_sigops, work_required};
 
 const BLOCK_VERSION: u32 = 0x20000000;
 const BLOCK_HEADER_SIZE: u32 = 4 + 32 + 32 + 4 + 4 + 4;
@@ -65,16 +65,14 @@ enum NextStep {
 impl NextStep {
 	fn and(self, other: NextStep) -> Self {
 		match (self, other) {
-			(_, NextStep::FinishAndIgnore) |
-			(NextStep::FinishAndIgnore, _) |
-			(NextStep::FinishAndAppend, NextStep::Ignore) |
-			(NextStep::Ignore, NextStep::FinishAndAppend) => NextStep::FinishAndIgnore,
+			(_, NextStep::FinishAndIgnore)
+			| (NextStep::FinishAndIgnore, _)
+			| (NextStep::FinishAndAppend, NextStep::Ignore)
+			| (NextStep::Ignore, NextStep::FinishAndAppend) => NextStep::FinishAndIgnore,
 
-			(NextStep::Ignore, _) |
-			(_, NextStep::Ignore) => NextStep::Ignore,
+			(NextStep::Ignore, _) | (_, NextStep::Ignore) => NextStep::Ignore,
 
-			(_, NextStep::FinishAndAppend) |
-			(NextStep::FinishAndAppend, _) => NextStep::FinishAndAppend,
+			(_, NextStep::FinishAndAppend) | (NextStep::FinishAndAppend, _) => NextStep::FinishAndAppend,
 
 			(NextStep::Append, NextStep::Append) => NextStep::Append,
 		}
@@ -84,11 +82,11 @@ impl NextStep {
 impl SizePolicy {
 	fn new(current_size: u32, max_size: u32, size_buffer: u32, finish_limit: u32) -> Self {
 		SizePolicy {
-			current_size: current_size,
-			max_size: max_size,
-			size_buffer: size_buffer,
+			current_size,
+			max_size,
+			size_buffer,
 			finish_counter: 0,
-			finish_limit: finish_limit,
+			finish_limit,
 		}
 	}
 
@@ -144,7 +142,10 @@ struct FittingTransactionsIterator<'a, T> {
 	finished: bool,
 }
 
-impl<'a, T> FittingTransactionsIterator<'a, T> where T: Iterator<Item = &'a Entry> {
+impl<'a, T> FittingTransactionsIterator<'a, T>
+where
+	T: Iterator<Item = &'a Entry>,
+{
 	fn new(
 		store: &'a dyn TransactionOutputProvider,
 		iter: T,
@@ -154,10 +155,10 @@ impl<'a, T> FittingTransactionsIterator<'a, T> where T: Iterator<Item = &'a Entr
 		block_time: u32,
 	) -> Self {
 		FittingTransactionsIterator {
-			store: store,
-			iter: iter,
-			block_height: block_height,
-			block_time: block_time,
+			store,
+			iter,
+			block_height,
+			block_time,
 			// reserve some space for header and transations len field
 			block_size: SizePolicy::new(BLOCK_HEADER_SIZE + 4, max_block_size, 1_000, 50),
 			sigops: SizePolicy::new(0, max_block_sigops, 8, 50),
@@ -168,15 +169,18 @@ impl<'a, T> FittingTransactionsIterator<'a, T> where T: Iterator<Item = &'a Entr
 	}
 }
 
-impl<'a, T> TransactionOutputProvider for FittingTransactionsIterator<'a, T> where T: Send + Sync {
+impl<'a, T> TransactionOutputProvider for FittingTransactionsIterator<'a, T>
+where
+	T: Send + Sync,
+{
 	fn transaction_output(&self, prevout: &OutPoint, transaction_index: usize) -> Option<TransactionOutput> {
-		self.store.transaction_output(prevout, transaction_index)
-			.or_else(|| {
-				self.previous_entries.iter()
-					.find(|e| e.hash == prevout.hash)
-					.and_then(|e| e.transaction.outputs.iter().nth(prevout.index as usize))
-					.cloned()
-			})
+		self.store.transaction_output(prevout, transaction_index).or_else(|| {
+			self.previous_entries
+				.iter()
+				.find(|e| e.hash == prevout.hash)
+				.and_then(|e| e.transaction.outputs.iter().nth(prevout.index as usize))
+				.cloned()
+		})
 	}
 
 	fn is_spent(&self, _outpoint: &OutPoint) -> bool {
@@ -184,7 +188,10 @@ impl<'a, T> TransactionOutputProvider for FittingTransactionsIterator<'a, T> whe
 	}
 }
 
-impl<'a, T> Iterator for FittingTransactionsIterator<'a, T> where T: Iterator<Item = &'a Entry> + Send + Sync {
+impl<'a, T> Iterator for FittingTransactionsIterator<'a, T>
+where
+	T: Iterator<Item = &'a Entry> + Send + Sync,
+{
 	type Item = &'a Entry;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -210,10 +217,15 @@ impl<'a, T> Iterator for FittingTransactionsIterator<'a, T> where T: Iterator<It
 				continue;
 			}
 			// check if any parent transaction has been ignored
-			if !self.ignored.is_empty() && entry.transaction.inputs.iter().any(|input| self.ignored.contains(&input.previous_output.hash)) {
+			if !self.ignored.is_empty()
+				&& entry
+					.transaction
+					.inputs
+					.iter()
+					.any(|input| self.ignored.contains(&input.previous_output.hash))
+			{
 				continue;
 			}
-
 
 			match size_step.and(sigops_step) {
 				NextStep::Append => {
@@ -221,19 +233,19 @@ impl<'a, T> Iterator for FittingTransactionsIterator<'a, T> where T: Iterator<It
 					self.sigops.apply(transaction_size);
 					self.previous_entries.push(entry);
 					return Some(entry);
-				},
+				}
 				NextStep::FinishAndAppend => {
 					self.finished = true;
 					self.block_size.apply(transaction_size);
 					self.sigops.apply(transaction_size);
 					self.previous_entries.push(entry);
 					return Some(entry);
-				},
+				}
 				NextStep::Ignore => (),
 				NextStep::FinishAndIgnore => {
 					self.ignored.insert(entry.hash.clone());
 					self.finished = true;
-				},
+				}
 			}
 		}
 
@@ -248,7 +260,13 @@ impl BlockAssembler {
 		let best_block = store.best_block();
 		let previous_header_hash = best_block.hash;
 		let height = best_block.number + 1;
-		let bits = work_required(previous_header_hash.clone(), time, height, store.as_block_header_provider(), consensus);
+		let bits = work_required(
+			previous_header_hash.clone(),
+			time,
+			height,
+			store.as_block_header_provider(),
+			consensus,
+		);
 		let version = BLOCK_VERSION;
 
 		let mut coinbase_value = block_reward_satoshi(height);
@@ -261,7 +279,8 @@ impl BlockAssembler {
 			self.max_block_size,
 			self.max_block_sigops,
 			height,
-			time);
+			time,
+		);
 		for entry in tx_iter {
 			// miner_fee is i64, but we can safely cast it to u64
 			// memory pool should restrict miner fee to be positive
@@ -288,33 +307,39 @@ impl BlockAssembler {
 mod tests {
 	extern crate test_data;
 
-	use std::sync::Arc;
-	use db::BlockChainDatabase;
-	use primitives::hash::H256;
-	use storage::SharedStore;
-	use chain::IndexedTransaction;
-	use network::{ConsensusParams, Network};
-	use memory_pool::MemoryPool;
-	use verification::block_reward_satoshi;
-	use fee::{FeeCalculator, NonZeroFeeCalculator};
 	use self::test_data::{ChainBuilder, TransactionBuilder};
-	use super::{BlockAssembler, SizePolicy, NextStep, BlockTemplate};
+	use super::{BlockAssembler, BlockTemplate, NextStep, SizePolicy};
+	use chain::IndexedTransaction;
+	use db::BlockChainDatabase;
+	use fee::{FeeCalculator, NonZeroFeeCalculator};
+	use memory_pool::MemoryPool;
+	use network::{ConsensusParams, Network};
+	use primitives::hash::H256;
+	use std::sync::Arc;
+	use storage::SharedStore;
+	use verification::block_reward_satoshi;
 
 	#[test]
 	fn test_size_policy() {
 		let mut size_policy = SizePolicy::new(0, 1000, 200, 3);
-		assert_eq!(size_policy.decide(100), NextStep::Append); size_policy.apply(100);
-		assert_eq!(size_policy.decide(500), NextStep::Append); size_policy.apply(500);
+		assert_eq!(size_policy.decide(100), NextStep::Append);
+		size_policy.apply(100);
+		assert_eq!(size_policy.decide(500), NextStep::Append);
+		size_policy.apply(500);
 		assert_eq!(size_policy.decide(600), NextStep::Ignore);
-		assert_eq!(size_policy.decide(200), NextStep::Append); size_policy.apply(200);
+		assert_eq!(size_policy.decide(200), NextStep::Append);
+		size_policy.apply(200);
 		assert_eq!(size_policy.decide(300), NextStep::Ignore);
 		assert_eq!(size_policy.decide(300), NextStep::Ignore);
 		// this transaction will make counter + buffer > max size
-		assert_eq!(size_policy.decide(1), NextStep::Append); size_policy.apply(1);
+		assert_eq!(size_policy.decide(1), NextStep::Append);
+		size_policy.apply(1);
 		// so now only 3 more transactions may accepted / ignored
-		assert_eq!(size_policy.decide(1), NextStep::Append); size_policy.apply(1);
+		assert_eq!(size_policy.decide(1), NextStep::Append);
+		size_policy.apply(1);
 		assert_eq!(size_policy.decide(1000), NextStep::Ignore);
-		assert_eq!(size_policy.decide(1), NextStep::FinishAndAppend); size_policy.apply(1);
+		assert_eq!(size_policy.decide(1), NextStep::FinishAndAppend);
+		size_policy.apply(1);
 		// we should not call decide again after it returned finish...
 		// but we can, let's check if result is ok
 		assert_eq!(size_policy.decide(1000), NextStep::FinishAndIgnore);
@@ -332,8 +357,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_fitting_transactions_iterator_max_block_size_reached() {
-	}
+	fn test_fitting_transactions_iterator_max_block_size_reached() {}
 
 	#[test]
 	fn test_fitting_transactions_iterator_ignored_parent() {
@@ -349,8 +373,12 @@ mod tests {
 	fn block_assembler_transaction_order() {
 		fn construct_block(consensus: ConsensusParams) -> (BlockTemplate, H256, H256) {
 			let chain = &mut ChainBuilder::new();
-			TransactionBuilder::with_default_input(0).set_output(30).store(chain)	// transaction0
-				.into_input(0).set_output(50).store(chain);							// transaction0 -> transaction1
+			TransactionBuilder::with_default_input(0)
+				.set_output(30)
+				.store(chain) // transaction0
+				.into_input(0)
+				.set_output(50)
+				.store(chain); // transaction0 -> transaction1
 			let hash0 = chain.at(0).hash();
 			let hash1 = chain.at(1).hash();
 
@@ -359,10 +387,15 @@ mod tests {
 			pool.insert_verified(chain.at(0).into(), &NonZeroFeeCalculator);
 			pool.insert_verified(chain.at(1).into(), &NonZeroFeeCalculator);
 
-			(BlockAssembler {
-				max_block_size: 0xffffffff,
-				max_block_sigops: 0xffffffff,
-			}.create_new_block(&storage, &pool, 0, &consensus), hash0, hash1)
+			(
+				BlockAssembler {
+					max_block_size: 0xffffffff,
+					max_block_sigops: 0xffffffff,
+				}
+				.create_new_block(&storage, &pool, 0, &consensus),
+				hash0,
+				hash1,
+			)
 		}
 
 		// when topological consensus is used
@@ -379,7 +412,7 @@ mod tests {
 		let tx0: IndexedTransaction = TransactionBuilder::with_input(&input_tx, 0).set_output(100_000).into();
 		let expected_tx0_fee = input_tx.total_spends() - tx0.raw.total_spends();
 
-			let storage: SharedStore = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
+		let storage: SharedStore = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
 		let mut pool = MemoryPool::new();
 		pool.insert_verified(tx0, &FeeCalculator(storage.as_transaction_output_provider()));
 
@@ -387,7 +420,8 @@ mod tests {
 		let block = BlockAssembler {
 			max_block_size: 0xffffffff,
 			max_block_sigops: 0xffffffff,
-		}.create_new_block(&storage, &pool, 0, &consensus);
+		}
+		.create_new_block(&storage, &pool, 0, &consensus);
 
 		let expected_coinbase_value = block_reward_satoshi(1) + expected_tx0_fee;
 		assert_eq!(block.coinbase_value, expected_coinbase_value);

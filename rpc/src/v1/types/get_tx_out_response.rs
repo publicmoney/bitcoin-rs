@@ -22,12 +22,12 @@ pub struct GetTxOutResponse {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
 	use super::super::bytes::Bytes;
 	use super::super::hash::H256;
 	use super::super::script::ScriptType;
 	use super::super::transaction::TransactionOutputScript;
 	use super::*;
+	use serde_json;
 
 	#[test]
 	fn tx_out_response_serialize() {
@@ -40,12 +40,18 @@ mod tests {
 				hex: Bytes::new(vec![1, 2, 3, 4]),
 				req_sigs: 777,
 				script_type: ScriptType::Multisig,
-				addresses: vec!["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(), "1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into()],
+				addresses: vec![
+					"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(),
+					"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into(),
+				],
 			},
 			version: 33,
 			coinbase: false,
 		};
-		assert_eq!(serde_json::to_string(&txout).unwrap(), r#"{"bestblock":"5600000000000000000000000000000000000000000000000000000000000000","confirmations":777,"value":100000.56,"scriptPubKey":{"asm":"Hello, world!!!","hex":"01020304","reqSigs":777,"type":"multisig","addresses":["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa","1H5m1XzvHsjWX3wwU781ubctznEpNACrNC"]},"version":33,"coinbase":false}"#);
+		assert_eq!(
+			serde_json::to_string(&txout).unwrap(),
+			r#"{"bestblock":"5600000000000000000000000000000000000000000000000000000000000000","confirmations":777,"value":100000.56,"scriptPubKey":{"asm":"Hello, world!!!","hex":"01020304","reqSigs":777,"type":"multisig","addresses":["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa","1H5m1XzvHsjWX3wwU781ubctznEpNACrNC"]},"version":33,"coinbase":false}"#
+		);
 	}
 
 	#[test]
@@ -59,7 +65,10 @@ mod tests {
 				hex: Bytes::new(vec![1, 2, 3, 4]),
 				req_sigs: 777,
 				script_type: ScriptType::Multisig,
-				addresses: vec!["1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(), "1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into()],
+				addresses: vec![
+					"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa".into(),
+					"1H5m1XzvHsjWX3wwU781ubctznEpNACrNC".into(),
+				],
 			},
 			version: 33,
 			coinbase: false,

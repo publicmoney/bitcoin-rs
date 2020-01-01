@@ -1,6 +1,6 @@
 use chain::IndexedBlock;
-use storage::{BlockProvider, BlockRef, BlockOrigin, ForkChain};
 use db::BlockChainDatabase;
+use storage::{BlockOrigin, BlockProvider, BlockRef, ForkChain};
 use test_data;
 
 use super::Benchmark;
@@ -20,6 +20,7 @@ pub fn fetch(benchmark: &mut Benchmark) {
 	let mut hashes = Vec::new();
 
 	for x in 0..BLOCKS {
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.coinbase()
@@ -65,11 +66,16 @@ pub fn write(benchmark: &mut Benchmark) {
 	for x in 0..BLOCKS {
 		let next_block = test_data::block_builder()
 			.transaction()
-				.coinbase()
-				.lock_time(x as u32)
-				.output().value(5000000000).build()
-				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32).build()
+			.coinbase()
+			.lock_time(x as u32)
+			.output()
+			.value(5000000000)
+			.build()
+			.build()
+			.merkled_header()
+			.parent(rolling_hash.clone())
+			.nonce(x as u32)
+			.build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block.into());
@@ -103,43 +109,63 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 
 		let next_block = test_data::block_builder()
 			.transaction()
-				.coinbase()
-				.lock_time(x as u32)
-				.output().value(5000000000).build()
-				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32 * 4).build()
+			.coinbase()
+			.lock_time(x as u32)
+			.output()
+			.value(5000000000)
+			.build()
+			.build()
+			.merkled_header()
+			.parent(rolling_hash.clone())
+			.nonce(x as u32 * 4)
+			.build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
 
 		let next_block_side = test_data::block_builder()
 			.transaction()
-				.coinbase()
-				.lock_time(x as u32)
-				.output().value(5000000000).build()
-				.build()
-			.merkled_header().parent(base).nonce(x as u32 * 4 + 2).build()
+			.coinbase()
+			.lock_time(x as u32)
+			.output()
+			.value(5000000000)
+			.build()
+			.build()
+			.merkled_header()
+			.parent(base)
+			.nonce(x as u32 * 4 + 2)
+			.build()
 			.build();
 		let next_base = next_block_side.hash();
 		blocks.push(next_block_side);
 
 		let next_block_side_continue = test_data::block_builder()
 			.transaction()
-				.coinbase()
-				.lock_time(x as u32)
-				.output().value(5000000000).build()
-				.build()
-			.merkled_header().parent(next_base).nonce(x as u32 * 4 + 3).build()
+			.coinbase()
+			.lock_time(x as u32)
+			.output()
+			.value(5000000000)
+			.build()
+			.build()
+			.merkled_header()
+			.parent(next_base)
+			.nonce(x as u32 * 4 + 3)
+			.build()
 			.build();
 		blocks.push(next_block_side_continue);
 
 		let next_block_continue = test_data::block_builder()
 			.transaction()
-				.coinbase()
-				.lock_time(x as u32)
-				.output().value(5000000000).build()
-				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32 * 4 + 1).build()
+			.coinbase()
+			.lock_time(x as u32)
+			.output()
+			.value(5000000000)
+			.build()
+			.build()
+			.merkled_header()
+			.parent(rolling_hash.clone())
+			.nonce(x as u32 * 4 + 1)
+			.build()
 			.build();
 		rolling_hash = next_block_continue.hash();
 		blocks.push(next_block_continue);
@@ -158,21 +184,21 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 		match store.block_origin(&block.header).unwrap() {
 			BlockOrigin::KnownBlock => {
 				unreachable!();
-			},
+			}
 			BlockOrigin::CanonChain { .. } => {
 				store.insert(block).unwrap();
 				store.canonize(&hash).unwrap();
-			},
+			}
 			BlockOrigin::SideChain(_origin) => {
 				store.insert(block).unwrap();
-			},
+			}
 			BlockOrigin::SideChainBecomingCanonChain(origin) => {
 				reorgs += 1;
 				let fork = store.fork(origin).unwrap();
 				fork.store().insert(block).unwrap();
 				fork.store().canonize(&hash).unwrap();
 				store.switch_to_fork(fork).unwrap();
-			},
+			}
 		}
 	}
 	benchmark.stop();
@@ -204,11 +230,16 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 	for x in 0..BLOCKS_INITIAL {
 		let next_block = test_data::block_builder()
 			.transaction()
-				.coinbase()
-				.lock_time(x as u32)
-				.output().value(5000000000).build()
-				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32).build()
+			.coinbase()
+			.lock_time(x as u32)
+			.output()
+			.value(5000000000)
+			.build()
+			.build()
+			.merkled_header()
+			.parent(rolling_hash.clone())
+			.nonce(x as u32)
+			.build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
@@ -216,13 +247,17 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 	}
 
 	for b in 0..BLOCKS {
-		let mut builder = test_data::block_builder()
-			.transaction().coinbase().build();
+		let mut builder = test_data::block_builder().transaction().coinbase().build();
 
 		for t in 0..TRANSACTIONS {
-			builder = builder.transaction()
-				.input().hash(blocks[b*TRANSACTIONS+t].transactions()[0].hash()).build() // default index is 0 which is ok
-				.output().value(1000).build()
+			builder = builder
+				.transaction()
+				.input()
+				.hash(blocks[b * TRANSACTIONS + t].transactions()[0].hash())
+				.build() // default index is 0 which is ok
+				.output()
+				.value(1000)
+				.build()
 				.build();
 		}
 

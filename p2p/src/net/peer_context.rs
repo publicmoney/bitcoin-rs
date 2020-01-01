@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use parking_lot::Mutex;
-use message::{Payload, Message};
-use p2p::Context;
-use util::{PeerInfo, ConfigurableSynchronizer, ResponseQueue, Synchronizer, Responses};
-use futures::{lazy, finished};
+use futures::{finished, lazy};
+use message::{Message, Payload};
 use net::PeerStats;
+use p2p::Context;
+use parking_lot::Mutex;
+use std::sync::Arc;
+use util::{ConfigurableSynchronizer, PeerInfo, ResponseQueue, Responses, Synchronizer};
 
 pub struct PeerContext {
 	context: Arc<Context>,
@@ -17,15 +17,18 @@ pub struct PeerContext {
 impl PeerContext {
 	pub fn new(context: Arc<Context>, info: PeerInfo, synchronous: bool) -> Self {
 		PeerContext {
-			context: context,
-			info: info,
+			context,
+			info,
 			synchronizer: Mutex::new(ConfigurableSynchronizer::new(synchronous)),
 			response_queue: Mutex::default(),
 			stats: Mutex::default(),
 		}
 	}
 
-	fn to_message<T>(&self, payload: &T) -> Message<T> where T: Payload {
+	fn to_message<T>(&self, payload: &T) -> Message<T>
+	where
+		T: Payload,
+	{
 		Message::new(self.info.magic, self.info.version, payload).expect("failed to create outgoing message")
 	}
 
@@ -40,10 +43,10 @@ impl PeerContext {
 						let send = Context::send_message_to_peer(self.context.clone(), self.info.id, message);
 						self.context.spawn(send);
 					}
-				},
+				}
 				Some(Responses::Ignored) => {
 					assert!(sync.permission_for_response(next_id));
-				},
+				}
 				Some(Responses::Unfinished(messages)) => {
 					assert!(sync.is_permitted(next_id));
 					for message in messages {
@@ -51,7 +54,7 @@ impl PeerContext {
 						self.context.spawn(send);
 					}
 					break;
-				},
+				}
 				None => {
 					break;
 				}
@@ -60,12 +63,18 @@ impl PeerContext {
 	}
 
 	/// Request is always automatically send.
-	pub fn send_request<T>(&self, payload: &T) where T: Payload {
+	pub fn send_request<T>(&self, payload: &T)
+	where
+		T: Payload,
+	{
 		self.send_request_with_flags(payload, 0)
 	}
 
 	/// Request is always automatically send.
-	pub fn send_request_with_flags<T>(&self, payload: &T, serialization_flags: u32) where T: Payload {
+	pub fn send_request_with_flags<T>(&self, payload: &T, serialization_flags: u32)
+	where
+		T: Payload,
+	{
 		let send = Context::send_to_peer(self.context.clone(), self.info.id, payload, serialization_flags);
 		self.context.spawn(send);
 	}
@@ -76,7 +85,10 @@ impl PeerContext {
 		d
 	}
 
-	pub fn send_response_inline<T>(&self, payload: &T) where T: Payload {
+	pub fn send_response_inline<T>(&self, payload: &T)
+	where
+		T: Payload,
+	{
 		let id = self.declare_response();
 		self.send_response(payload, id, true);
 	}
@@ -93,7 +105,10 @@ impl PeerContext {
 	}
 
 	/// Responses are sent in order defined by synchronizer.
-	pub fn send_response<T>(&self, payload: &T, id: u32, is_final: bool) where T: Payload {
+	pub fn send_response<T>(&self, payload: &T, id: u32, is_final: bool)
+	where
+		T: Payload,
+	{
 		trace!("response ready: {}, id: {}, final: {}", T::command(), id, is_final);
 		let mut sync = self.synchronizer.lock();
 		let mut queue = self.response_queue.lock();

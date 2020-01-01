@@ -5,13 +5,13 @@
 //!
 //! https://en.bitcoin.it/wiki/Address
 
-use std::fmt;
-use std::str::FromStr;
-use std::ops::Deref;
-use base58::{ToBase58, FromBase58};
+use base58::{FromBase58, ToBase58};
 use crypto::checksum;
 use network::Network;
-use {DisplayLayout, Error, AddressHash};
+use std::fmt;
+use std::ops::Deref;
+use std::str::FromStr;
+use {AddressHash, DisplayLayout, Error};
 
 /// There are two address formats currently in use.
 /// https://bitcoin.org/en/developer-reference#address-conversion
@@ -67,7 +67,10 @@ impl DisplayLayout for Address {
 		AddressDisplayLayout(result)
 	}
 
-	fn from_layout(data: &[u8]) -> Result<Self, Error> where Self: Sized {
+	fn from_layout(data: &[u8]) -> Result<Self, Error>
+	where
+		Self: Sized,
+	{
 		if data.len() != 25 {
 			return Err(Error::InvalidAddress);
 		}
@@ -88,11 +91,7 @@ impl DisplayLayout for Address {
 		let mut hash = AddressHash::default();
 		hash.copy_from_slice(&data[1..21]);
 
-		let address = Address {
-			kind: kind,
-			network: network,
-			hash: hash,
-		};
+		let address = Address { kind, network, hash };
 
 		Ok(address)
 	}
@@ -107,7 +106,10 @@ impl fmt::Display for Address {
 impl FromStr for Address {
 	type Err = Error;
 
-	fn from_str(s: &str) -> Result<Self, Error> where Self: Sized {
+	fn from_str(s: &str) -> Result<Self, Error>
+	where
+		Self: Sized,
+	{
 		let hex = s.from_base58().map_err(|_| Error::InvalidAddress)?;
 		Address::from_layout(&hex)
 	}
@@ -121,8 +123,8 @@ impl From<&'static str> for Address {
 
 #[cfg(test)]
 mod tests {
-	use network::Network;
 	use super::{Address, Type};
+	use network::Network;
 
 	#[test]
 	fn test_address_to_string() {

@@ -1,25 +1,25 @@
 extern crate bitcrypto;
 extern crate byteorder;
 extern crate chain;
-extern crate storage;
 extern crate db;
+extern crate storage;
 #[macro_use]
 extern crate log;
+extern crate bit_vec;
 extern crate futures;
+extern crate linked_hash_map;
 extern crate message;
+extern crate miner;
+extern crate murmur3;
+extern crate network;
 extern crate p2p;
 extern crate parking_lot;
-extern crate linked_hash_map;
-extern crate bit_vec;
-extern crate murmur3;
 extern crate primitives;
-extern crate time;
-extern crate verification;
-extern crate miner;
+extern crate rand;
 extern crate script;
 extern crate serialization as ser;
-extern crate rand;
-extern crate network;
+extern crate time;
+extern crate verification;
 
 mod blocks_writer;
 mod inbound_connection;
@@ -40,11 +40,11 @@ mod utils;
 pub use types::LocalNodeRef;
 pub use types::PeersRef;
 
-use std::sync::Arc;
-use parking_lot::RwLock;
 use message::Services;
-use network::{Network, ConsensusParams};
+use network::{ConsensusParams, Network};
+use parking_lot::RwLock;
 use primitives::hash::H256;
+use std::sync::Arc;
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 
 /// Sync errors.
@@ -77,7 +77,11 @@ pub trait SyncListener: Send + 'static {
 }
 
 /// Create blocks writer.
-pub fn create_sync_blocks_writer(db: storage::SharedStore, consensus: ConsensusParams, verification_params: VerificationParameters) -> blocks_writer::BlocksWriter {
+pub fn create_sync_blocks_writer(
+	db: storage::SharedStore,
+	consensus: ConsensusParams,
+	verification_params: VerificationParameters,
+) -> blocks_writer::BlocksWriter {
 	blocks_writer::BlocksWriter::new(db, consensus, verification_params)
 }
 
@@ -89,17 +93,22 @@ pub fn create_sync_peers() -> PeersRef {
 }
 
 /// Creates local sync node for given `db`
-pub fn create_local_sync_node(consensus: ConsensusParams, db: storage::SharedStore, peers: PeersRef, verification_params: VerificationParameters) -> LocalNodeRef {
+pub fn create_local_sync_node(
+	consensus: ConsensusParams,
+	db: storage::SharedStore,
+	peers: PeersRef,
+	verification_params: VerificationParameters,
+) -> LocalNodeRef {
+	use local_node::LocalNode as SyncNode;
 	use miner::MemoryPool;
 	use synchronization_chain::Chain as SyncChain;
-	use synchronization_executor::LocalSynchronizationTaskExecutor as SyncExecutor;
-	use local_node::LocalNode as SyncNode;
-	use synchronization_server::ServerImpl;
 	use synchronization_client::SynchronizationClient;
-	use synchronization_client_core::{SynchronizationClientCore, CoreVerificationSink, Config as SynchronizationConfig};
+	use synchronization_client_core::{Config as SynchronizationConfig, CoreVerificationSink, SynchronizationClientCore};
+	use synchronization_executor::LocalSynchronizationTaskExecutor as SyncExecutor;
+	use synchronization_server::ServerImpl;
 	use synchronization_verifier::AsyncVerifier;
-	use utils::SynchronizationState;
 	use types::SynchronizationStateRef;
+	use utils::SynchronizationState;
 
 	let network = consensus.network;
 	let sync_client_config = SynchronizationConfig {
@@ -118,12 +127,32 @@ pub fn create_local_sync_node(consensus: ConsensusParams, db: storage::SharedSto
 	peers.require_peer_services(Services::default().with_witness(true));
 	let chain_verifier = Arc::new(ChainVerifier::new(db.clone(), consensus.clone()));
 	let sync_executor = SyncExecutor::new(peers.clone());
-	let sync_server = Arc::new(ServerImpl::new(peers.clone(), db.clone(), memory_pool.clone(), sync_executor.clone()));
-	let sync_client_core = SynchronizationClientCore::new(sync_client_config, sync_state.clone(), peers.clone(), sync_executor.clone(), sync_chain, chain_verifier.clone());
+	let sync_server = Arc::new(ServerImpl::new(
+		peers.clone(),
+		db.clone(),
+		memory_pool.clone(),
+		sync_executor.clone(),
+	));
+	let sync_client_core = SynchronizationClientCore::new(
+		sync_client_config,
+		sync_state.clone(),
+		peers.clone(),
+		sync_executor.clone(),
+		sync_chain,
+		chain_verifier.clone(),
+	);
 	let verifier_sink = Arc::new(CoreVerificationSink::new(sync_client_core.clone()));
 	let verifier = AsyncVerifier::new(chain_verifier, db.clone(), memory_pool.clone(), verifier_sink, verification_params);
 	let sync_client = SynchronizationClient::new(sync_state.clone(), sync_client_core, verifier);
-	Arc::new(SyncNode::new(consensus, db, memory_pool, peers, sync_state, sync_client, sync_server))
+	Arc::new(SyncNode::new(
+		consensus,
+		db,
+		memory_pool,
+		peers,
+		sync_state,
+		sync_client,
+		sync_server,
+	))
 }
 
 /// Create inbound synchronization connections factory for given local sync node.

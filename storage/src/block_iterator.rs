@@ -1,5 +1,5 @@
 use chain::IndexedBlockHeader;
-use {BlockRef, BlockHeaderProvider};
+use {BlockHeaderProvider, BlockRef};
 
 pub struct BlockIterator<'a> {
 	block: u32,
@@ -9,11 +9,7 @@ pub struct BlockIterator<'a> {
 
 impl<'a> BlockIterator<'a> {
 	pub fn new(block: u32, period: u32, headers: &'a dyn BlockHeaderProvider) -> Self {
-		BlockIterator {
-			block: block,
-			period: period,
-			headers: headers,
-		}
+		BlockIterator { block, period, headers }
 	}
 }
 

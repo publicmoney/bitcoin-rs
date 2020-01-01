@@ -1,10 +1,10 @@
-use std::io;
-use byteorder::{ReadBytesExt, WriteBytesExt, LittleEndian};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use bytes::Bytes;
 use compact::Compact;
-use hash::{H32, H48, H96, H160, H256, H264, H512, H520};
 use compact_integer::CompactInteger;
-use {Serializable, Stream, Deserializable, Reader, Error};
+use hash::{H160, H256, H264, H32, H48, H512, H520, H96};
+use std::io;
+use {Deserializable, Error, Reader, Serializable, Stream};
 
 impl Serializable for bool {
 	#[inline]
@@ -92,7 +92,10 @@ impl Serializable for u64 {
 
 impl Deserializable for bool {
 	#[inline]
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		let value = reader.read_u8()?;
 		match value {
 			0 => Ok(false),
@@ -104,42 +107,60 @@ impl Deserializable for bool {
 
 impl Deserializable for i32 {
 	#[inline]
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		Ok(reader.read_i32::<LittleEndian>()?)
 	}
 }
 
 impl Deserializable for i64 {
 	#[inline]
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		Ok(reader.read_i64::<LittleEndian>()?)
 	}
 }
 
 impl Deserializable for u8 {
 	#[inline]
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		Ok(reader.read_u8()?)
 	}
 }
 
 impl Deserializable for u16 {
 	#[inline]
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		Ok(reader.read_u16::<LittleEndian>()?)
 	}
 }
 
 impl Deserializable for u32 {
 	#[inline]
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		Ok(reader.read_u32::<LittleEndian>()?)
 	}
 }
 
 impl Deserializable for u64 {
 	#[inline]
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		Ok(reader.read_u64::<LittleEndian>()?)
 	}
 }
@@ -147,9 +168,7 @@ impl Deserializable for u64 {
 impl Serializable for String {
 	fn serialize(&self, stream: &mut Stream) {
 		let bytes: &[u8] = self.as_ref();
-		stream
-			.append(&CompactInteger::from(bytes.len()))
-			.append_slice(bytes);
+		stream.append(&CompactInteger::from(bytes.len())).append_slice(bytes);
 	}
 
 	#[inline]
@@ -162,9 +181,7 @@ impl Serializable for String {
 impl<'a> Serializable for &'a str {
 	fn serialize(&self, stream: &mut Stream) {
 		let bytes: &[u8] = self.as_bytes();
-		stream
-			.append(&CompactInteger::from(bytes.len()))
-			.append_slice(bytes);
+		stream.append(&CompactInteger::from(bytes.len())).append_slice(bytes);
 	}
 
 	#[inline]
@@ -175,7 +192,10 @@ impl<'a> Serializable for &'a str {
 }
 
 impl Deserializable for String {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		let bytes: Bytes = reader.read()?;
 		Ok(String::from_utf8_lossy(&bytes).into_owned())
 	}
@@ -195,13 +215,16 @@ macro_rules! impl_ser_for_hash {
 		}
 
 		impl Deserializable for $name {
-			fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+			fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+			where
+				T: io::Read,
+			{
 				let mut result = Self::default();
 				reader.read_slice(&mut *result)?;
 				Ok(result)
 			}
 		}
-	}
+	};
 }
 
 impl_ser_for_hash!(H32, 4);
@@ -215,9 +238,7 @@ impl_ser_for_hash!(H520, 65);
 
 impl Serializable for Bytes {
 	fn serialize(&self, stream: &mut Stream) {
-		stream
-			.append(&CompactInteger::from(self.len()))
-			.append_slice(self);
+		stream.append(&CompactInteger::from(self.len())).append_slice(self);
 	}
 
 	#[inline]
@@ -227,7 +248,10 @@ impl Serializable for Bytes {
 }
 
 impl Deserializable for Bytes {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		let len = reader.read::<CompactInteger>()?;
 		let mut bytes = Bytes::new_with_len(len.into());
 		reader.read_slice(&mut bytes)?;
@@ -242,7 +266,10 @@ impl Serializable for Compact {
 }
 
 impl Deserializable for Compact {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		T: io::Read,
+	{
 		reader.read::<u32>().map(Compact::new)
 	}
 }
@@ -250,16 +277,11 @@ impl Deserializable for Compact {
 #[cfg(test)]
 mod tests {
 	use bytes::Bytes;
-	use {serialize, deserialize, deserialize_iterator, Stream, Reader, Error};
+	use {deserialize, deserialize_iterator, serialize, Error, Reader, Stream};
 
 	#[test]
 	fn test_reader_read() {
-		let buffer = vec![
-			1,
-			2, 0,
-			3, 0, 0, 0,
-			4, 0, 0, 0, 0, 0, 0, 0
-		];
+		let buffer = vec![1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0];
 
 		let mut reader = Reader::new(&buffer);
 		assert!(!reader.is_finished());
@@ -273,12 +295,7 @@ mod tests {
 
 	#[test]
 	fn test_reader_iterator() {
-		let buffer = vec![
-			1u8, 0,
-			2, 0,
-			3, 0,
-			4, 0,
-		];
+		let buffer = vec![1u8, 0, 2, 0, 3, 0, 4, 0];
 
 		let result = deserialize_iterator(&buffer as &[u8]).collect::<Result<Vec<u16>, _>>().unwrap();
 		assert_eq!(result, vec![1u16, 2, 3, 4]);
@@ -288,18 +305,9 @@ mod tests {
 	fn test_stream_append() {
 		let mut stream = Stream::default();
 
-		stream
-			.append(&1u8)
-			.append(&2u16)
-			.append(&3u32)
-			.append(&4u64);
+		stream.append(&1u8).append(&2u16).append(&3u32).append(&4u64);
 
-		let expected = vec![
-			1u8,
-			2, 0,
-			3, 0, 0, 0,
-			4, 0, 0, 0, 0, 0, 0, 0,
-		].into();
+		let expected = vec![1u8, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0].into();
 
 		assert_eq!(stream.out(), expected);
 	}

@@ -1,7 +1,7 @@
-use rayon::prelude::{IntoParallelRefIterator, IndexedParallelIterator, ParallelIterator};
 use chain::IndexedBlock;
-use network::Network;
 use error::Error;
+use network::Network;
+use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use verify_block::BlockVerifier;
 use verify_header::HeaderVerifier;
 use verify_transaction::TransactionVerifier;
@@ -30,9 +30,13 @@ impl<'a> ChainVerifier<'a> {
 	}
 
 	fn check_transactions(&self) -> Result<(), Error> {
-		self.transactions.par_iter()
+		self.transactions
+			.par_iter()
 			.enumerate()
-			.fold(|| Ok(()), |result, (index, tx)| result.and_then(|_| tx.check().map_err(|err| Error::Transaction(index, err))))
+			.fold(
+				|| Ok(()),
+				|result, (index, tx)| result.and_then(|_| tx.check().map_err(|err| Error::Transaction(index, err))),
+			)
 			.reduce(|| Ok(()), |acc, check| acc.and(check))
 	}
 }

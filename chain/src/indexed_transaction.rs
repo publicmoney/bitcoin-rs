@@ -1,9 +1,9 @@
-use std::{cmp, io, fmt};
 use hash::H256;
 use heapsize::HeapSizeOf;
-use ser::{Deserializable, Reader, Error as ReaderError};
-use transaction::{Transaction, transaction_hash};
 use read_and_hash::ReadAndHash;
+use ser::{Deserializable, Error as ReaderError, Reader};
+use std::{cmp, fmt, io};
+use transaction::{transaction_hash, Transaction};
 
 #[derive(Default, Clone)]
 pub struct IndexedTransaction {
@@ -21,7 +21,10 @@ impl fmt::Debug for IndexedTransaction {
 }
 
 #[cfg(feature = "test-helpers")]
-impl<T> From<T> for IndexedTransaction where Transaction: From<T> {
+impl<T> From<T> for IndexedTransaction
+where
+	Transaction: From<T>,
+{
 	fn from(other: T) -> Self {
 		Self::from_raw(other)
 	}
@@ -35,16 +38,16 @@ impl HeapSizeOf for IndexedTransaction {
 
 impl IndexedTransaction {
 	pub fn new(hash: H256, transaction: Transaction) -> Self {
-		IndexedTransaction {
-			hash: hash,
-			raw: transaction,
-		}
+		IndexedTransaction { hash, raw: transaction }
 	}
 
 	/// Explicit conversion of the raw Transaction into IndexedTransaction.
 	///
 	/// Hashes transaction contents.
-	pub fn from_raw<T>(transaction: T) -> Self where Transaction: From<T> {
+	pub fn from_raw<T>(transaction: T) -> Self
+	where
+		Transaction: From<T>,
+	{
 		let transaction = Transaction::from(transaction);
 		Self::new(transaction_hash(&transaction), transaction)
 	}
@@ -57,7 +60,10 @@ impl cmp::PartialEq for IndexedTransaction {
 }
 
 impl Deserializable for IndexedTransaction {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let data = reader.read_and_hash::<Transaction>()?;
 		// TODO: use len
 		let tx = IndexedTransaction {

@@ -1,7 +1,7 @@
-use std::io;
-use ser::{Stream, Reader};
 use chain::Block as ChainBlock;
-use {Payload, MessageResult};
+use ser::{Reader, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct Block {
@@ -10,9 +10,7 @@ pub struct Block {
 
 impl Block {
 	pub fn with_block(block: ChainBlock) -> Self {
-		Block {
-			block: block,
-		}
+		Block { block }
 	}
 }
 
@@ -25,10 +23,11 @@ impl Payload for Block {
 		"block"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
-		let tx = Block {
-			block: reader.read()?,
-		};
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
+		let tx = Block { block: reader.read()? };
 
 		Ok(tx)
 	}

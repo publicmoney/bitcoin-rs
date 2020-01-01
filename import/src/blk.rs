@@ -1,10 +1,13 @@
-use std::{io, fs, path};
-use std::collections::BTreeSet;
-use ser::{ReadIterator, deserialize_iterator, Error as ReaderError};
 use block::Block;
 use fs::read_blk_dir;
+use ser::{deserialize_iterator, Error as ReaderError, ReadIterator};
+use std::collections::BTreeSet;
+use std::{fs, io, path};
 
-pub fn open_blk_file<P>(path: P) -> Result<BlkFile, io::Error> where P: AsRef<path::Path> {
+pub fn open_blk_file<P>(path: P) -> Result<BlkFile, io::Error>
+where
+	P: AsRef<path::Path>,
+{
 	trace!("Opening blk file: {:?}", path.as_ref());
 	let file = fs::File::open(path)?;
 	let blk_file = BlkFile {
@@ -26,18 +29,20 @@ impl Iterator for BlkFile {
 }
 
 /// Creates iterator over bitcoind database blocks
-pub fn open_blk_dir<P>(path: P) -> Result<BlkDir, io::Error> where P: AsRef<path::Path> {
+pub fn open_blk_dir<P>(path: P) -> Result<BlkDir, io::Error>
+where
+	P: AsRef<path::Path>,
+{
 	let files = read_blk_dir(path)?.collect::<Result<BTreeSet<_>, _>>()?;
 
-	let iter = files.into_iter()
+	let iter = files
+		.into_iter()
 		// flatten results...
 		.flat_map(|file| open_blk_file(file.path))
 		// flat iterators over each block in each file
 		.flat_map(|file| file);
 
-	let blk_dir = BlkDir {
-		iter: Box::new(iter),
-	};
+	let blk_dir = BlkDir { iter: Box::new(iter) };
 
 	Ok(blk_dir)
 }
@@ -54,4 +59,3 @@ impl Iterator for BlkDir {
 		self.iter.next()
 	}
 }
-

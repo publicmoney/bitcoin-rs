@@ -1,14 +1,14 @@
-use std::io;
-use std::time::Duration;
-use std::net::SocketAddr;
-use futures::{Future, Poll, Async};
-use tokio_core::reactor::Handle;
-use tokio_core::net::{TcpStream, TcpStreamNew};
-use network::Magic;
-use message::Error;
+use futures::{Async, Future, Poll};
+use io::{deadline, handshake, Deadline, Handshake};
 use message::types::Version;
-use io::{handshake, Handshake, Deadline, deadline};
+use message::Error;
 use net::{Config, Connection};
+use network::Magic;
+use std::io;
+use std::net::SocketAddr;
+use std::time::Duration;
+use tokio_core::net::{TcpStream, TcpStreamNew};
+use tokio_core::reactor::Handle;
 
 pub fn connect(address: &SocketAddr, handle: &Handle, config: &Config) -> Deadline<Connect> {
 	let connect = Connect {
@@ -25,10 +25,7 @@ pub fn connect(address: &SocketAddr, handle: &Handle, config: &Config) -> Deadli
 }
 
 enum ConnectState {
-	TcpConnect {
-		future: TcpStreamNew,
-		version: Option<Version>,
-	},
+	TcpConnect { future: TcpStreamNew, version: Option<Version> },
 	Handshake(Handshake<TcpStream>),
 	Connected,
 }
@@ -46,12 +43,15 @@ impl Future for Connect {
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		let (next, result) = match self.state {
-			ConnectState::TcpConnect { ref mut future, ref mut version } => {
+			ConnectState::TcpConnect {
+				ref mut future,
+				ref mut version,
+			} => {
 				let stream = try_ready!(future.poll());
 				let version = version.take().expect("state TcpConnect must have version");
 				let handshake = handshake(stream, self.magic, version, self.protocol_minimum);
 				(ConnectState::Handshake(handshake), Async::NotReady)
-			},
+			}
 			ConnectState::Handshake(ref mut future) => {
 				let (stream, result) = try_ready!(future.poll());
 				let result = match result {
@@ -67,7 +67,7 @@ impl Future for Connect {
 					address: self.address,
 				};
 				(ConnectState::Connected, Async::Ready(Ok(connection)))
-			},
+			}
 			ConnectState::Connected => panic!("poll Connect after it's done"),
 		};
 
@@ -75,7 +75,7 @@ impl Future for Connect {
 		match result {
 			// by polling again, we register new future
 			Async::NotReady => self.poll(),
-			result => Ok(result)
+			result => Ok(result),
 		}
 	}
 }

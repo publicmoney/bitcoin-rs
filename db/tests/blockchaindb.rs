@@ -1,12 +1,12 @@
 extern crate chain;
-extern crate storage;
 extern crate db;
+extern crate storage;
 extern crate test_data;
 
 use chain::IndexedBlock;
-use storage::{ForkChain, BlockProvider, SideChainOrigin};
-use db::BlockChainDatabase;
 use db::kv::{MemoryDatabase, SharedMemoryDatabase};
+use db::BlockChainDatabase;
+use storage::{BlockProvider, ForkChain, SideChainOrigin};
 
 #[test]
 fn insert_block() {
@@ -126,5 +126,4 @@ fn switch_to_simple_fork() {
 	assert_eq!(2, store.best_block().number);
 	assert_eq!(b2.hash(), &store.best_block().hash);
 	assert_eq!(store.best_block().hash, store.block_hash(2).unwrap());
-
 }

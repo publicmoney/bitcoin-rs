@@ -1,26 +1,28 @@
 #![feature(test)]
 
-extern crate test;
-extern crate miner;
 extern crate chain;
+extern crate miner;
 extern crate primitives;
 extern crate serialization as ser;
+extern crate test;
 
 #[cfg(test)]
 mod benchmarks {
-	use std::collections::VecDeque;
-	use super::chain::{Transaction, TransactionInput, OutPoint};
+	use super::chain::{OutPoint, Transaction, TransactionInput};
+	use super::miner::{MemoryPool, MemoryPoolOrderingStrategy};
 	use super::primitives::bytes::Bytes;
 	use super::test::Bencher;
-	use super::miner::{MemoryPool, MemoryPoolOrderingStrategy};
+	use std::collections::VecDeque;
 
 	fn prepare_independent_transactions(n: usize) -> VecDeque<Transaction> {
-		(0..n).map(|nonce| Transaction {
-			version: nonce as i32,
-			inputs: vec![],
-			outputs: vec![],
-			lock_time: 0,
-		}).collect()
+		(0..n)
+			.map(|nonce| Transaction {
+				version: nonce as i32,
+				inputs: vec![],
+				outputs: vec![],
+				lock_time: 0,
+			})
+			.collect()
 	}
 
 	fn prepare_dependent_transactions(n: usize) -> VecDeque<Transaction> {
@@ -31,16 +33,14 @@ mod benchmarks {
 		result.extend((0..n).map(|_nonce| {
 			let transaction = Transaction {
 				version: 0,
-				inputs: vec![
-					TransactionInput {
-						previous_output: OutPoint {
-							hash: previous_transaction_hash.clone(),
-							index: 0,
-						},
-						script_sig: Bytes::new_with_len(0),
-						sequence: 0,
+				inputs: vec![TransactionInput {
+					previous_output: OutPoint {
+						hash: previous_transaction_hash.clone(),
+						index: 0,
 					},
-				],
+					script_sig: Bytes::new_with_len(0),
+					sequence: 0,
+				}],
 				outputs: vec![],
 				lock_time: 0,
 			};
@@ -56,9 +56,9 @@ mod benchmarks {
 		let iterations = 100;
 		let mut pool = MemoryPool::new();
 		let mut transactions = prepare_independent_transactions(iterations);
-		b.bench_n(iterations as u64, |b| b.iter(|| {
-			pool.insert_verified(transactions.pop_front().unwrap().into())
-		}));
+		b.bench_n(iterations as u64, |b| {
+			b.iter(|| pool.insert_verified(transactions.pop_front().unwrap().into()))
+		});
 	}
 
 	#[bench]
@@ -69,9 +69,9 @@ mod benchmarks {
 		let mut transactions = prepare_dependent_transactions(iterations);
 		pool.insert_verified(transactions.pop_front().unwrap().into());
 
-		b.bench_n(iterations as u64, |b| b.iter(|| {
-			pool.insert_verified(transactions.pop_front().unwrap().into())
-		}));
+		b.bench_n(iterations as u64, |b| {
+			b.iter(|| pool.insert_verified(transactions.pop_front().unwrap().into()))
+		});
 	}
 
 	#[bench]
@@ -86,9 +86,9 @@ mod benchmarks {
 		let mut transactions = prepare_dependent_transactions(iterations);
 		pool.insert_verified(transactions.pop_front().unwrap().into());
 
-		b.bench_n(iterations as u64, |b| b.iter(|| {
-			pool.insert_verified(transactions.pop_back().unwrap().into())
-		}));
+		b.bench_n(iterations as u64, |b| {
+			b.iter(|| pool.insert_verified(transactions.pop_back().unwrap().into()))
+		});
 	}
 
 	#[bench]
@@ -99,9 +99,9 @@ mod benchmarks {
 		for transaction in prepare_independent_transactions(iterations) {
 			pool.insert_verified(transaction.into())
 		}
-		b.bench_n(iterations as u64, |b| b.iter(|| {
-			pool.remove_with_strategy(MemoryPoolOrderingStrategy::ByTimestamp)
-		}));
+		b.bench_n(iterations as u64, |b| {
+			b.iter(|| pool.remove_with_strategy(MemoryPoolOrderingStrategy::ByTimestamp))
+		});
 	}
 
 	#[bench]
@@ -112,8 +112,8 @@ mod benchmarks {
 		for transaction in prepare_dependent_transactions(iterations) {
 			pool.insert_verified(transaction.into())
 		}
-		b.bench_n(iterations as u64, |b| b.iter(|| {
-			pool.remove_with_strategy(MemoryPoolOrderingStrategy::ByTimestamp)
-		}));
+		b.bench_n(iterations as u64, |b| {
+			b.iter(|| pool.remove_with_strategy(MemoryPoolOrderingStrategy::ByTimestamp))
+		});
 	}
 }

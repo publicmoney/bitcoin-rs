@@ -1,4 +1,4 @@
-use {syn, quote};
+use {quote, syn};
 
 pub fn impl_serializable(ast: &syn::DeriveInput) -> quote::Tokens {
 	let body = match ast.body {
@@ -62,7 +62,7 @@ fn serialize_field_size(index: usize, field: &syn::Field) -> quote::Tokens {
 			} else {
 				quote! { #id.serialized_size() }
 			}
-		},
+		}
 		_ => panic!("serialization not supported"),
 	}
 }
@@ -87,8 +87,7 @@ fn serialize_field(index: usize, field: &syn::Field) -> quote::Tokens {
 			} else {
 				quote! { stream.append(&#id); }
 			}
-		},
+		}
 		_ => panic!("serialization not supported"),
 	}
 }
-

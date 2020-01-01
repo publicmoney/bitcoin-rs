@@ -1,7 +1,7 @@
-use hash::H256;
 use bytes::Bytes;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
-use {BlockRef};
+use hash::H256;
+use BlockRef;
 
 pub trait BlockHeaderProvider {
 	/// resolves header bytes by block reference (number/hash)

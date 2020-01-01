@@ -1,10 +1,7 @@
 //! Variable-length integer commonly used in the Bitcoin [P2P protocol](https://bitcoin.org/en/developer-reference#compactsize-unsigned-integers)
 
 use std::{fmt, io};
-use {
-	Serializable, Stream,
-	Deserializable, Reader, Error as ReaderError
-};
+use {Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 
 /// A type of variable-length integer commonly used in the Bitcoin P2P protocol and Bitcoin serialized data structures.
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -63,21 +60,15 @@ impl Serializable for CompactInteger {
 		match self.0 {
 			0..=0xfc => {
 				stream.append(&(self.0 as u8));
-			},
+			}
 			0xfd..=0xffff => {
-				stream
-					.append(&0xfdu8)
-					.append(&(self.0 as u16));
-			},
+				stream.append(&0xfdu8).append(&(self.0 as u16));
+			}
 			0x10000..=0xffff_ffff => {
-				stream
-					.append(&0xfeu8)
-					.append(&(self.0 as u32));
-			},
+				stream.append(&0xfeu8).append(&(self.0 as u32));
+			}
 			_ => {
-				stream
-					.append(&0xffu8)
-					.append(&self.0);
+				stream.append(&0xffu8).append(&self.0);
 			}
 		}
 	}
@@ -93,7 +84,10 @@ impl Serializable for CompactInteger {
 }
 
 impl Deserializable for CompactInteger {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let result = match reader.read::<u8>()? {
 			i @ 0..=0xfc => i.into(),
 			0xfd => reader.read::<u16>()?.into(),
@@ -107,8 +101,8 @@ impl Deserializable for CompactInteger {
 
 #[cfg(test)]
 mod tests {
-	use {Reader, Error as ReaderError, Stream};
 	use super::CompactInteger;
+	use {Error as ReaderError, Reader, Stream};
 
 	#[test]
 	fn test_compact_integer_stream() {
@@ -123,6 +117,7 @@ mod tests {
 			.append(&CompactInteger::from(0xffff_ffffu64))
 			.append(&CompactInteger::from(0x1_0000_0000u64));
 
+		#[rustfmt::skip]
 		let expected = vec![
 			0,
 			0xfc,
@@ -138,6 +133,7 @@ mod tests {
 
 	#[test]
 	fn test_compact_integer_reader() {
+		#[rustfmt::skip]
 		let buffer = vec![
 			0,
 			0xfc,

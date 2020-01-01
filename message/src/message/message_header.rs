@@ -1,8 +1,8 @@
-use hash::H32;
-use ser::{Serializable, Stream, Reader};
-use crypto::checksum;
-use network::Magic;
 use common::Command;
+use crypto::checksum;
+use hash::H32;
+use network::Magic;
+use ser::{Reader, Serializable, Stream};
 use Error;
 
 #[derive(Debug, PartialEq)]
@@ -16,8 +16,8 @@ pub struct MessageHeader {
 impl MessageHeader {
 	pub fn for_data(magic: Magic, command: Command, data: &[u8]) -> Self {
 		MessageHeader {
-			magic: magic,
-			command: command,
+			magic,
+			command,
 			len: data.len() as u32,
 			checksum: checksum(data),
 		}
@@ -38,7 +38,7 @@ impl MessageHeader {
 		}
 
 		let header = MessageHeader {
-			magic: magic,
+			magic,
 			command: reader.read()?,
 			len: reader.read()?,
 			checksum: reader.read()?,
@@ -60,10 +60,10 @@ impl Serializable for MessageHeader {
 
 #[cfg(test)]
 mod tests {
-	use bytes::Bytes;
-	use ser::serialize;
-	use network::Network;
 	use super::MessageHeader;
+	use bytes::Bytes;
+	use network::Network;
+	use ser::serialize;
 
 	#[test]
 	fn test_message_header_serialization() {

@@ -1,14 +1,13 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
+use bytes::Bytes;
+use kv::{Key, KeyState, KeyValueDatabase, Location, RawKey, RawKeyValue, RawOperation, RawTransaction, Transaction, Value};
+use rocksdb::{
+	BlockBasedOptions, Cache, Column, DBCompactionStyle, DBIterator, IteratorMode, Options, ReadOptions, Writable, WriteBatch,
+	WriteOptions, DB,
+};
 use std::collections::HashMap;
 use std::path::Path;
-use rocksdb::{
-	DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
-	Options, DBCompactionStyle, BlockBasedOptions, Cache, Column, ReadOptions
-};
-use bytes::Bytes;
-use kv::{Transaction, RawTransaction, RawOperation, Location, Value, KeyValueDatabase, Key, KeyState, RawKeyValue,
-RawKey};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -104,7 +103,7 @@ pub struct DatabaseIterator {
 impl<'a> Iterator for DatabaseIterator {
 	type Item = (Box<[u8]>, Box<[u8]>);
 
-    fn next(&mut self) -> Option<Self::Item> {
+	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next()
 	}
 }
@@ -129,19 +128,25 @@ impl KeyValueDatabase for Database {
 	fn get(&self, key: &Key) -> Result<KeyState<Value>, String> {
 		match Database::get(self, &key.into())? {
 			Some(value) => Ok(KeyState::Insert(Value::for_key(key, &value)?)),
-			None => Ok(KeyState::Unknown)
+			None => Ok(KeyState::Unknown),
 		}
 	}
 }
 
 impl Database {
 	/// Open database with default settings.
-	pub fn open_default<P>(path: P) -> Result<Database, String> where P: AsRef<Path> {
+	pub fn open_default<P>(path: P) -> Result<Database, String>
+	where
+		P: AsRef<Path>,
+	{
 		Database::open(DatabaseConfig::default(), path)
 	}
 
 	/// Open database file. Creates if it does not exist.
-	pub fn open<P>(config: DatabaseConfig, path: P) -> Result<Database, String> where P: AsRef<Path>{
+	pub fn open<P>(config: DatabaseConfig, path: P) -> Result<Database, String>
+	where
+		P: AsRef<Path>,
+	{
 		let path = path.as_ref().to_string_lossy();
 		// default cache size for columns not specified.
 		const DEFAULT_CACHE: usize = 2;
@@ -168,7 +173,7 @@ impl Database {
 		let cfnames: Vec<_> = (0..config.columns.unwrap_or(0)).map(|c| format!("col{}", c)).collect();
 		let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
 
-		for col in 0 .. config.columns.unwrap_or(0) {
+		for col in 0..config.columns.unwrap_or(0) {
 			let mut opts = Options::new();
 			opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
 			opts.set_target_file_size_base(config.compaction.initial_file_size);
@@ -202,8 +207,10 @@ impl Database {
 			Some(columns) => {
 				match DB::open_cf(&opts, &path, &cfnames, &cf_options) {
 					Ok(db) => {
-						cfs = cfnames.iter().map(|n| db.cf_handle(n)
-							.expect("rocksdb opens a cf_handle for each cfname; qed")).collect();
+						cfs = cfnames
+							.iter()
+							.map(|n| db.cf_handle(n).expect("rocksdb opens a cf_handle for each cfname; qed"))
+							.collect();
 						assert!(cfs.len() == columns as usize);
 						Ok(db)
 					}
@@ -211,15 +218,19 @@ impl Database {
 						// retry and create CFs
 						match DB::open_cf(&opts, &path, &[], &[]) {
 							Ok(mut db) => {
-								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect::<Result<Vec<Column>, String>>()?;
+								cfs = cfnames
+									.iter()
+									.enumerate()
+									.map(|(i, n)| db.create_cf(n, &cf_options[i]))
+									.collect::<Result<Vec<Column>, String>>()?;
 								Ok(db)
-							},
+							}
 							err @ Err(_) => err,
 						}
 					}
 				}
-			},
-			None => DB::open(&opts, &path)
+			}
+			None => DB::open(&opts, &path),
 		};
 
 		let db = match db {
@@ -231,15 +242,17 @@ impl Database {
 
 				match cfnames.is_empty() {
 					true => DB::open(&opts, &path)?,
-					false => DB::open_cf(&opts, &path, &cfnames, &cf_options)?
+					false => DB::open_cf(&opts, &path, &cfnames, &cf_options)?,
 				}
-			},
-			Err(s) => { return Err(s); }
+			}
+			Err(s) => {
+				return Err(s);
+			}
 		};
 		Ok(Database {
-			db: DBAndColumns{ db: db, cfs: cfs },
-			write_opts: write_opts,
-			read_opts: read_opts,
+			db: DBAndColumns { db, cfs },
+			write_opts,
+			read_opts,
 		})
 	}
 
@@ -269,7 +282,7 @@ impl Database {
 			Location::DB => {
 				let value = db.get_opt(&key.key, &self.read_opts)?;
 				Ok(value.map(|v| (&*v).into()))
-			},
+			}
 			Location::Column(col) => {
 				let value = db.get_cf_opt(cfs[col as usize], &key.key, &self.read_opts)?;
 				Ok(value.map(|v| (&*v).into()))
@@ -284,12 +297,13 @@ impl Database {
 		let DBAndColumns { ref db, ref cfs } = self.db;
 		match location {
 			Location::DB => DatabaseIterator {
-				iter: db.iterator_opt(IteratorMode::Start, &self.read_opts)
+				iter: db.iterator_opt(IteratorMode::Start, &self.read_opts),
 			},
 			Location::Column(column) => DatabaseIterator {
-				iter: db.iterator_cf_opt(cfs[column as usize], IteratorMode::Start, &self.read_opts)
-					.expect("iterator params are valid; qed")
-			}
+				iter: db
+					.iterator_cf_opt(cfs[column as usize], IteratorMode::Start, &self.read_opts)
+					.expect("iterator params are valid; qed"),
+			},
 		}
 	}
 }
@@ -299,8 +313,8 @@ mod tests {
 	extern crate tempdir;
 
 	use self::tempdir::TempDir;
-	use kv::{RawTransaction, Location};
 	use super::*;
+	use kv::{Location, RawTransaction};
 
 	fn test_db(config: DatabaseConfig) {
 		let tempdir = TempDir::new("").unwrap();
@@ -315,7 +329,7 @@ mod tests {
 		batch.insert_raw(Location::DB, key2, b"dog");
 		db.write(batch).unwrap();
 
-		assert_eq!(&*db.get(&RawKey::new(Location::DB,key1 as &[u8])).unwrap().unwrap(), b"cat");
+		assert_eq!(&*db.get(&RawKey::new(Location::DB, key1 as &[u8])).unwrap().unwrap(), b"cat");
 
 		let contents: Vec<_> = db.iter(Location::DB).collect();
 		assert_eq!(contents.len(), 2);

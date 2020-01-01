@@ -1,20 +1,18 @@
-use rand::os::OsRng;
 use network::Network;
-use {KeyPair, SECP256K1, Error};
+use rand::os::OsRng;
+use {Error, KeyPair, SECP256K1};
 
 pub trait Generator {
 	fn generate(&self) -> Result<KeyPair, Error>;
 }
 
 pub struct Random {
-	network: Network
+	network: Network,
 }
 
 impl Random {
 	pub fn new(network: Network) -> Self {
-		Random {
-			network: network,
-		}
+		Random { network }
 	}
 }
 

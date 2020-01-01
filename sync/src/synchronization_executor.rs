@@ -1,14 +1,14 @@
-use std::sync::Arc;
 use chain::{IndexedBlock, IndexedTransaction};
 use message::common::InventoryVector;
 use message::types;
 use primitives::hash::H256;
+use std::sync::Arc;
 use synchronization_peers::{BlockAnnouncementType, TransactionAnnouncementType};
 use types::{PeerIndex, PeersRef, RequestId};
 use utils::KnownHashType;
 
 /// Synchronization task executor
-pub trait TaskExecutor : Send + Sync + 'static {
+pub trait TaskExecutor: Send + Sync + 'static {
 	fn execute(&self, task: Task);
 }
 
@@ -57,9 +57,7 @@ pub struct LocalSynchronizationTaskExecutor {
 
 impl LocalSynchronizationTaskExecutor {
 	pub fn new(peers: PeersRef) -> Arc<Self> {
-		Arc::new(LocalSynchronizationTaskExecutor {
-			peers: peers,
-		})
+		Arc::new(LocalSynchronizationTaskExecutor { peers })
 	}
 
 	fn execute_ignore(&self, peer_index: PeerIndex, request_id: RequestId) {
@@ -188,18 +186,19 @@ impl LocalSynchronizationTaskExecutor {
 		for peer_index in self.peers.enumerate() {
 			match self.peers.filter_block(peer_index, &block) {
 				BlockAnnouncementType::SendInventory => {
-					self.execute_inventory(peer_index, types::Inv::with_inventory(vec![
-						InventoryVector::block(block.hash().clone()),
-					]));
-				},
+					self.execute_inventory(
+						peer_index,
+						types::Inv::with_inventory(vec![InventoryVector::block(block.hash().clone())]),
+					);
+				}
 				BlockAnnouncementType::SendHeaders => {
-					self.execute_headers(peer_index, types::Headers::with_headers(vec![
-						block.header.raw.clone(),
-					]), None);
-				},
-				BlockAnnouncementType::SendCompactBlock => if let Some(compact_block) = self.peers.build_compact_block(peer_index, &block) {
-					self.execute_compact_block(peer_index, *block.hash(), compact_block);
-				},
+					self.execute_headers(peer_index, types::Headers::with_headers(vec![block.header.raw.clone()]), None);
+				}
+				BlockAnnouncementType::SendCompactBlock => {
+					if let Some(compact_block) = self.peers.build_compact_block(peer_index, &block) {
+						self.execute_compact_block(peer_index, *block.hash(), compact_block);
+					}
+				}
 				BlockAnnouncementType::DoNotAnnounce => (),
 			}
 		}
@@ -208,9 +207,10 @@ impl LocalSynchronizationTaskExecutor {
 	fn execute_relay_transaction(&self, transaction: IndexedTransaction, fee_rate: u64) {
 		for peer_index in self.peers.enumerate() {
 			match self.peers.filter_transaction(peer_index, &transaction, Some(fee_rate)) {
-				TransactionAnnouncementType::SendInventory => self.execute_inventory(peer_index, types::Inv::with_inventory(vec![
-					InventoryVector::tx(transaction.hash.clone()),
-				])),
+				TransactionAnnouncementType::SendInventory => self.execute_inventory(
+					peer_index,
+					types::Inv::with_inventory(vec![InventoryVector::tx(transaction.hash.clone())]),
+				),
 				TransactionAnnouncementType::DoNotAnnounce => (),
 			}
 		}
@@ -245,14 +245,14 @@ pub mod tests {
 	extern crate test_data;
 
 	use super::*;
-	use std::sync::Arc;
-	use std::time;
-	use parking_lot::{Mutex, Condvar};
 	use chain::Transaction;
-	use message::{Services, types};
 	use inbound_connection::tests::DummyOutboundSyncConnection;
 	use local_node::tests::{default_filterload, make_filteradd};
-	use synchronization_peers::{PeersImpl, PeersContainer, PeersFilters, PeersOptions, BlockAnnouncementType};
+	use message::{types, Services};
+	use parking_lot::{Condvar, Mutex};
+	use std::sync::Arc;
+	use std::time;
+	use synchronization_peers::{BlockAnnouncementType, PeersContainer, PeersFilters, PeersImpl, PeersOptions};
 
 	pub struct DummyTaskExecutor {
 		tasks: Mutex<Vec<Task>>,

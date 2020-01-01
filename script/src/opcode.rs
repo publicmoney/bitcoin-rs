@@ -1,14 +1,14 @@
 //! Script opcodes.
-use std::fmt;
 use flags::VerificationFlags;
+use std::fmt;
 
 /// Script opcodes.
 #[repr(u8)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum Opcode {
-    // push value
-    OP_0 = 0x00,
+	// push value
+	OP_0 = 0x00,
 	OP_PUSHBYTES_1 = 0x01,
 	OP_PUSHBYTES_2 = 0x02,
 	OP_PUSHBYTES_3 = 0x03,
@@ -84,27 +84,27 @@ pub enum Opcode {
 	OP_PUSHBYTES_73 = 0x49,
 	OP_PUSHBYTES_74 = 0x4a,
 	OP_PUSHBYTES_75 = 0x4b,
-    OP_PUSHDATA1 = 0x4c,
-    OP_PUSHDATA2 = 0x4d,
-    OP_PUSHDATA4 = 0x4e,
-    OP_1NEGATE = 0x4f,
-    OP_RESERVED = 0x50,
-    OP_1 = 0x51,
-    OP_2 = 0x52,
-    OP_3 = 0x53,
-    OP_4 = 0x54,
-    OP_5 = 0x55,
-    OP_6 = 0x56,
-    OP_7 = 0x57,
-    OP_8 = 0x58,
-    OP_9 = 0x59,
-    OP_10 = 0x5a,
-    OP_11 = 0x5b,
-    OP_12 = 0x5c,
-    OP_13 = 0x5d,
-    OP_14 = 0x5e,
-    OP_15 = 0x5f,
-    OP_16 = 0x60,
+	OP_PUSHDATA1 = 0x4c,
+	OP_PUSHDATA2 = 0x4d,
+	OP_PUSHDATA4 = 0x4e,
+	OP_1NEGATE = 0x4f,
+	OP_RESERVED = 0x50,
+	OP_1 = 0x51,
+	OP_2 = 0x52,
+	OP_3 = 0x53,
+	OP_4 = 0x54,
+	OP_5 = 0x55,
+	OP_6 = 0x56,
+	OP_7 = 0x57,
+	OP_8 = 0x58,
+	OP_9 = 0x59,
+	OP_10 = 0x5a,
+	OP_11 = 0x5b,
+	OP_12 = 0x5c,
+	OP_13 = 0x5d,
+	OP_14 = 0x5e,
+	OP_15 = 0x5f,
+	OP_16 = 0x60,
 
 	// control
 	OP_NOP = 0x61,
@@ -447,8 +447,7 @@ impl Opcode {
 			OP_MOD if !flags.verify_mod => true,
 			OP_RIGHT if !flags.verify_bin2num => true,
 			OP_LEFT if !flags.verify_num2bin => true,
-			OP_INVERT | OP_2MUL | OP_2DIV |
-				OP_MUL | OP_LSHIFT | OP_RSHIFT => true,
+			OP_INVERT | OP_2MUL | OP_2DIV | OP_MUL | OP_LSHIFT | OP_RSHIFT => true,
 			_ => false,
 		}
 	}
@@ -484,7 +483,6 @@ mod tests {
 
 	#[test]
 	fn test_to_from_opcode() {
-
 		// push value
 		assert_eq!(Opcode::OP_0, Opcode::from_u8(Opcode::OP_0 as u8).unwrap());
 		assert_eq!(Opcode::OP_PUSHBYTES_1, Opcode::from_u8(Opcode::OP_PUSHBYTES_1 as u8).unwrap());
@@ -659,8 +657,14 @@ mod tests {
 		assert_eq!(Opcode::OP_NUMNOTEQUAL, Opcode::from_u8(Opcode::OP_NUMNOTEQUAL as u8).unwrap());
 		assert_eq!(Opcode::OP_LESSTHAN, Opcode::from_u8(Opcode::OP_LESSTHAN as u8).unwrap());
 		assert_eq!(Opcode::OP_GREATERTHAN, Opcode::from_u8(Opcode::OP_GREATERTHAN as u8).unwrap());
-		assert_eq!(Opcode::OP_LESSTHANOREQUAL, Opcode::from_u8(Opcode::OP_LESSTHANOREQUAL as u8).unwrap());
-		assert_eq!(Opcode::OP_GREATERTHANOREQUAL, Opcode::from_u8(Opcode::OP_GREATERTHANOREQUAL as u8).unwrap());
+		assert_eq!(
+			Opcode::OP_LESSTHANOREQUAL,
+			Opcode::from_u8(Opcode::OP_LESSTHANOREQUAL as u8).unwrap()
+		);
+		assert_eq!(
+			Opcode::OP_GREATERTHANOREQUAL,
+			Opcode::from_u8(Opcode::OP_GREATERTHANOREQUAL as u8).unwrap()
+		);
 		assert_eq!(Opcode::OP_MIN, Opcode::from_u8(Opcode::OP_MIN as u8).unwrap());
 		assert_eq!(Opcode::OP_MAX, Opcode::from_u8(Opcode::OP_MAX as u8).unwrap());
 
@@ -676,12 +680,21 @@ mod tests {
 		assert_eq!(Opcode::OP_CHECKSIG, Opcode::from_u8(Opcode::OP_CHECKSIG as u8).unwrap());
 		assert_eq!(Opcode::OP_CHECKSIGVERIFY, Opcode::from_u8(Opcode::OP_CHECKSIGVERIFY as u8).unwrap());
 		assert_eq!(Opcode::OP_CHECKMULTISIG, Opcode::from_u8(Opcode::OP_CHECKMULTISIG as u8).unwrap());
-		assert_eq!(Opcode::OP_CHECKMULTISIGVERIFY, Opcode::from_u8(Opcode::OP_CHECKMULTISIGVERIFY as u8).unwrap());
+		assert_eq!(
+			Opcode::OP_CHECKMULTISIGVERIFY,
+			Opcode::from_u8(Opcode::OP_CHECKMULTISIGVERIFY as u8).unwrap()
+		);
 
 		// expansion
 		assert_eq!(Opcode::OP_NOP1, Opcode::from_u8(Opcode::OP_NOP1 as u8).unwrap());
-		assert_eq!(Opcode::OP_CHECKLOCKTIMEVERIFY, Opcode::from_u8(Opcode::OP_CHECKLOCKTIMEVERIFY as u8).unwrap());
-		assert_eq!(Opcode::OP_CHECKSEQUENCEVERIFY, Opcode::from_u8(Opcode::OP_CHECKSEQUENCEVERIFY as u8).unwrap());
+		assert_eq!(
+			Opcode::OP_CHECKLOCKTIMEVERIFY,
+			Opcode::from_u8(Opcode::OP_CHECKLOCKTIMEVERIFY as u8).unwrap()
+		);
+		assert_eq!(
+			Opcode::OP_CHECKSEQUENCEVERIFY,
+			Opcode::from_u8(Opcode::OP_CHECKSEQUENCEVERIFY as u8).unwrap()
+		);
 		assert_eq!(Opcode::OP_NOP4, Opcode::from_u8(Opcode::OP_NOP4 as u8).unwrap());
 		assert_eq!(Opcode::OP_NOP5, Opcode::from_u8(Opcode::OP_NOP5 as u8).unwrap());
 		assert_eq!(Opcode::OP_NOP6, Opcode::from_u8(Opcode::OP_NOP6 as u8).unwrap());

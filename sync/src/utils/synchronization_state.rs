@@ -1,6 +1,6 @@
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use super::super::types::{BlockHeight, StorageRef};
 use p2p::InboundSyncConnectionState;
-use super::super::types::{StorageRef, BlockHeight};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 // AtomicU32 is unstable => using AtomicUsize here
 

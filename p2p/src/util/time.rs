@@ -29,8 +29,7 @@ impl Time for IncrementalTime {
 }
 
 #[derive(Default)]
-pub struct ZeroTime {
-}
+pub struct ZeroTime {}
 
 impl Time for ZeroTime {
 	fn get(&self) -> time::Timespec {

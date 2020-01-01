@@ -1,10 +1,10 @@
-use std::sync::Arc;
-use parking_lot::Mutex;
 use bytes::Bytes;
 use message::{Command, Error};
-use p2p::Context;
 use net::{PeerContext, PeerStats};
-use protocol::{Protocol, PingProtocol, SyncProtocol, AddrProtocol, SeednodeProtocol};
+use p2p::Context;
+use parking_lot::Mutex;
+use protocol::{AddrProtocol, PingProtocol, Protocol, SeednodeProtocol, SyncProtocol};
+use std::sync::Arc;
 use util::PeerInfo;
 
 pub trait SessionFactory {
@@ -43,7 +43,7 @@ pub struct Session {
 impl Session {
 	pub fn new(peer_context: Arc<PeerContext>, protocols: Vec<Box<dyn Protocol>>) -> Self {
 		Session {
-			peer_context: peer_context,
+			peer_context,
 			protocols: Mutex::new(protocols),
 		}
 	}
@@ -63,11 +63,10 @@ impl Session {
 	pub fn on_message(&self, command: Command, payload: Bytes) -> Result<(), Error> {
 		self.stats().lock().report_recv(command.clone(), payload.len());
 
-		self.protocols.lock()
+		self.protocols
+			.lock()
 			.iter_mut()
-			.map(|protocol| {
-				protocol.on_message(&command, &payload)
-			})
+			.map(|protocol| protocol.on_message(&command, &payload))
 			.collect::<Result<Vec<_>, Error>>()
 			.map(|_| ())
 	}
@@ -82,4 +81,3 @@ impl Session {
 		self.peer_context.stats()
 	}
 }
-

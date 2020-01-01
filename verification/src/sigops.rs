@@ -1,21 +1,21 @@
-use network::ConsensusParams;
 use chain::Transaction;
-use storage::TransactionOutputProvider;
+use network::ConsensusParams;
 use script::{Script, ScriptWitness};
+use storage::TransactionOutputProvider;
 
 /// Counts signature operations in given transaction
 /// bip16_active flag indicates if we should also count signature operations
 /// in previous transactions. If one of the previous transaction outputs is
 /// missing, we simply ignore that fact and just carry on counting
-pub fn transaction_sigops(
-	transaction: &Transaction,
-	store: &dyn TransactionOutputProvider,
-	bip16_active: bool,
-) -> usize {
-	let output_sigops: usize = transaction.outputs.iter().map(|output| {
-		let output_script: Script = output.script_pubkey.clone().into();
-		output_script.sigops_count(false)
-	}).sum();
+pub fn transaction_sigops(transaction: &Transaction, store: &dyn TransactionOutputProvider, bip16_active: bool) -> usize {
+	let output_sigops: usize = transaction
+		.outputs
+		.iter()
+		.map(|output| {
+			let output_script: Script = output.script_pubkey.clone().into();
+			output_script.sigops_count(false)
+		})
+		.sum();
 
 	// TODO: bitcoin/bitcoin also includes input_sigops here
 	if transaction.is_coinbase() {
@@ -41,25 +41,28 @@ pub fn transaction_sigops(
 	input_sigops + output_sigops + bip16_sigops
 }
 
-pub fn transaction_sigops_cost(
-	transaction: &Transaction,
-	store: &dyn TransactionOutputProvider,
-	sigops: usize,
-) -> usize {
+pub fn transaction_sigops_cost(transaction: &Transaction, store: &dyn TransactionOutputProvider, sigops: usize) -> usize {
 	let sigops_cost = sigops * ConsensusParams::witness_scale_factor();
-	let witness_sigops_cost: usize = transaction.inputs.iter()
-		.map(|input| store.transaction_output(&input.previous_output, usize::max_value())
-			.map(|output| witness_sigops(&Script::new(input.script_sig.clone()), &Script::new(output.script_pubkey.clone()), &input.script_witness,))
-			.unwrap_or(0))
+	let witness_sigops_cost: usize = transaction
+		.inputs
+		.iter()
+		.map(|input| {
+			store
+				.transaction_output(&input.previous_output, usize::max_value())
+				.map(|output| {
+					witness_sigops(
+						&Script::new(input.script_sig.clone()),
+						&Script::new(output.script_pubkey.clone()),
+						&input.script_witness,
+					)
+				})
+				.unwrap_or(0)
+		})
 		.sum();
 	sigops_cost + witness_sigops_cost
 }
 
-fn witness_sigops(
-	script_sig: &Script,
-	script_pubkey: &Script,
-	script_witness: &ScriptWitness,
-) -> usize {
+fn witness_sigops(script_sig: &Script, script_pubkey: &Script, script_witness: &ScriptWitness) -> usize {
 	if let Some((witness_version, witness_program)) = script_pubkey.parse_witness_program() {
 		return witness_program_sigops(witness_version, witness_program, script_witness);
 	}
@@ -78,11 +81,7 @@ fn witness_sigops(
 	0
 }
 
-fn witness_program_sigops(
-	witness_version: u8,
-	witness_program: &[u8],
-	script_witness: &ScriptWitness,
-) -> usize {
+fn witness_program_sigops(witness_version: u8, witness_program: &[u8], script_witness: &ScriptWitness) -> usize {
 	match witness_version {
 		0 if witness_program.len() == 20 => 1,
 		0 if witness_program.len() == 32 => match script_witness.last() {

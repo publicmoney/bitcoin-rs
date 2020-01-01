@@ -1,5 +1,5 @@
 use chain::IndexedBlockHeader;
-use {BlockRef, BlockHeaderProvider};
+use {BlockHeaderProvider, BlockRef};
 
 pub struct BlockAncestors<'a> {
 	block: Option<BlockRef>,
@@ -10,7 +10,7 @@ impl<'a> BlockAncestors<'a> {
 	pub fn new(block: BlockRef, headers: &'a dyn BlockHeaderProvider) -> Self {
 		BlockAncestors {
 			block: Some(block),
-			headers: headers,
+			headers,
 		}
 	}
 }

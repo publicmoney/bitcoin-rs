@@ -1,10 +1,7 @@
-use std::io;
-use ser::{
-	Serializable, Stream,
-	Deserializable, Reader, Error as ReaderError,
-};
 use common::NetAddress;
-use {Payload, MessageResult};
+use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub enum Addr {
@@ -14,9 +11,7 @@ pub enum Addr {
 
 impl Addr {
 	pub fn new(addresses: Vec<AddressEntry>) -> Self {
-		Addr::V31402(V31402 {
-			addresses: addresses,
-		})
+		Addr::V31402(V31402 { addresses })
 	}
 }
 
@@ -29,7 +24,10 @@ impl Payload for Addr {
 		"addr"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let result = if version < 31402 {
 			reader.read().map(Addr::V0)
 		} else {
@@ -63,14 +61,15 @@ pub struct AddressEntry {
 
 impl Serializable for AddressEntry {
 	fn serialize(&self, stream: &mut Stream) {
-		stream
-			.append(&self.timestamp)
-			.append(&self.address);
+		stream.append(&self.timestamp).append(&self.address);
 	}
 }
 
 impl Deserializable for AddressEntry {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let entry = AddressEntry {
 			timestamp: reader.read()?,
 			address: reader.read()?,
@@ -92,7 +91,10 @@ impl Serializable for V31402 {
 }
 
 impl Deserializable for V31402 {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let result = V31402 {
 			addresses: reader.read_list_max(1000)?,
 		};
@@ -113,7 +115,10 @@ impl Serializable for V0 {
 }
 
 impl Deserializable for V0 {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError> where T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, ReaderError>
+	where
+		T: io::Read,
+	{
 		let result = V0 {
 			addresses: reader.read_list_max(1000)?,
 		};
@@ -128,9 +133,7 @@ struct V31402AsV0<'a> {
 
 impl<'a> V31402AsV0<'a> {
 	fn new(v: &'a V31402) -> Self {
-		V31402AsV0 {
-			v: v,
-		}
+		V31402AsV0 { v }
 	}
 }
 
@@ -143,20 +146,18 @@ impl<'a> Serializable for V31402AsV0<'a> {
 
 #[cfg(test)]
 mod tests {
+	use super::{AddressEntry, V31402};
 	use bytes::Bytes;
-	use ser::{serialize, deserialize};
-	use super::{V31402, AddressEntry};
+	use ser::{deserialize, serialize};
 
 	#[test]
 	fn test_addr_serialize() {
 		let expected: Bytes = "01e215104d010000000000000000000000000000000000ffff0a000001208d".into();
 		let addr = V31402 {
-			addresses: vec![
-				AddressEntry {
-					timestamp: 0x4d1015e2,
-					address: "010000000000000000000000000000000000ffff0a000001208d".into(),
-				},
-			],
+			addresses: vec![AddressEntry {
+				timestamp: 0x4d1015e2,
+				address: "010000000000000000000000000000000000ffff0a000001208d".into(),
+			}],
 		};
 
 		assert_eq!(serialize(&addr), expected);
@@ -166,15 +167,12 @@ mod tests {
 	fn test_addr_deserialize() {
 		let raw: Bytes = "01e215104d010000000000000000000000000000000000ffff0a000001208d".into();
 		let expected = V31402 {
-			addresses: vec![
-				AddressEntry {
-					timestamp: 0x4d1015e2,
-					address: "010000000000000000000000000000000000ffff0a000001208d".into(),
-				},
-			],
+			addresses: vec![AddressEntry {
+				timestamp: 0x4d1015e2,
+				address: "010000000000000000000000000000000000ffff0a000001208d".into(),
+			}],
 		};
 
 		assert_eq!(expected, deserialize(raw.as_ref()).unwrap());
 	}
 }
-

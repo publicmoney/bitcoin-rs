@@ -1,12 +1,12 @@
-use primitives::hash::H256;
-use storage::{TransactionMetaProvider, TransactionOutputProvider, DuplexTransactionOutputProvider};
-use network::ConsensusParams;
-use script::{Script, verify_script, VerificationFlags, TransactionSignatureChecker, TransactionInputSigner, SignatureVersion};
-use deployments::BlockDeployments;
-use sigops::transaction_sigops;
 use canon::CanonTransaction;
-use constants::{COINBASE_MATURITY};
+use constants::COINBASE_MATURITY;
+use deployments::BlockDeployments;
 use error::TransactionError;
+use network::ConsensusParams;
+use primitives::hash::H256;
+use script::{verify_script, Script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker, VerificationFlags};
+use sigops::transaction_sigops;
+use storage::{DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
 use VerificationLevel;
 
 pub struct TransactionAcceptor<'a> {
@@ -88,7 +88,15 @@ impl<'a> MemoryPoolTransactionAcceptor<'a> {
 			overspent: TransactionOverspent::new(transaction, output_store),
 			sigops: TransactionSigops::new(transaction, output_store, consensus, consensus.max_block_sigops, time),
 			double_spent: TransactionDoubleSpend::new(transaction, output_store),
-			eval: TransactionEval::new(transaction, output_store, consensus, VerificationLevel::Full, height, time, deployments),
+			eval: TransactionEval::new(
+				transaction,
+				output_store,
+				consensus,
+				VerificationLevel::Full,
+				height,
+				time,
+				deployments,
+			),
 		}
 	}
 
@@ -126,23 +134,21 @@ impl<'a> TransactionBip30<'a> {
 		store: &'a dyn TransactionMetaProvider,
 		consensus_params: &'a ConsensusParams,
 		block_hash: &'a H256,
-		height: u32
+		height: u32,
 	) -> Self {
 		let exception = consensus_params.is_bip30_exception(block_hash, height);
 
 		TransactionBip30 {
-			transaction: transaction,
-			store: store,
-			exception: exception,
+			transaction,
+			store,
+			exception,
 		}
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
 		match self.store.transaction_meta(&self.transaction.hash) {
-			Some(ref meta) if !meta.is_fully_spent() && !self.exception => {
-				Err(TransactionError::UnspentTransactionWithTheSameHash)
-			},
-			_ => Ok(())
+			Some(ref meta) if !meta.is_fully_spent() && !self.exception => Err(TransactionError::UnspentTransactionWithTheSameHash),
+			_ => Ok(()),
 		}
 	}
 }
@@ -156,23 +162,25 @@ pub struct TransactionMissingInputs<'a> {
 impl<'a> TransactionMissingInputs<'a> {
 	fn new(transaction: CanonTransaction<'a>, store: DuplexTransactionOutputProvider<'a>, transaction_index: usize) -> Self {
 		TransactionMissingInputs {
-			transaction: transaction,
-			store: store,
-			transaction_index: transaction_index,
+			transaction,
+			store,
+			transaction_index,
 		}
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
-		let missing_index = self.transaction.raw.inputs.iter()
-			.position(|input| {
-				let is_not_null = !input.previous_output.is_null();
-				let is_missing = self.store.transaction_output(&input.previous_output, self.transaction_index).is_none();
-				is_not_null && is_missing
-			});
+		let missing_index = self.transaction.raw.inputs.iter().position(|input| {
+			let is_not_null = !input.previous_output.is_null();
+			let is_missing = self
+				.store
+				.transaction_output(&input.previous_output, self.transaction_index)
+				.is_none();
+			is_not_null && is_missing
+		});
 
 		match missing_index {
 			Some(index) => Err(TransactionError::Input(index)),
-			None => Ok(())
+			None => Ok(()),
 		}
 	}
 }
@@ -186,19 +194,23 @@ pub struct TransactionMaturity<'a> {
 impl<'a> TransactionMaturity<'a> {
 	fn new(transaction: CanonTransaction<'a>, store: &'a dyn TransactionMetaProvider, height: u32) -> Self {
 		TransactionMaturity {
-			transaction: transaction,
-			store: store,
-			height: height,
+			transaction,
+			store,
+			height,
 		}
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
 		// TODO: this is should also fail when we are trying to spend current block coinbase
-		let immature_spend = self.transaction.raw.inputs.iter()
-			.any(|input| match self.store.transaction_meta(&input.previous_output.hash) {
-				Some(ref meta) if meta.is_coinbase() && self.height < meta.height() + COINBASE_MATURITY => true,
-				_ => false,
-			});
+		let immature_spend =
+			self.transaction
+				.raw
+				.inputs
+				.iter()
+				.any(|input| match self.store.transaction_meta(&input.previous_output.hash) {
+					Some(ref meta) if meta.is_coinbase() && self.height < meta.height() + COINBASE_MATURITY => true,
+					_ => false,
+				});
 
 		if immature_spend {
 			Err(TransactionError::Maturity)
@@ -215,10 +227,7 @@ pub struct TransactionOverspent<'a> {
 
 impl<'a> TransactionOverspent<'a> {
 	fn new(transaction: CanonTransaction<'a>, store: DuplexTransactionOutputProvider<'a>) -> Self {
-		TransactionOverspent {
-			transaction: transaction,
-			store: store,
-		}
+		TransactionOverspent { transaction, store }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -226,8 +235,17 @@ impl<'a> TransactionOverspent<'a> {
 			return Ok(());
 		}
 
-		let available = self.transaction.raw.inputs.iter()
-			.map(|input| self.store.transaction_output(&input.previous_output, usize::max_value()).map(|o| o.value).unwrap_or(0))
+		let available = self
+			.transaction
+			.raw
+			.inputs
+			.iter()
+			.map(|input| {
+				self.store
+					.transaction_output(&input.previous_output, usize::max_value())
+					.map(|o| o.value)
+					.unwrap_or(0)
+			})
 			.sum::<u64>();
 
 		let spends = self.transaction.raw.total_spends();
@@ -249,13 +267,19 @@ pub struct TransactionSigops<'a> {
 }
 
 impl<'a> TransactionSigops<'a> {
-	fn new(transaction: CanonTransaction<'a>, store: DuplexTransactionOutputProvider<'a>, consensus_params: &'a ConsensusParams, max_sigops: usize, time: u32) -> Self {
+	fn new(
+		transaction: CanonTransaction<'a>,
+		store: DuplexTransactionOutputProvider<'a>,
+		consensus_params: &'a ConsensusParams,
+		max_sigops: usize,
+		time: u32,
+	) -> Self {
 		TransactionSigops {
-			transaction: transaction,
-			store: store,
-			consensus_params: consensus_params,
-			max_sigops: max_sigops,
-			time: time,
+			transaction,
+			store,
+			consensus_params,
+			max_sigops,
+			time,
 		}
 	}
 
@@ -329,8 +353,7 @@ impl<'a> TransactionEval<'a> {
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
-		if self.verification_level == VerificationLevel::Header
-			|| self.verification_level == VerificationLevel::NoVerification {
+		if self.verification_level == VerificationLevel::Header || self.verification_level == VerificationLevel::NoVerification {
 			return Ok(());
 		}
 
@@ -341,13 +364,15 @@ impl<'a> TransactionEval<'a> {
 		let signer: TransactionInputSigner = self.transaction.raw.clone().into();
 
 		let mut checker = TransactionSignatureChecker {
-			signer: signer,
+			signer,
 			input_index: 0,
 			input_amount: 0,
 		};
 
 		for (index, input) in self.transaction.raw.inputs.iter().enumerate() {
-			let output = self.store.transaction_output(&input.previous_output, usize::max_value())
+			let output = self
+				.store
+				.transaction_output(&input.previous_output, usize::max_value())
 				.ok_or_else(|| TransactionError::UnknownReference(input.previous_output.hash.clone()))?;
 
 			checker.input_index = index;
@@ -392,10 +417,7 @@ pub struct TransactionDoubleSpend<'a> {
 
 impl<'a> TransactionDoubleSpend<'a> {
 	fn new(transaction: CanonTransaction<'a>, store: DuplexTransactionOutputProvider<'a>) -> Self {
-		TransactionDoubleSpend {
-			transaction: transaction,
-			store: store,
-		}
+		TransactionDoubleSpend { transaction, store }
 	}
 
 	fn check(&self) -> Result<(), TransactionError> {
@@ -407,8 +429,8 @@ impl<'a> TransactionDoubleSpend<'a> {
 			if self.store.is_spent(&input.previous_output) {
 				return Err(TransactionError::UsingSpentOutput(
 					input.previous_output.hash.clone(),
-					input.previous_output.index
-				))
+					input.previous_output.index,
+				));
 			}
 		}
 		Ok(())
@@ -425,8 +447,8 @@ impl<'a> TransactionPrematureWitness<'a> {
 		let segwit_active = deployments.segwit();
 
 		TransactionPrematureWitness {
-			transaction: transaction,
-			segwit_active: segwit_active,
+			transaction,
+			segwit_active,
 		}
 	}
 

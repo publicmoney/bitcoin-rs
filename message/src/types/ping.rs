@@ -1,5 +1,5 @@
+use ser::{Reader, Stream};
 use std::io;
-use ser::{Stream, Reader};
 use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
@@ -9,9 +9,7 @@ pub struct Ping {
 
 impl Ping {
 	pub fn new(nonce: u64) -> Self {
-		Ping {
-			nonce: nonce,
-		}
+		Ping { nonce }
 	}
 }
 
@@ -24,10 +22,11 @@ impl Payload for Ping {
 		"ping"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
-		let ping = Ping {
-			nonce: reader.read()?,
-		};
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
+		let ping = Ping { nonce: reader.read()? };
 
 		Ok(ping)
 	}

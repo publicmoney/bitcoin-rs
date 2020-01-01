@@ -1,13 +1,13 @@
-use std::sync::Arc;
-use parking_lot::Mutex;
-use chain::{IndexedTransaction, IndexedBlock, IndexedBlockHeader};
+use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use message::types;
-use synchronization_executor::TaskExecutor;
-use synchronization_verifier::{Verifier, TransactionVerificationSink};
+use parking_lot::Mutex;
+use std::sync::Arc;
 use synchronization_client_core::{ClientCore, SynchronizationClientCore};
-use types::{PeerIndex, ClientCoreRef, SynchronizationStateRef, EmptyBoxFuture, SyncListenerRef};
+use synchronization_executor::TaskExecutor;
+use synchronization_verifier::{TransactionVerificationSink, Verifier};
+use types::{ClientCoreRef, EmptyBoxFuture, PeerIndex, SyncListenerRef, SynchronizationStateRef};
 
-#[cfg_attr(feature="cargo-clippy", allow(doc_markdown))]
+#[cfg_attr(feature = "cargo-clippy", allow(doc_markdown))]
 ///! TODO: update with headers-first corrections
 ///!
 ///! Blocks synchronization process:
@@ -120,7 +120,7 @@ use types::{PeerIndex, ClientCoreRef, SynchronizationStateRef, EmptyBoxFuture, S
 ///!
 
 /// Synchronization client trait
-pub trait Client : Send + Sync + 'static {
+pub trait Client: Send + Sync + 'static {
 	fn on_connect(&self, peer_index: PeerIndex);
 	fn on_disconnect(&self, peer_index: PeerIndex);
 	fn on_inventory(&self, peer_index: PeerIndex, message: types::Inv);
@@ -145,7 +145,11 @@ pub struct SynchronizationClient<T: TaskExecutor, U: Verifier> {
 	verifier: U,
 }
 
-impl<T, U> Client for SynchronizationClient<T, U> where T: TaskExecutor, U: Verifier {
+impl<T, U> Client for SynchronizationClient<T, U>
+where
+	T: TaskExecutor,
+	U: Verifier,
+{
 	fn on_connect(&self, peer_index: PeerIndex) {
 		self.core.lock().on_connect(peer_index);
 	}
@@ -229,14 +233,18 @@ impl<T, U> Client for SynchronizationClient<T, U> where T: TaskExecutor, U: Veri
 	}
 }
 
-impl<T, U> SynchronizationClient<T, U> where T: TaskExecutor, U: Verifier {
+impl<T, U> SynchronizationClient<T, U>
+where
+	T: TaskExecutor,
+	U: Verifier,
+{
 	/// Create new synchronization client
 	pub fn new(shared_state: SynchronizationStateRef, core: ClientCoreRef<SynchronizationClientCore<T>>, verifier: U) -> Arc<Self> {
 		Arc::new(SynchronizationClient {
 			verification_lock: Mutex::new(()),
-			shared_state: shared_state,
-			core: core,
-			verifier: verifier,
+			shared_state,
+			core,
+			verifier,
 		})
 	}
 }

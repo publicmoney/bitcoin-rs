@@ -18,7 +18,7 @@ impl AverageSpeedMeter {
 	pub fn with_inspect_items(inspect_items: usize) -> Self {
 		assert!(inspect_items > 0);
 		AverageSpeedMeter {
-			inspect_items: inspect_items,
+			inspect_items,
 			inspected_items: VecDeque::with_capacity(inspect_items),
 			speed: 0_f64,
 			last_timestamp: None,
@@ -27,7 +27,11 @@ impl AverageSpeedMeter {
 
 	pub fn speed(&self) -> f64 {
 		let items_per_second = 1_f64 / self.speed;
-		if items_per_second.is_normal() { items_per_second } else { 0_f64 }
+		if items_per_second.is_normal() {
+			items_per_second
+		} else {
+			0_f64
+		}
 	}
 
 	pub fn inspected_items_len(&self) -> usize {

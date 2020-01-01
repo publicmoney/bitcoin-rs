@@ -1,10 +1,10 @@
 //! Bitcoin network
 //! https://www.anintegratedworld.com/unravelling-the-mysterious-block-chain-magic-number/
 
-use compact::Compact;
 use chain::IndexedBlock;
-use primitives::hash::H256;
+use compact::Compact;
 use primitives::bigint::U256;
+use primitives::hash::H256;
 
 const MAGIC_MAINNET: u32 = 0xD9B4BEF9;
 const MAGIC_TESTNET: u32 = 0x0709110B;
@@ -12,11 +12,14 @@ const MAGIC_REGTEST: u32 = 0xDAB5BFFA;
 const MAGIC_UNITEST: u32 = 0x00000000;
 
 lazy_static! {
-	static ref MAX_BITS_MAINNET: U256 = "00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse()
+	static ref MAX_BITS_MAINNET: U256 = "00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		.parse()
 		.expect("hardcoded value should parse without errors");
-	static ref MAX_BITS_TESTNET: U256 = "00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse()
+	static ref MAX_BITS_TESTNET: U256 = "00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		.parse()
 		.expect("hardcoded value should parse without errors");
-	static ref MAX_BITS_REGTEST: U256 = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse()
+	static ref MAX_BITS_REGTEST: U256 = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+		.parse()
 		.expect("hardcoded value should parse without errors");
 }
 
@@ -93,11 +96,10 @@ impl Network {
 
 #[cfg(test)]
 mod tests {
-	use compact::Compact;
 	use super::{
-		Network, MAGIC_MAINNET, MAGIC_TESTNET, MAGIC_REGTEST, MAGIC_UNITEST,
-		MAX_BITS_MAINNET, MAX_BITS_TESTNET, MAX_BITS_REGTEST,
+		Network, MAGIC_MAINNET, MAGIC_REGTEST, MAGIC_TESTNET, MAGIC_UNITEST, MAX_BITS_MAINNET, MAX_BITS_REGTEST, MAX_BITS_TESTNET,
 	};
+	use compact::Compact;
 
 	#[test]
 	fn test_network_magic_number() {

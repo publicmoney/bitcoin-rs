@@ -1,9 +1,10 @@
+use chain::{IndexedBlock, IndexedTransaction, OutPoint, TransactionOutput};
 use std::cmp;
-use chain::{OutPoint, TransactionOutput, IndexedBlock, IndexedTransaction};
-use {TransactionOutputProvider};
+use TransactionOutputProvider;
 
 fn transaction_output(transactions: &[IndexedTransaction], prevout: &OutPoint) -> Option<TransactionOutput> {
-	transactions.iter()
+	transactions
+		.iter()
 		.find(|tx| tx.hash == prevout.hash)
 		.and_then(|tx| tx.raw.outputs.get(prevout.index as usize))
 		.cloned()
@@ -14,7 +15,8 @@ fn is_spent(transactions: &[IndexedTransaction], prevout: &OutPoint) -> bool {
 
 	// if previous transaction output appears more than once than we can safely
 	// tell that it's spent (double spent)
-	let spends = transactions.iter()
+	let spends = transactions
+		.iter()
 		.flat_map(|tx| &tx.raw.inputs)
 		.filter(|input| &input.previous_output == prevout)
 		.take(2)

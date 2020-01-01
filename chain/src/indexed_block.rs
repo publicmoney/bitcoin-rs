@@ -1,12 +1,12 @@
-use std::cmp;
+use block::Block;
 use hash::H256;
 use hex::FromHex;
-use ser::{Serializable, serialized_list_size, serialized_list_size_with_flags, deserialize, SERIALIZE_TRANSACTION_WITNESS};
-use block::Block;
-use transaction::Transaction;
-use merkle_root::merkle_root;
 use indexed_header::IndexedBlockHeader;
 use indexed_transaction::IndexedTransaction;
+use merkle_root::merkle_root;
+use ser::{deserialize, serialized_list_size, serialized_list_size_with_flags, Serializable, SERIALIZE_TRANSACTION_WITNESS};
+use std::cmp;
+use transaction::Transaction;
 
 #[derive(Debug, Clone, Deserializable)]
 pub struct IndexedBlock {
@@ -28,17 +28,17 @@ impl cmp::PartialEq for IndexedBlock {
 
 impl IndexedBlock {
 	pub fn new(header: IndexedBlockHeader, transactions: Vec<IndexedTransaction>) -> Self {
-		IndexedBlock {
-			header: header,
-			transactions: transactions,
-		}
+		IndexedBlock { header, transactions }
 	}
 
 	/// Explicit conversion of the raw Block into IndexedBlock.
 	///
 	/// Hashes block header + transactions.
 	pub fn from_raw(block: Block) -> Self {
-		let Block { block_header, transactions } = block;
+		let Block {
+			block_header,
+			transactions,
+		} = block;
 		Self::new(
 			IndexedBlockHeader::from_raw(block_header),
 			transactions.into_iter().map(IndexedTransaction::from_raw).collect(),
@@ -78,13 +78,15 @@ impl IndexedBlock {
 				let mut hashes = vec![H256::from(0)];
 				hashes.extend(rest.iter().map(|tx| tx.raw.witness_hash()));
 				hashes
-			},
+			}
 		};
 		merkle_root(&hashes)
 	}
 
 	pub fn is_final(&self, height: u32) -> bool {
-		self.transactions.iter().all(|tx| tx.raw.is_final_in_block(height, self.header.raw.time))
+		self.transactions
+			.iter()
+			.all(|tx| tx.raw.is_final_in_block(height, self.header.raw.time))
 	}
 }
 

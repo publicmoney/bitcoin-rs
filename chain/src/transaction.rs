@@ -1,15 +1,15 @@
 //! Bitcoin trainsaction.
 //! https://en.bitcoin.it/wiki/Protocol_documentation#tx
 
-use std::io;
-use heapsize::HeapSizeOf;
-use hex::FromHex;
 use bytes::Bytes;
-use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
+use constants::{LOCKTIME_THRESHOLD, SEQUENCE_FINAL};
 use crypto::dhash256;
 use hash::H256;
-use constants::{SEQUENCE_FINAL, LOCKTIME_THRESHOLD};
-use ser::{Error, Serializable, Deserializable, Stream, Reader};
+use heapsize::HeapSizeOf;
+use hex::FromHex;
+use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
+use ser::{Deserializable, Error, Reader, Serializable, Stream};
+use std::io;
 
 /// Must be zero.
 const WITNESS_MARKER: u8 = 0;
@@ -47,7 +47,7 @@ impl TransactionInput {
 	pub fn coinbase(script_sig: Bytes) -> Self {
 		TransactionInput {
 			previous_output: OutPoint::null(),
-			script_sig: script_sig,
+			script_sig,
 			sequence: SEQUENCE_FINAL,
 			script_witness: vec![],
 		}
@@ -64,8 +64,7 @@ impl TransactionInput {
 
 impl HeapSizeOf for TransactionInput {
 	fn heap_size_of_children(&self) -> usize {
-		self.script_sig.heap_size_of_children() +
-			self.script_witness.heap_size_of_children()
+		self.script_sig.heap_size_of_children() + self.script_witness.heap_size_of_children()
 	}
 }
 
@@ -186,15 +185,16 @@ impl Transaction {
 
 impl Serializable for TransactionInput {
 	fn serialize(&self, stream: &mut Stream) {
-		stream
-			.append(&self.previous_output)
-			.append(&self.script_sig)
-			.append(&self.sequence);
+		stream.append(&self.previous_output).append(&self.script_sig).append(&self.sequence);
 	}
 }
 
 impl Deserializable for TransactionInput {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		Self: Sized,
+		T: io::Read,
+	{
 		Ok(TransactionInput {
 			previous_output: reader.read()?,
 			script_sig: reader.read()?,
@@ -230,7 +230,11 @@ impl Serializable for Transaction {
 }
 
 impl Deserializable for Transaction {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error> where Self: Sized, T: io::Read {
+	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
+	where
+		Self: Sized,
+		T: io::Read,
+	{
 		let version = reader.read()?;
 		let mut inputs: Vec<TransactionInput> = reader.read_list()?;
 		let read_witness = if inputs.is_empty() {
@@ -252,9 +256,9 @@ impl Deserializable for Transaction {
 		}
 
 		Ok(Transaction {
-			version: version,
-			inputs: inputs,
-			outputs: outputs,
+			version,
+			inputs,
+			outputs,
 			lock_time: reader.read()?,
 		})
 	}
@@ -266,9 +270,9 @@ pub(crate) fn transaction_hash(transaction: &Transaction) -> H256 {
 
 #[cfg(test)]
 mod tests {
+	use super::{OutPoint, Transaction, TransactionInput, TransactionOutput};
 	use hash::H256;
-	use ser::{Serializable, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
-	use super::{Transaction, TransactionInput, OutPoint, TransactionOutput};
+	use ser::{serialize_with_flags, Serializable, SERIALIZE_TRANSACTION_WITNESS};
 
 	// real transaction from block 80000
 	// https://blockchain.info/rawtx/5a4ebf66822b0b2d56bd9dc64ece0bc38ee7844a23ff1d7320a88c5fdb2ad3e2
@@ -343,19 +347,29 @@ mod tests {
 
 	#[test]
 	fn test_serialization_with_flags() {
-		let transaction_without_witness: Transaction = "000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
-		assert_eq!(serialize_with_flags(&transaction_without_witness, 0), serialize_with_flags(&transaction_without_witness, SERIALIZE_TRANSACTION_WITNESS));
+		let transaction_without_witness: Transaction =
+			"000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
+		assert_eq!(
+			serialize_with_flags(&transaction_without_witness, 0),
+			serialize_with_flags(&transaction_without_witness, SERIALIZE_TRANSACTION_WITNESS)
+		);
 
-		let transaction_with_witness: Transaction = "0000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000".into();
-		assert!(serialize_with_flags(&transaction_with_witness, 0) != serialize_with_flags(&transaction_with_witness, SERIALIZE_TRANSACTION_WITNESS));
+		let transaction_with_witness: Transaction =
+			"0000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000".into();
+		assert!(
+			serialize_with_flags(&transaction_with_witness, 0)
+				!= serialize_with_flags(&transaction_with_witness, SERIALIZE_TRANSACTION_WITNESS)
+		);
 	}
 
 	#[test]
 	fn test_witness_hash_differs() {
-		let transaction_without_witness: Transaction = "000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
+		let transaction_without_witness: Transaction =
+			"000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
 		assert_eq!(transaction_without_witness.hash(), transaction_without_witness.witness_hash());
 
-		let transaction_with_witness: Transaction = "0000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000".into();
+		let transaction_with_witness: Transaction =
+			"0000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000".into();
 		assert!(transaction_with_witness.hash() != transaction_with_witness.witness_hash());
 	}
 }

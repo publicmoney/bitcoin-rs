@@ -1,7 +1,7 @@
-use std::io;
-use ser::{Stream, Reader};
 use common::BlockTransactionsRequest;
-use {Payload, MessageResult};
+use ser::{Reader, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct GetBlockTxn {
@@ -17,10 +17,11 @@ impl Payload for GetBlockTxn {
 		"getblocktxn"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
-		let get_block = GetBlockTxn {
-			request: reader.read()?,
-		};
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
+		let get_block = GetBlockTxn { request: reader.read()? };
 
 		Ok(get_block)
 	}

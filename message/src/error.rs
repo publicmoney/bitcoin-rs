@@ -1,5 +1,5 @@
-use std::{fmt, error};
 use ser::Error as ReaderError;
+use std::{error, fmt};
 
 pub type MessageResult<T> = Result<T, Error>;
 

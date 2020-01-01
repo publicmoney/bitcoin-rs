@@ -1,10 +1,10 @@
-use std::time::Instant;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::time::Instant;
 use util::interval::{Interval, RealInterval};
 
-use message::{Command, Payload};
 use message::types::{Ping, Pong};
+use message::{Command, Payload};
 
 // delay somewhere near communication timeout
 const ENORMOUS_PING_DELAY: f64 = 10f64;
@@ -17,7 +17,10 @@ pub struct RunningAverage {
 
 impl RunningAverage {
 	fn new(initial: usize) -> Self {
-		RunningAverage { count: 1, bytes: initial as u64 }
+		RunningAverage {
+			count: 1,
+			bytes: initial as u64,
+		}
 	}
 
 	fn add(&mut self, bytes: usize) {
@@ -41,7 +44,10 @@ impl RunningAverage {
 	}
 }
 
-pub enum Flow { Receive, Send }
+pub enum Flow {
+	Receive,
+	Send,
+}
 
 #[derive(Default, Clone)]
 pub struct PeerStats<T: Interval = RealInterval> {
@@ -64,11 +70,10 @@ pub struct PeerStats<T: Interval = RealInterval> {
 }
 
 impl<I: Interval> PeerStats<I> {
-
 	pub fn with_interval(interval: I) -> PeerStats<I> {
 		PeerStats {
-			interval: interval,
-			.. PeerStats::default()
+			interval,
+			..PeerStats::default()
 		}
 	}
 
@@ -83,10 +88,10 @@ impl<I: Interval> PeerStats<I> {
 		match self.send_avg.entry(command) {
 			Entry::Occupied(mut avg) => {
 				avg.get_mut().add(bytes);
-			},
+			}
 			Entry::Vacant(entry) => {
 				entry.insert(RunningAverage::new(bytes));
-			},
+			}
 		}
 	}
 
@@ -100,8 +105,7 @@ impl<I: Interval> PeerStats<I> {
 			let dur = self.interval.elapsed(last_ping);
 			let update = if dur.as_secs() > 10 {
 				ENORMOUS_PING_DELAY
-			}
-			else {
+			} else {
 				// max is 10, checked above, dur.as_secs() as u32 cannot overflow; qed
 				f64::from(dur.as_secs() as u32) + f64::from(dur.subsec_nanos()) / 1e9
 			};
@@ -121,15 +125,16 @@ impl<I: Interval> PeerStats<I> {
 		match self.recv_avg.entry(command) {
 			Entry::Occupied(mut avg) => {
 				avg.get_mut().add(bytes);
-			},
+			}
 			Entry::Vacant(entry) => {
 				entry.insert(RunningAverage::new(bytes));
-			},
+			}
 		}
 	}
 
 	pub fn avg<T>(&self, dir: Flow, cmd: T) -> u64
-		where T: Into<Command>
+	where
+		T: Into<Command>,
 	{
 		match dir {
 			Flow::Receive => self.recv_avg.get(&cmd.into()).and_then(|x| Some(x.val())).unwrap_or_default(),
@@ -141,7 +146,7 @@ impl<I: Interval> PeerStats<I> {
 #[cfg(test)]
 mod tests {
 
-	use super::{RunningAverage, PeerStats, Flow};
+	use super::{Flow, PeerStats, RunningAverage};
 	use util::interval::{FixedIntervalSpawner, RealInterval};
 
 	#[test]

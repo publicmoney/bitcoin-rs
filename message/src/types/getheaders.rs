@@ -1,7 +1,7 @@
-use std::io;
 use hash::H256;
-use ser::{Stream, Reader};
-use {Payload, MessageResult};
+use ser::{Reader, Stream};
+use std::io;
+use {MessageResult, Payload};
 
 pub const GETHEADERS_MAX_RESPONSE_HEADERS: usize = 2_000;
 
@@ -16,7 +16,7 @@ impl GetHeaders {
 	pub fn with_block_locator_hashes(block_locator_hashes: Vec<H256>) -> Self {
 		GetHeaders {
 			version: 0, // this field is ignored by implementations
-			block_locator_hashes: block_locator_hashes,
+			block_locator_hashes,
 			hash_stop: H256::default(),
 		}
 	}
@@ -31,7 +31,10 @@ impl Payload for GetHeaders {
 		"getheaders"
 	}
 
-	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self> where T: io::Read {
+	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
+	where
+		T: io::Read,
+	{
 		let get_blocks = GetHeaders {
 			version: reader.read()?,
 			block_locator_hashes: reader.read_list_max(2000)?,
@@ -49,4 +52,3 @@ impl Payload for GetHeaders {
 		Ok(())
 	}
 }
-
