@@ -466,7 +466,6 @@ pub mod tests {
 				.build()
 			.build().into();
 
-
 		// Ok(()) when tx script is not checked
 		let wrapper = ChainVerifierWrapper::new(
 			verifier.clone(),
