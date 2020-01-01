@@ -54,7 +54,7 @@ pub fn init<T>(filters: &str, formatter: T) where T: LogFormatter {
 		Err(_) => filters.into(),
 	};
 
-	builder.parse(&filters);
+	builder.parse_filters(&filters);
 	builder.format(move |buf, record| {
 		writeln!(buf, "{}", formatter.format(record))
 	});
