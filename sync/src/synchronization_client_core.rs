@@ -219,7 +219,6 @@ impl<T> ClientCore for SynchronizationClientCore<T> where T: TaskExecutor {
 
 	fn on_inventory(&self, peer_index: PeerIndex, message: types::Inv) {
 		// else ask for all unknown transactions and blocks
-		let is_segwit_possible = self.chain.is_segwit_possible();
 		let unknown_inventory: Vec<_> = message.inventory.into_iter()
 			.filter(|item| {
 				match item.inv_type {
@@ -248,24 +247,20 @@ impl<T> ClientCore for SynchronizationClientCore<T> where T: TaskExecutor {
 					}
 				}
 			})
-			// we are not synchronizing =>
-			// 1) either segwit is active and we are connected to segwit-enabled nodes => we could ask for witness
-			// 2) or segwit is inactive => we shall not ask for witness
-			.map(|item| if !is_segwit_possible {
-					item
-				} else {
-					match item.inv_type {
-						InventoryType::MessageTx => InventoryVector {
-							inv_type: InventoryType::MessageWitnessTx,
-							hash: item.hash,
-						},
-						InventoryType::MessageBlock => InventoryVector {
-							inv_type: InventoryType::MessageWitnessBlock,
-							hash: item.hash,
-						},
-						_ => item,
-					}
-				})
+			// we are not synchronizing => we shall not ask for witness
+			.map(|item|
+				match item.inv_type {
+					InventoryType::MessageTx => InventoryVector {
+						inv_type: InventoryType::MessageWitnessTx,
+						hash: item.hash,
+					},
+					InventoryType::MessageBlock => InventoryVector {
+						inv_type: InventoryType::MessageWitnessBlock,
+						hash: item.hash,
+					},
+					_ => item,
+				}
+			)
 			.collect();
 
 		// if everything is known => ignore this message
@@ -860,6 +855,7 @@ impl<T> SynchronizationClientCore<T> where T: TaskExecutor {
 					, blocks_speed
 					, self.peers_tasks.information()
 					, self.chain.information());
+				std::process::exit(0);
 			}
 		}
 	}
@@ -976,8 +972,6 @@ impl<T> SynchronizationClientCore<T> where T: TaskExecutor {
 		let chunk_size = min(limits.max_blocks_in_request, max(hashes.len() as BlockHeight, limits.min_blocks_in_request));
 		let last_peer_index = peers.len() - 1;
 		let mut tasks: Vec<Task> = Vec::new();
-		let is_segwit_possible = self.chain.is_segwit_possible();
-		let inv_type = if is_segwit_possible { InventoryType::MessageWitnessBlock } else { InventoryType::MessageBlock };
 		for (peer_index, peer) in peers.into_iter().enumerate() {
 			// we have to request all blocks => we will request last peer for all remaining blocks
 			let peer_chunk_size = if peer_index == last_peer_index { hashes.len() } else { min(hashes.len(), chunk_size as usize) };
@@ -994,7 +988,7 @@ impl<T> SynchronizationClientCore<T> where T: TaskExecutor {
 			// request blocks. If block is believed to have witness - ask for witness
 			let getdata = types::GetData {
 				inventory: chunk_hashes.into_iter().map(|h| InventoryVector {
-					inv_type: inv_type,
+					inv_type: InventoryType::MessageWitnessBlock,
 					hash: h,
 				}).collect(),
 			};
@@ -1261,7 +1255,7 @@ pub mod tests {
 	use message::common::InventoryVector;
 	use message::{Services, types};
 	use miner::MemoryPool;
-	use network::{ConsensusParams, ConsensusFork, Network};
+	use network::{ConsensusParams, Network};
 	use primitives::hash::H256;
 	use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 	use inbound_connection::tests::DummyOutboundSyncConnection;
@@ -1312,11 +1306,11 @@ pub mod tests {
 		};
 		let sync_state = SynchronizationStateRef::new(SynchronizationState::with_storage(storage.clone()));
 		let memory_pool = Arc::new(RwLock::new(MemoryPool::new()));
-		let chain = Chain::new(storage.clone(), ConsensusParams::new(Network::Unitest, ConsensusFork::BitcoinCore), memory_pool.clone());
+		let chain = Chain::new(storage.clone(), memory_pool.clone());
 		let executor = DummyTaskExecutor::new();
 		let config = Config { close_connection_on_bad_block: true };
 
-		let chain_verifier = Arc::new(ChainVerifier::new(storage.clone(), ConsensusParams::new(Network::Unitest, ConsensusFork::BitcoinCore)));
+		let chain_verifier = Arc::new(ChainVerifier::new(storage.clone(), ConsensusParams::new(Network::Unitest)));
 		let client_core = SynchronizationClientCore::new(config, sync_state.clone(), sync_peers.clone(), executor.clone(), chain, chain_verifier.clone());
 		{
 			client_core.lock().set_verify_headers(false);

@@ -45,7 +45,7 @@ struct BlocksWriterSinkData {
 impl BlocksWriter {
 	/// Create new synchronous blocks writer
 	pub fn new(storage: StorageRef, consensus: ConsensusParams, verification_params: VerificationParameters) -> BlocksWriter {
-		let sink_data = Arc::new(Mutex::new(BlocksWriterSinkData::new(storage.clone(), consensus.clone())));
+		let sink_data = Arc::new(Mutex::new(BlocksWriterSinkData::new(storage.clone())));
 		let sink = Arc::new(BlocksWriterSink::new(sink_data.clone()));
 		let verifier = SyncVerifier::new(consensus, storage.clone(), sink, verification_params);
 		BlocksWriter {
@@ -98,9 +98,9 @@ impl BlocksWriterSink {
 
 impl BlocksWriterSinkData {
 	/// Create new blocks writer data
-	pub fn new(storage: StorageRef, consensus: ConsensusParams) -> Self {
+	pub fn new(storage: StorageRef) -> Self {
 		BlocksWriterSinkData {
-			chain: Chain::new(storage, consensus, Default::default()),
+			chain: Chain::new(storage, Default::default()),
 			err: None,
 		}
 	}
@@ -145,7 +145,7 @@ mod tests {
 
 	use std::sync::Arc;
 	use db::{BlockChainDatabase};
-	use network::{ConsensusParams, ConsensusFork, Network};
+	use network::{ConsensusParams, Network};
 	use verification::VerificationLevel;
 	use super::super::Error;
 	use super::{BlocksWriter, MAX_ORPHANED_BLOCKS};
@@ -161,7 +161,7 @@ mod tests {
 	#[test]
 	fn blocks_writer_appends_blocks() {
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet, ConsensusFork::BitcoinCore), default_verification_params());
+		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), default_verification_params());
 		blocks_target.append_block(test_data::block_h1().into()).expect("Expecting no error");
 		assert_eq!(db.best_block().number, 1);
 	}
@@ -170,7 +170,7 @@ mod tests {
 	fn blocks_writer_verification_error() {
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
 		let blocks = test_data::build_n_empty_blocks_from_genesis((MAX_ORPHANED_BLOCKS + 2) as u32, 1);
-		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet, ConsensusFork::BitcoinCore), default_verification_params());
+		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), default_verification_params());
 		for (index, block) in blocks.into_iter().skip(1).enumerate() {
 			match blocks_target.append_block(block.into()) {
 				Err(Error::TooManyOrphanBlocks) if index == MAX_ORPHANED_BLOCKS => (),
@@ -184,7 +184,7 @@ mod tests {
 	#[test]
 	fn blocks_writer_out_of_order_block() {
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet, ConsensusFork::BitcoinCore), default_verification_params());
+		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), default_verification_params());
 
 		let wrong_block = test_data::block_builder()
 			.header().parent(test_data::genesis().hash()).build()
@@ -199,7 +199,7 @@ mod tests {
 	#[test]
 	fn blocks_writer_append_to_existing_db() {
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet, ConsensusFork::BitcoinCore), default_verification_params());
+		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), default_verification_params());
 
 		assert!(blocks_target.append_block(test_data::genesis().into()).is_ok());
 		assert_eq!(db.best_block().number, 0);
@@ -218,7 +218,7 @@ mod tests {
 		let b3 = test_data::block_builder().header().parent(b2.hash()).build().build();
 
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![b0.into()]));
-		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet, ConsensusFork::BitcoinCore), VerificationParameters {
+		let mut blocks_target = BlocksWriter::new(db.clone(), ConsensusParams::new(Network::Testnet), VerificationParameters {
 			verification_level: VerificationLevel::NoVerification,
 			verification_edge: 0u8.into(),
 		});

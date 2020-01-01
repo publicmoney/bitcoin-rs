@@ -5,16 +5,11 @@ use compact::Compact;
 use chain::IndexedBlock;
 use primitives::hash::H256;
 use primitives::bigint::U256;
-use {ConsensusFork};
 
 const MAGIC_MAINNET: u32 = 0xD9B4BEF9;
 const MAGIC_TESTNET: u32 = 0x0709110B;
 const MAGIC_REGTEST: u32 = 0xDAB5BFFA;
 const MAGIC_UNITEST: u32 = 0x00000000;
-
-const BITCOIN_CASH_MAGIC_MAINNET: u32 = 0xE8F3E1E3;
-const BITCOIN_CASH_MAGIC_TESTNET: u32 = 0xF4F3E5F4;
-const BITCOIN_CASH_MAGIC_REGTEST: u32 = 0xFABFB5DA;
 
 lazy_static! {
 	static ref MAX_BITS_MAINNET: U256 = "00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff".parse()
@@ -44,16 +39,13 @@ pub enum Network {
 }
 
 impl Network {
-	pub fn magic(&self, fork: &ConsensusFork) -> Magic {
-		match (fork, *self) {
-			(&ConsensusFork::BitcoinCash(_), Network::Mainnet) => BITCOIN_CASH_MAGIC_MAINNET,
-			(&ConsensusFork::BitcoinCash(_), Network::Testnet) => BITCOIN_CASH_MAGIC_TESTNET,
-			(&ConsensusFork::BitcoinCash(_), Network::Regtest) => BITCOIN_CASH_MAGIC_REGTEST,
-			(_, Network::Mainnet) => MAGIC_MAINNET,
-			(_, Network::Testnet) => MAGIC_TESTNET,
-			(_, Network::Regtest) => MAGIC_REGTEST,
-			(_, Network::Unitest) => MAGIC_UNITEST,
-			(_, Network::Other(value)) => value,
+	pub fn magic(&self) -> Magic {
+		match *self {
+			Network::Mainnet => MAGIC_MAINNET,
+			Network::Testnet => MAGIC_TESTNET,
+			Network::Regtest => MAGIC_REGTEST,
+			Network::Unitest => MAGIC_UNITEST,
+			Network::Other(value) => value,
 		}
 	}
 
@@ -102,7 +94,6 @@ impl Network {
 #[cfg(test)]
 mod tests {
 	use compact::Compact;
-	use {ConsensusFork};
 	use super::{
 		Network, MAGIC_MAINNET, MAGIC_TESTNET, MAGIC_REGTEST, MAGIC_UNITEST,
 		MAX_BITS_MAINNET, MAX_BITS_TESTNET, MAX_BITS_REGTEST,
@@ -110,10 +101,10 @@ mod tests {
 
 	#[test]
 	fn test_network_magic_number() {
-		assert_eq!(MAGIC_MAINNET, Network::Mainnet.magic(&ConsensusFork::BitcoinCore));
-		assert_eq!(MAGIC_TESTNET, Network::Testnet.magic(&ConsensusFork::BitcoinCore));
-		assert_eq!(MAGIC_REGTEST, Network::Regtest.magic(&ConsensusFork::BitcoinCore));
-		assert_eq!(MAGIC_UNITEST, Network::Unitest.magic(&ConsensusFork::BitcoinCore));
+		assert_eq!(MAGIC_MAINNET, Network::Mainnet.magic());
+		assert_eq!(MAGIC_TESTNET, Network::Testnet.magic());
+		assert_eq!(MAGIC_REGTEST, Network::Regtest.magic());
+		assert_eq!(MAGIC_UNITEST, Network::Unitest.magic());
 	}
 
 	#[test]

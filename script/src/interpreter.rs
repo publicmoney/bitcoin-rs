@@ -1,6 +1,6 @@
 use std::{cmp, mem};
 use bytes::Bytes;
-use keys::{Message, Signature, Public};
+use keys::{Signature, Public};
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
 use crypto::{sha1, sha256, dhash160, dhash256, ripemd160};
 use sign::{SignatureVersion, Sighash};
@@ -27,25 +27,6 @@ fn check_signature(
 	} else {
 		return false
 	}
-}
-
-/// Helper function.
-fn verify_signature(
-	checker: &dyn SignatureChecker,
-	signature: Vec<u8>,
-	public: Vec<u8>,
-	message: Message,
-) -> bool {
-	let public = match Public::from_slice(&public) {
-		Ok(public) => public,
-		_ => return false,
-	};
-
-	if signature.is_empty() {
-		return false;
-	}
-
-	checker.verify_signature(&signature.into(), &public, &message.into())
 }
 
 fn is_public_key(v: &[u8]) -> bool {
@@ -166,19 +147,15 @@ fn is_low_der_signature(sig: &[u8]) -> Result<(), Error> {
 	Ok(())
 }
 
-fn is_defined_hashtype_signature(version: SignatureVersion, sig: &[u8]) -> bool {
+fn is_defined_hashtype_signature(sig: &[u8]) -> bool {
 	if sig.is_empty() {
 		return false;
 	}
 
-	Sighash::is_defined(version, sig[sig.len() - 1] as u32)
+	Sighash::is_defined(sig[sig.len() - 1] as u32)
 }
 
-fn parse_hash_type(version: SignatureVersion, sig: &[u8]) -> Sighash {
-	Sighash::from_u32(version, if sig.is_empty() { 0 } else { sig[sig.len() - 1] as u32 })
-}
-
-fn check_signature_encoding(sig: &[u8], flags: &VerificationFlags, version: SignatureVersion) -> Result<(), Error> {
+fn check_signature_encoding(sig: &[u8], flags: &VerificationFlags) -> Result<(), Error> {
 	// Empty signature. Not strictly DER encoded, but allowed to provide a
 	// compact way to provide an invalid signature for use with CHECK(MULTI)SIG
 
@@ -194,19 +171,8 @@ fn check_signature_encoding(sig: &[u8], flags: &VerificationFlags, version: Sign
 		is_low_der_signature(sig)?;
 	}
 
-	if flags.verify_strictenc && !is_defined_hashtype_signature(version, sig) {
+	if flags.verify_strictenc && !is_defined_hashtype_signature(sig) {
 		return Err(Error::SignatureHashtype)
-	}
-
-	// verify_strictenc is currently enabled for BitcoinCash only
-	if flags.verify_strictenc {
-		let uses_fork_id = parse_hash_type(version, sig).fork_id;
-		let enabled_fork_id = version == SignatureVersion::ForkId;
-		if uses_fork_id && !enabled_fork_id {
-			return Err(Error::SignatureIllegalForkId)
-		} else if !uses_fork_id && enabled_fork_id {
-			return Err(Error::SignatureMustUseForkId);
-		}
 	}
 
 	Ok(())
@@ -1021,18 +987,16 @@ pub fn eval_script(
 			Opcode::OP_CHECKSIG | Opcode::OP_CHECKSIGVERIFY => {
 				let pubkey = stack.pop()?;
 				let signature = stack.pop()?;
-				let sighash = parse_hash_type(version, &signature);
 				let mut subscript = script.subscript(begincode);
 				match version {
-					SignatureVersion::ForkId if sighash.fork_id => (),
 					SignatureVersion::WitnessV0 => (),
-					SignatureVersion::Base | SignatureVersion::ForkId => {
+					SignatureVersion::Base => {
 						let signature_script = Builder::default().push_data(&*signature).into_script();
 						subscript = subscript.find_and_delete(&*signature_script);
 					},
 				}
 
-				check_signature_encoding(&signature, flags, version)?;
+				check_signature_encoding(&signature, flags)?;
 				check_pubkey_encoding(&pubkey, flags)?;
 
 				let success = check_signature(checker, &signature, &pubkey, &subscript, version);
@@ -1070,11 +1034,9 @@ pub fn eval_script(
 				let mut subscript = script.subscript(begincode);
 
 				for signature in &sigs {
-					let sighash = parse_hash_type(version, &signature);
 					match version {
-						SignatureVersion::ForkId if sighash.fork_id => (),
 						SignatureVersion::WitnessV0 => (),
-						SignatureVersion::Base | SignatureVersion::ForkId => {
+						SignatureVersion::Base => {
 							let signature_script = Builder::default().push_data(&*signature).into_script();
 							subscript = subscript.find_and_delete(&*signature_script);
 						},
@@ -1088,7 +1050,7 @@ pub fn eval_script(
 					let key = &keys[k];
 					let sig = &sigs[s];
 
-					check_signature_encoding(sig, flags, version)?;
+					check_signature_encoding(sig, flags)?;
 					check_pubkey_encoding(key, flags)?;
 
 					let ok = check_signature(checker, sig, key, &subscript, version);
@@ -1129,35 +1091,7 @@ pub fn eval_script(
 			Opcode::OP_VERIF |
 			Opcode::OP_VERNOTIF => {
 				return Err(Error::DisabledOpcode(opcode));
-			},
-			Opcode::OP_CHECKDATASIG | Opcode::OP_CHECKDATASIGVERIFY if flags.verify_checkdatasig => {
-				let pubkey = stack.pop()?;
-				let message = stack.pop()?;
-				let signature = stack.pop()?;
-
-				check_signature_encoding(&signature, flags, version)?;
-				check_pubkey_encoding(&pubkey, flags)?;
-
-				let signature: Vec<u8> = signature.into();
-				let message_hash = sha256(&message);
-				let success = verify_signature(checker, signature.into(), pubkey.into(), message_hash);
-				match opcode {
-					Opcode::OP_CHECKDATASIG => {
-						if success {
-							stack.push(vec![1].into());
-						} else {
-							stack.push(Bytes::new());
-						}
-					},
-					Opcode::OP_CHECKDATASIGVERIFY if !success => {
-						return Err(Error::CheckDataSigVerify);
-					},
-					_ => {},
-				}
-			},
-			Opcode::OP_CHECKDATASIG | Opcode::OP_CHECKDATASIGVERIFY => {
-				return Err(Error::DisabledOpcode(opcode));
-			},
+			}
 		}
 
 		if stack.len() + altstack.len() > 1000 {
@@ -1181,8 +1115,6 @@ pub fn eval_script(
 mod tests {
 	use bytes::Bytes;
 	use chain::Transaction;
-	use crypto::sha256;
-	use keys::{KeyPair, Private, Message, Network};
 	use sign::SignatureVersion;
 	use script::MAX_SCRIPT_ELEMENT_SIZE;
 	use {
@@ -2284,81 +2216,6 @@ mod tests {
 		let flags = VerificationFlags::default()
 			.verify_p2sh(true);
 		assert_eq!(verify_script(&input, &output, &ScriptWitness::default(), &flags, &checker, SignatureVersion::Base), Ok(()));
-	}
-
-
-	#[test]
-	fn test_script_with_forkid_signature() {
-		use sign::UnsignedTransactionInput;
-		use chain::{OutPoint, TransactionOutput};
-
-		let key_pair = KeyPair::from_private(Private { network: Network::Mainnet, secret: 1.into(), compressed: false, }).unwrap();
-		let redeem_script = Builder::default()
-			.push_data(key_pair.public())
-			.push_opcode(Opcode::OP_CHECKSIG)
-			.into_script();
-
-
-		let amount = 12345000000000;
-		let sighashtype = 0x41; // All + ForkId
-		let checker = TransactionSignatureChecker {
-			input_index: 0,
-			input_amount: amount,
-			signer: TransactionInputSigner {
-				version: 1,
-				inputs: vec![
-					UnsignedTransactionInput {
-						previous_output: OutPoint {
-							hash: 0u8.into(),
-							index: 0xffffffff,
-						},
-						sequence: 0xffffffff,
-					},
-				],
-				outputs: vec![
-					TransactionOutput {
-						value: amount,
-						script_pubkey: redeem_script.to_bytes(),
-					},
-				],
-				lock_time: 0,
-			},
-		};
-
-		let script_pubkey = redeem_script;
-		let flags = VerificationFlags::default();
-
-		// valid signature
-		{
-			let signed_input = checker.signer.signed_input(&key_pair, 0, amount, &script_pubkey, SignatureVersion::ForkId, sighashtype);
-			let script_sig = signed_input.script_sig.into();
-
-			assert_eq!(verify_script(&script_sig, &script_pubkey, &ScriptWitness::default(), &flags, &checker, SignatureVersion::ForkId), Ok(()));
-		}
-
-		// signature with wrong amount
-		{
-			let signed_input = checker.signer.signed_input(&key_pair, 0, amount + 1, &script_pubkey, SignatureVersion::ForkId, sighashtype);
-			let script_sig = signed_input.script_sig.into();
-
-			assert_eq!(verify_script(&script_sig, &script_pubkey, &ScriptWitness::default(), &flags, &checker, SignatureVersion::ForkId), Err(Error::EvalFalse));
-		}
-
-		// fork-id signature passed when not expected
-		{
-			let signed_input = checker.signer.signed_input(&key_pair, 0, amount + 1, &script_pubkey, SignatureVersion::ForkId, sighashtype);
-			let script_sig = signed_input.script_sig.into();
-
-			assert_eq!(verify_script(&script_sig, &script_pubkey, &ScriptWitness::default(), &flags, &checker, SignatureVersion::Base), Err(Error::EvalFalse));
-		}
-
-		// non-fork-id signature passed when expected
-		{
-			let signed_input = checker.signer.signed_input(&key_pair, 0, amount + 1, &script_pubkey, SignatureVersion::Base, 1);
-			let script_sig = signed_input.script_sig.into();
-
-			assert_eq!(verify_script(&script_sig, &script_pubkey, &ScriptWitness::default(), &flags.verify_strictenc(true), &checker, SignatureVersion::ForkId), Err(Error::SignatureMustUseForkId));
-		}
 	}
 
 	fn run_witness_test(script_sig: Script, script_pubkey: Script, script_witness: Vec<Bytes>, flags: VerificationFlags, amount: u64) -> Result<(), Error> {
@@ -3885,162 +3742,6 @@ mod tests {
 			.verify_concat(true)
 			.verify_split(true);
 		basic_test_with_flags(&script, &flags, Ok(true), vec![vec![0x01].into()].into());
-	}
-
-	#[test]
-	fn checkdatasig_spec_tests() {
-		// official tests from:
-		// https://github.com/bitcoincashorg/bitcoincash.org/blob/0c6f91b0b713aae3bc6c9834b46e80e247ff5fab/spec/op_checkdatasig.md
-
-		let kp = KeyPair::from_private(Private { network: Network::Mainnet, secret: 1.into(), compressed: false, }).unwrap();
-
-		let pubkey = kp.public().clone();
-		let message = vec![42u8; 32];
-		let correct_signature = kp.private().sign(&Message::from(sha256(&message))).unwrap();
-		let correct_signature_for_other_message = kp.private().sign(&[43u8; 32].into()).unwrap();
-		let mut correct_signature = correct_signature.to_vec();
-		let mut correct_signature_for_other_message = correct_signature_for_other_message.to_vec();
-		correct_signature.push(0x81);
-		correct_signature_for_other_message.push(0x81);
-
-		let correct_flags = VerificationFlags::default()
-			.verify_checkdatasig(true)
-			.verify_dersig(true)
-			.verify_strictenc(true);
-		let incorrect_flags = VerificationFlags::default().verify_checkdatasig(false);
-
-		let correct_signature_script = Builder::default()
-			.push_data(&*correct_signature)
-			.push_data(&*message)
-			.push_data(&*pubkey)
-			.push_opcode(Opcode::OP_CHECKDATASIG)
-			.into_script();
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIG fails if 15 November 2018 protocol upgrade is not yet activated.
-		basic_test_with_flags(&correct_signature_script, &incorrect_flags, Err(Error::DisabledOpcode(Opcode::OP_CHECKDATASIG)), vec![].into());
-
-		// <sig> <msg> OP_CHECKDATASIG fails if there are fewer than 3 items on stack.
-		let too_few_args_sig_script = Builder::default()
-			.push_data(&[1u8; 32])
-			.push_data(&*message)
-			.push_opcode(Opcode::OP_CHECKDATASIG)
-			.into_script();
-		basic_test_with_flags(&too_few_args_sig_script, &correct_flags, Err(Error::InvalidStackOperation), vec![].into());
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIG fails if <pubKey> is not a validly encoded public key.
-		let incorrect_pubkey_script = Builder::default()
-			.push_data(&*correct_signature)
-			.push_data(&*message)
-			.push_data(&[77u8; 15])
-			.push_opcode(Opcode::OP_CHECKDATASIG)
-			.into_script();
-		basic_test_with_flags(&incorrect_pubkey_script, &correct_flags, Err(Error::PubkeyType), vec![].into());
-
-		// assuming that check_signature_encoding correctness is proved by other tests:
-		// <sig> <msg> <pubKey> OP_CHECKDATASIG fails if <sig> is not a validly encoded signature with strict DER encoding.
-		// <sig> <msg> <pubKey> OP_CHECKDATASIG fails if signature <sig> is not empty and does not pass the Low S check.
-		let incorrectly_encoded_signature_script = Builder::default()
-			.push_data(&[0u8; 65])
-			.push_data(&*message)
-			.push_data(&*pubkey)
-			.push_opcode(Opcode::OP_CHECKDATASIG)
-			.into_script();
-		basic_test_with_flags(&incorrectly_encoded_signature_script, &correct_flags, Err(Error::SignatureDer), vec![].into());
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIG fails if signature <sig> is not empty and does not pass signature validation of <msg> and <pubKey>.
-		let incorrect_signature_script = Builder::default()
-			.push_data(&*correct_signature_for_other_message)
-			.push_data(&*message)
-			.push_data(&*pubkey)
-			.push_opcode(Opcode::OP_CHECKDATASIG)
-			.into_script();
-		basic_test_with_flags(&incorrect_signature_script, &correct_flags, Ok(false), vec![Bytes::new()].into());
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIG pops three elements and pushes false onto the stack if <sig> is an empty byte array.
-		let empty_signature_script = Builder::default()
-			.push_data(&[])
-			.push_data(&*message)
-			.push_data(&*pubkey)
-			.push_opcode(Opcode::OP_CHECKDATASIG)
-			.into_script();
-		basic_test_with_flags(&empty_signature_script, &correct_flags, Ok(false), vec![Bytes::new()].into());
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIG pops three elements and pushes true onto the stack if <sig> is a valid signature of <msg> with respect to <pubKey>.
-		basic_test_with_flags(&correct_signature_script, &correct_flags, Ok(true), vec![vec![1].into()].into());
-	}
-
-	#[test]
-	fn checkdatasigverify_spec_tests() {
-		// official tests from:
-		// https://github.com/bitcoincashorg/bitcoincash.org/blob/0c6f91b0b713aae3bc6c9834b46e80e247ff5fab/spec/op_checkdatasig.md
-
-		let kp = KeyPair::from_private(Private { network: Network::Mainnet, secret: 1.into(), compressed: false, }).unwrap();
-
-		let pubkey = kp.public().clone();
-		let message = vec![42u8; 32];
-		let correct_signature = kp.private().sign(&Message::from(sha256(&message))).unwrap();
-		let correct_signature_for_other_message = kp.private().sign(&[43u8; 32].into()).unwrap();
-		let mut correct_signature = correct_signature.to_vec();
-		let mut correct_signature_for_other_message = correct_signature_for_other_message.to_vec();
-		correct_signature.push(0x81);
-		correct_signature_for_other_message.push(0x81);
-
-		let correct_flags = VerificationFlags::default()
-			.verify_checkdatasig(true)
-			.verify_dersig(true)
-			.verify_strictenc(true);
-		let incorrect_flags = VerificationFlags::default().verify_checkdatasig(false);
-
-		let correct_signature_script = Builder::default()
-			.push_data(&*correct_signature)
-			.push_data(&*message)
-			.push_data(&*pubkey)
-			.push_opcode(Opcode::OP_CHECKDATASIGVERIFY)
-			.into_script();
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIGVERIFY fails if 15 November 2018 protocol upgrade is not yet activated.
-		basic_test_with_flags(&correct_signature_script, &incorrect_flags, Err(Error::DisabledOpcode(Opcode::OP_CHECKDATASIGVERIFY)), vec![].into());
-
-		// <sig> <msg> OP_CHECKDATASIGVERIFY fails if there are fewer than 3 item on stack.
-		let too_few_args_sig_script = Builder::default()
-			.push_data(&[1u8; 32])
-			.push_data(&*message)
-			.push_opcode(Opcode::OP_CHECKDATASIGVERIFY)
-			.into_script();
-		basic_test_with_flags(&too_few_args_sig_script, &correct_flags, Err(Error::InvalidStackOperation), vec![].into());
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIGVERIFYfails if <pubKey> is not a validly encoded public key.
-		let incorrect_pubkey_script = Builder::default()
-			.push_data(&*correct_signature)
-			.push_data(&*message)
-			.push_data(&[77u8; 15])
-			.push_opcode(Opcode::OP_CHECKDATASIGVERIFY)
-			.into_script();
-		basic_test_with_flags(&incorrect_pubkey_script, &correct_flags, Err(Error::PubkeyType), vec![].into());
-
-		// assuming that check_signature_encoding correctness is proved by other tests:
-		// <sig> <msg> <pubKey> OP_CHECKDATASIGVERIFY fails if <sig> is not a validly encoded signature with strict DER encoding.
-		// <sig> <msg> <pubKey> OP_CHECKDATASIGVERIFY fails if signature <sig> is not empty and does not pass the Low S check.
-		let incorrectly_encoded_signature_script = Builder::default()
-			.push_data(&[0u8; 65])
-			.push_data(&*message)
-			.push_data(&*pubkey)
-			.push_opcode(Opcode::OP_CHECKDATASIGVERIFY)
-			.into_script();
-		basic_test_with_flags(&incorrectly_encoded_signature_script, &correct_flags, Err(Error::SignatureDer), vec![].into());
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIGVERIFY fails if <sig> is not a valid signature of <msg> with respect to <pubKey>.
-		let incorrect_signature_script = Builder::default()
-			.push_data(&*correct_signature_for_other_message)
-			.push_data(&*message)
-			.push_data(&*pubkey)
-			.push_opcode(Opcode::OP_CHECKDATASIGVERIFY)
-			.into_script();
-		basic_test_with_flags(&incorrect_signature_script, &correct_flags, Err(Error::CheckDataSigVerify), vec![].into());
-
-		// <sig> <msg> <pubKey> OP_CHECKDATASIGVERIFY pops the top three stack elements if <sig> is a valid signature of <msg> with respect to <pubKey>.
-		// Ok(false) means success here, because OP_CHECKDATASIGVERIFY leaves empty stack
-		basic_test_with_flags(&correct_signature_script, &correct_flags, Ok(false), vec![].into());
 	}
 
 	#[test]

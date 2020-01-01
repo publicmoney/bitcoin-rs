@@ -1,4 +1,4 @@
-use network::ConsensusFork;
+use network::ConsensusParams;
 use chain::Transaction;
 use storage::TransactionOutputProvider;
 use script::{Script, ScriptWitness};
@@ -11,11 +11,10 @@ pub fn transaction_sigops(
 	transaction: &Transaction,
 	store: &dyn TransactionOutputProvider,
 	bip16_active: bool,
-	checkdatasig_active: bool,
 ) -> usize {
 	let output_sigops: usize = transaction.outputs.iter().map(|output| {
 		let output_script: Script = output.script_pubkey.clone().into();
-		output_script.sigops_count(checkdatasig_active, false)
+		output_script.sigops_count(false)
 	}).sum();
 
 	// TODO: bitcoin/bitcoin also includes input_sigops here
@@ -28,14 +27,14 @@ pub fn transaction_sigops(
 
 	for input in &transaction.inputs {
 		let input_script: Script = input.script_sig.clone().into();
-		input_sigops += input_script.sigops_count(checkdatasig_active, false);
+		input_sigops += input_script.sigops_count(false);
 		if bip16_active {
 			let previous_output = match store.transaction_output(&input.previous_output, usize::max_value()) {
 				Some(output) => output,
 				None => continue,
 			};
 			let prevout_script: Script = previous_output.script_pubkey.into();
-			bip16_sigops += input_script.pay_to_script_hash_sigops(checkdatasig_active, &prevout_script);
+			bip16_sigops += input_script.pay_to_script_hash_sigops(&prevout_script);
 		}
 	}
 
@@ -47,7 +46,7 @@ pub fn transaction_sigops_cost(
 	store: &dyn TransactionOutputProvider,
 	sigops: usize,
 ) -> usize {
-	let sigops_cost = sigops * ConsensusFork::witness_scale_factor();
+	let sigops_cost = sigops * ConsensusParams::witness_scale_factor();
 	let witness_sigops_cost: usize = transaction.inputs.iter()
 		.map(|input| store.transaction_output(&input.previous_output, usize::max_value())
 			.map(|output| witness_sigops(&Script::new(input.script_sig.clone()), &Script::new(output.script_pubkey.clone()), &input.script_witness,))
@@ -87,7 +86,7 @@ fn witness_program_sigops(
 	match witness_version {
 		0 if witness_program.len() == 20 => 1,
 		0 if witness_program.len() == 32 => match script_witness.last() {
-			Some(subscript) => Script::new(subscript.clone()).sigops_count(false, true),
+			Some(subscript) => Script::new(subscript.clone()).sigops_count(true),
 			_ => 0,
 		},
 		_ => 0,

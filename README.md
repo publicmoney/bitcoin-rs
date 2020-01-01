@@ -131,24 +131,22 @@ java -jar pull-tests-f56eec3.jar
 
 By default parity connects to bitcoind-seednodes. Full list is available [here](./pbtc/seednodes.rs).
 
-Before starting synchronization, you must decide - which fork to follow - Bitcoin Core (`--btc` flag) or Bitcoin Cash (`--bch` flag). On next start, passing the same flag is optional, as the database is already bound to selected fork and won't be synchronized using other verification rules.
-
 To start syncing the main network, just start the client, passing selected fork flag. For example:
 
 ```
-./target/release/pbtc --btc
+./target/release/pbtc
 ```
 
 To start syncing the testnet:
 
 ```
-./target/release/pbtc --btc --testnet
+./target/release/pbtc --testnet
 ```
 
 To not print any syncing progress add `--quiet` flag:
 
 ```
-./target/release/pbtc --btc --quiet
+./target/release/pbtc --quiet
 ```
 
 ## Importing bitcoind database
@@ -179,7 +177,6 @@ USAGE:
     pbtc [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
-        --bch             Use Bitcoin Cash verification rules (BCH).
         --btc             Use Bitcoin Core verification rules (BTC).
     -h, --help            Prints help information
         --no-jsonrpc      Disable the JSON-RPC API server.
@@ -354,7 +351,7 @@ RUST_LOG=verification=info ./target/release/pbtc --btc
 It's also possible to start logging from multiple modules in the same time:
 
 ```
-RUST_LOG=sync=trace,p2p=trace,verification=trace,db=trace ./target/release/pbtc --btc
+RUST_LOG=sync=trace,p2p=trace,verification=trace,db=trace ./target/release/pbtc
 ```
 
 ## Internal documentation
