@@ -64,18 +64,14 @@ pub fn write(benchmark: &mut Benchmark) {
 	let mut blocks: Vec<IndexedBlock> = Vec::new();
 
 	for x in 0..BLOCKS {
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
-			.coinbase()
-			.lock_time(x as u32)
-			.output()
-			.value(5000000000)
-			.build()
-			.build()
-			.merkled_header()
-			.parent(rolling_hash.clone())
-			.nonce(x as u32)
-			.build()
+				.coinbase()
+				.lock_time(x as u32)
+				.output().value(5000000000).build()
+				.build()
+			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32).build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block.into());
@@ -106,66 +102,46 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 
 	for x in 0..BLOCKS {
 		let base = rolling_hash.clone();
-
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
-			.coinbase()
-			.lock_time(x as u32)
-			.output()
-			.value(5000000000)
-			.build()
-			.build()
-			.merkled_header()
-			.parent(rolling_hash.clone())
-			.nonce(x as u32 * 4)
-			.build()
+				.coinbase()
+				.lock_time(x as u32)
+				.output().value(5000000000).build()
+				.build()
+			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32 * 4).build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
-
+		#[rustfmt::skip]
 		let next_block_side = test_data::block_builder()
 			.transaction()
-			.coinbase()
-			.lock_time(x as u32)
-			.output()
-			.value(5000000000)
-			.build()
-			.build()
-			.merkled_header()
-			.parent(base)
-			.nonce(x as u32 * 4 + 2)
-			.build()
+				.coinbase()
+				.lock_time(x as u32)
+				.output().value(5000000000).build()
+				.build()
+			.merkled_header().parent(base).nonce(x as u32 * 4 + 2).build()
 			.build();
 		let next_base = next_block_side.hash();
 		blocks.push(next_block_side);
-
+		#[rustfmt::skip]
 		let next_block_side_continue = test_data::block_builder()
 			.transaction()
-			.coinbase()
-			.lock_time(x as u32)
-			.output()
-			.value(5000000000)
-			.build()
-			.build()
-			.merkled_header()
-			.parent(next_base)
-			.nonce(x as u32 * 4 + 3)
-			.build()
+				.coinbase()
+				.lock_time(x as u32)
+				.output().value(5000000000).build()
+				.build()
+			.merkled_header().parent(next_base).nonce(x as u32 * 4 + 3).build()
 			.build();
 		blocks.push(next_block_side_continue);
-
+		#[rustfmt::skip]
 		let next_block_continue = test_data::block_builder()
 			.transaction()
-			.coinbase()
-			.lock_time(x as u32)
-			.output()
-			.value(5000000000)
-			.build()
-			.build()
-			.merkled_header()
-			.parent(rolling_hash.clone())
-			.nonce(x as u32 * 4 + 1)
-			.build()
+				.coinbase()
+				.lock_time(x as u32)
+				.output().value(5000000000).build()
+				.build()
+			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32 * 4 + 1).build()
 			.build();
 		rolling_hash = next_block_continue.hash();
 		blocks.push(next_block_continue);
@@ -228,18 +204,14 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 	let mut hashes = Vec::new();
 
 	for x in 0..BLOCKS_INITIAL {
+		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
-			.coinbase()
-			.lock_time(x as u32)
-			.output()
-			.value(5000000000)
-			.build()
-			.build()
-			.merkled_header()
-			.parent(rolling_hash.clone())
-			.nonce(x as u32)
-			.build()
+				.coinbase()
+				.lock_time(x as u32)
+				.output().value(5000000000).build()
+				.build()
+			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32).build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
@@ -250,6 +222,7 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 		let mut builder = test_data::block_builder().transaction().coinbase().build();
 
 		for t in 0..TRANSACTIONS {
+			#[rustfmt::skip]
 			builder = builder
 				.transaction()
 				.input()
