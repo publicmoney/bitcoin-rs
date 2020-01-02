@@ -6,7 +6,7 @@
 patch -R Cargo.toml tools/workspace.diff
 
 # Now let's rebuild Cargo.lock by telling cargo to update local package
-cargo update -p pbtc
+cargo update -p bitcoin-rs
 
 # And draw dependencies graph using cargo graph
 cargo graph --build-shape box --build-line-style dashed > tools/graph.dot
@@ -20,4 +20,4 @@ dot -Tsvg > tools/graph.svg tools/graph.dot
 patch Cargo.toml tools/workspace.diff
 
 # Now let's revert Cargo.lock to previous state
-cargo update -p pbtc
+cargo update -p bitcoin-rs

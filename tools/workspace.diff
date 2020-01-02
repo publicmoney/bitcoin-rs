@@ -4,8 +4,8 @@ index fca51d5..6a16dd6 100644
 +++ Cargo.toml
 @@ -24,3 +24,6 @@ import = { path = "import" }
  [[bin]]
- path = "pbtc/main.rs"
- name = "pbtc"
+ path = "bitcoin-rs/main.rs"
+ name = "bitcoin-rs"
 +
 +[workspace]
 +members = ["bencher"]

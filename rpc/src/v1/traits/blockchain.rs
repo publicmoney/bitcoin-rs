@@ -7,7 +7,7 @@ use v1::types::GetTxOutSetInfoResponse;
 use v1::types::H256;
 
 build_rpc_trait! {
-	/// Parity-bitcoin blockchain data interface.
+	/// bitcoin-rs blockchain data interface.
 	pub trait BlockChain {
 		/// Get hash of best block.
 		/// @curl-example: curl --data-binary '{"jsonrpc": "2.0", "method": "getbestblockhash", "params": [], "id":1 }' -H 'content-type: application/json' http://127.0.0.1:8332/

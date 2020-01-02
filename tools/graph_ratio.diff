@@ -6,6 +6,6 @@ index f842267..1a831d2 100644
  digraph dependencies {
 +	ratio=1.0;
 +	size="5,5";
- 	N0[label="pbtc",shape=box];
+ 	N0[label="bitcoin-rs",shape=box];
  	N1[label="app_dirs",shape=box];
  	N2[label="bencher",shape=box];

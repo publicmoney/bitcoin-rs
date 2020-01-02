@@ -116,6 +116,33 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "bitcoin-rs"
+version = "0.1.0"
+dependencies = [
+ "app_dirs 1.2.1 (git+https://github.com/paritytech/app-dirs-rs)",
+ "built 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chain 0.1.0",
+ "clap 2.27.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "db 0.1.0",
+ "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "import 0.1.0",
+ "keys 0.1.0",
+ "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "logs 0.1.0",
+ "message 0.1.0",
+ "miner 0.1.0",
+ "network 0.1.0",
+ "p2p 0.1.0",
+ "primitives 0.1.0",
+ "rpc 0.1.0",
+ "script 0.1.0",
+ "storage 0.1.0",
+ "sync 0.1.0",
+ "verification 0.1.0",
+]
+
+[[package]]
 name = "bitcrypto"
 version = "0.1.0"
 dependencies = [
@@ -985,33 +1012,6 @@ dependencies = [
  "redox_syscall 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "pbtc"
-version = "0.1.0"
-dependencies = [
- "app_dirs 1.2.1 (git+https://github.com/paritytech/app-dirs-rs)",
- "built 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "chain 0.1.0",
- "clap 2.27.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "db 0.1.0",
- "env_logger 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "import 0.1.0",
- "keys 0.1.0",
- "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "logs 0.1.0",
- "message 0.1.0",
- "miner 0.1.0",
- "network 0.1.0",
- "p2p 0.1.0",
- "primitives 0.1.0",
- "rpc 0.1.0",
- "script 0.1.0",
- "storage 0.1.0",
- "sync 0.1.0",
- "verification 0.1.0",
 ]
 
 [[package]]

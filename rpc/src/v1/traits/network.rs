@@ -3,7 +3,7 @@ use jsonrpc_macros::Trailing;
 use v1::types::{AddNodeOperation, NodeInfo};
 
 build_rpc_trait! {
-	/// Parity-bitcoin network interface
+	/// bitcoin-rs network interface
 	pub trait Network {
 		/// Add/remove/connect to the node
 		/// @curl-example: curl --data-binary '{"jsonrpc": "2.0", "method": "addnode", "params": ["127.0.0.1:8888", "add"], "id":1 }' -H 'content-type: application/json' http://127.0.0.1:8332/

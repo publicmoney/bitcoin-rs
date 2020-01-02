@@ -1,7 +1,7 @@
 digraph dependencies {
 	ratio=1.0;
 	size="5,5";
-	N0[label="pbtc",shape=box];
+	N0[label="bitcoin-rs",shape=box];
 	N1[label="app_dirs",shape=box];
 	N2[label="chain",shape=box];
 	N3[label="clap",shape=box];

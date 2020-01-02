@@ -2,8 +2,7 @@
 name = "bencher"
 version = "0.1.0"
 license = "GPL-3.0"
-authors = ["Ethcore <admin@ethcore.io>"]
-description = "Parity bitcoin client."
+description = "Bitcoin client"
 
 [dependencies]
 storage = { path = "../storage" }

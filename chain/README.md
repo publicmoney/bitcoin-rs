@@ -142,7 +142,7 @@ Whenever a miner mines a block, it includes a special transaction called a coinb
 #### 2. [heapsize](https://crates.io/crates/heapsize): 
 *infrastructure for measuring the total runtime size of an object on the heap*
 
-#### 3. Crates from within the Parity Bitcoin Repo:
+#### 3. Crates from within this repo:
 * bitcrypto (crypto)
 * primitives
 * serialization

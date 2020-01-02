@@ -1,4 +1,4 @@
-BIPs that are implemented by pbtc
+BIPs that are implemented by bitcoin-rs
 
 - `-` not implemented
 - `+` implemented
@@ -6,7 +6,7 @@ BIPs that are implemented by pbtc
 - `a` application layer
 - `w` work in progress
 
-| BIPs | pbtc | core | unlimited |
+| BIPs | bitcoin-rs | core | unlimited |
 | ------ | ------ | ------ | ------ |
 | [BIP 9][BIP9] | + | + | ? |
 | [BIP 11][BIP11] | a | + | ? |
