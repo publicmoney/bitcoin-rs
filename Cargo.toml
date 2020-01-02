@@ -1,9 +1,8 @@
 [package]
-name = "pbtc"
+name = "bitcoin-rs"
 version = "0.1.0"
 license = "GPL-3.0"
-authors = ["Parity Technologies <admin@parity.io>"]
-description = "Parity bitcoin client."
+description = "Bitcoin client"
 build = "build.rs"
 
 [dependencies]
@@ -43,8 +42,8 @@ panic = 'abort'
 debug = true
 
 [[bin]]
-path = "pbtc/main.rs"
-name = "pbtc"
+path = "bitcoin-rs/main.rs"
+name = "bitcoin-rs"
 
 [workspace]
 members = ["bencher"]

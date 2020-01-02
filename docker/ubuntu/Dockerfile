@@ -28,17 +28,16 @@ RUN cargo -V
 RUN gcc -v
 RUN g++ -v
 
-# build pbtc
-RUN git clone https://github.com/paritytech/parity-bitcoin.git; \
-    cd parity-bitcoin; export RUSTFLAGS=" -C link-arg=-s"; \
+# build bitcoin-rs
+RUN git clone https://github.com/publicmoney/bitcoin-rs.git; \
+    cd publicmoney; export RUSTFLAGS=" -C link-arg=-s"; \
     cargo build --release --verbose 
 
-# Runtime image, copies pbtc artifact from build image
+# Runtime image, copies bitcoin-rs artifact from build image
 FROM ubuntu:bionic AS run
-LABEL maintainer "Parity Technologies <devops@parity.io>"
 
-WORKDIR /pbtc-ubuntu
-COPY --from=build /build/parity-bitcoin/target/release/pbtc /pbtc-ubuntu/
+WORKDIR /bitcoin-rs-ubuntu
+COPY --from=build /build/bitcoin-rs/target/release/bitcoin-rs /bitcoin-rs-ubuntu/
 
 EXPOSE 8333 18333 8332 18332
-ENTRYPOINT ["/pbtc-ubuntu/pbtc"]
+ENTRYPOINT ["/bitcoin-rs-ubuntu/bitcoin-rs"]

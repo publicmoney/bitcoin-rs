@@ -12,7 +12,7 @@
 <!-- N0 -->
 <g id="node1" class="node"><title>N0</title>
 <polygon fill="none" stroke="black" points="1711,-5418 1657,-5418 1657,-5382 1711,-5382 1711,-5418"/>
-<text text-anchor="middle" x="1684" y="-5395.8" font-family="Times,serif" font-size="14.00">pbtc</text>
+<text text-anchor="middle" x="1684" y="-5395.8" font-family="Times,serif" font-size="14.00">bitcoin-rs</text>
 </g>
 <!-- N1 -->
 <g id="node2" class="node"><title>N1</title>

@@ -1,8 +1,6 @@
-# The Parity Bitcoin client.
+# A Bitcoin client written in Rust.
 
-[![Build Status][travis-image]][travis-url] [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity-bitcoin.svg)](https://build.snapcraft.io/user/paritytech/parity-bitcoin)
-
-Gitter [![Gitter https://gitter.im/paritytech/parity-bitcoin](https://badges.gitter.im/paritytech/parity-bitcoin.svg)](https://gitter.im/paritytech/parity-bitcoin)
+Forked from https://github.com/paritytech/parity-bitcoin at the end of 2019.
 
 - [Installing from source](#installing-from-source)
 
@@ -25,13 +23,11 @@ Gitter [![Gitter https://gitter.im/paritytech/parity-bitcoin](https://badges.git
 - [Project Graph][graph]
 
 [graph]: ./tools/graph.svg
-[travis-image]: https://travis-ci.com/paritytech/parity-bitcoin.svg?token=DMFvZu71iaTbUYx9UypX&branch=master
-[travis-url]: https://travis-ci.com/paritytech/parity-bitcoin
-[doc-url]: https://paritytech.github.io/parity-bitcoin/pbtc/index.html
+[doc-url]: https://publicmoney.github.io/bitcoin-rs/bitcoin-rs/index.html
 
 ## Installing from source
 
-Installing `pbtc` from source requires `rustc` and `cargo`.
+Installing `bitcoin-rs` from source requires `rustc` and `cargo`.
 
 Minimal supported version is `rustc 1.23.0 (766bd11c8 2018-01-01)`
 
@@ -56,40 +52,40 @@ sudo apt-get update
 sudo apt-get install build-essential
 ```
 
-#### Clone and build pbtc
+#### Clone and build bitcoin-rs
 
-Now let's clone `pbtc` and enter it's directory:
-
-```
-git clone https://github.com/paritytech/parity-bitcoin
-cd parity-bitcoin
-```
-
-`pbtc` can be build in two modes. `--debug` and `--release`. Debug is the default.
+Now let's clone `bitcoin-rs` and enter it's directory:
 
 ```
-# builds pbtc in debug mode
-cargo build -p pbtc
+git clone https://github.com/publicmoney/bitcoin-rs
+cd bitcoin-rs
+```
+
+`bitcoin-rs` can be build in two modes. `--debug` and `--release`. Debug is the default.
+
+```
+# builds bitcoin-rs in debug mode
+cargo build -p bitcoin-rs
 ```
 
 ```
-# builds pbtc in release mode
-cargo build -p pbtc --release
+# builds bitcoin-rs in release mode
+cargo build -p bitcoin-rs --release
 ```
 
-`pbtc` is now available at either `./target/debug/pbtc` or `./target/release/pbtc`.
+`bitcoin-rs` is now available at either `./target/debug/bitcoin-rs` or `./target/release/bitcoin-rs`.
 
 ## Installing the snap
 
 In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
 
 ```
-sudo snap install parity-bitcoin --edge
+sudo snap install bitcoin-rs --edge
 ```
 
 ## Running tests
 
-`pbtc` has internal unit tests and it conforms to external integration tests.
+`bitcoin-rs` has internal unit tests and it conforms to external integration tests.
 
 #### Running unit tests
 
@@ -116,8 +112,8 @@ Now we can run them using the command:
 It is also possible to run regtests manually:
 
 ```
-# let's start pbtc in regtest compatible mode
-./target/release/pbtc --btc --regtest
+# let's start bitcoin-rs in regtest compatible mode
+./target/release/bitcoin-rs --regtest
 
 # now in second shell window
 cd $HOME
@@ -129,24 +125,24 @@ java -jar pull-tests-f56eec3.jar
 
 ## Going online
 
-By default parity connects to bitcoind-seednodes. Full list is available [here](./pbtc/seednodes.rs).
+By default bitcoin-rs connects to bitcoin-core seednodes. Full list is available [here](./bitcoin-rs/seednodes.rs).
 
 To start syncing the main network, just start the client, passing selected fork flag. For example:
 
 ```
-./target/release/pbtc
+./target/release/bitcoin-rs
 ```
 
 To start syncing the testnet:
 
 ```
-./target/release/pbtc --testnet
+./target/release/bitcoin-rs --testnet
 ```
 
 To not print any syncing progress add `--quiet` flag:
 
 ```
-./target/release/pbtc --quiet
+./target/release/bitcoin-rs --quiet
 ```
 
 ## Importing bitcoind database
@@ -155,26 +151,25 @@ It is possible to import existing `bitcoind` database:
 
 ```
 # where $BITCOIND_DB is path to your bitcoind database, e.g., "/Users/user/Library/Application Support"
-./target/release/pbtc import "$BITCOIND_DB/Bitcoin/blocks"
+./target/release/bitcoin-rs import "$BITCOIND_DB/Bitcoin/blocks"
 ```
 
 By default import verifies imported the blocks. You can disable this, by adding `--verification-level==none` flag.
 
 ```
-./target/release/pbtc import "#BITCOIND_DB/Bitcoin/blocks" --btc --skip-verification
+./target/release/bitcoin-rs import "#BITCOIND_DB/Bitcoin/blocks" --btc --skip-verification
 ```
 
 ## Command line interface
 
-Full list of CLI options, which is available under `pbtc --help`:
+Full list of CLI options, which is available under `bitcoin-rs --help`:
 
 ```
-pbtc 0.1.0
-Parity Technologies <info@parity.io>
-Parity Bitcoin client
+bitcoin-rs 0.1.0
+Bitcoin client
 
 USAGE:
-    pbtc [FLAGS] [OPTIONS] [SUBCOMMAND]
+    bitcoin-rs [FLAGS] [OPTIONS] [SUBCOMMAND]
 
 FLAGS:
         --btc             Use Bitcoin Core verification rules (BTC).
@@ -213,7 +208,7 @@ The JSON-RPC interface is served on port :8332 for mainnet and :18332 for testne
 
 #### Network
 
-The Parity-bitcoin `network` interface.
+The bitcoin-rs `network` interface.
 
 ##### addnode
 
@@ -247,7 +242,7 @@ Get the peer count.
 
 #### Blockchain
 
-The Parity-bitcoin `blockchain` data interface.
+The bitcoin-rs `blockchain` data interface.
 
 ##### getbestblockhash
 
@@ -293,7 +288,7 @@ Get statistics about the unspent transaction output set.
 
 #### Miner
 
-The Parity-bitcoin `miner` data interface.
+The bitcoin-rs `miner` data interface.
 
 ##### getblocktemplate
 
@@ -303,7 +298,7 @@ Get block template for mining.
 
 #### Raw
 
-The Parity-bitcoin `raw` data interface.
+The bitcoin-rs `raw` data interface.
 
 
 ##### getrawtransaction
@@ -337,10 +332,10 @@ This is a section only for developers and power users.
 You can enable detailed client logging by setting the environment variable `RUST_LOG`, e.g.,
 
 ```
-RUST_LOG=verification=info ./target/release/pbtc --btc
+RUST_LOG=verification=info ./target/release/bitcoin-rs --btc
 ```
 
-`pbtc` started with this environment variable will print all logs coming from `verification` module with verbosity `info` or higher. Available log levels are:
+`bitcoin-rs` started with this environment variable will print all logs coming from `verification` module with verbosity `info` or higher. Available log levels are:
 
 - `error`
 - `warn`
@@ -351,15 +346,15 @@ RUST_LOG=verification=info ./target/release/pbtc --btc
 It's also possible to start logging from multiple modules in the same time:
 
 ```
-RUST_LOG=sync=trace,p2p=trace,verification=trace,db=trace ./target/release/pbtc
+RUST_LOG=sync=trace,p2p=trace,verification=trace,db=trace ./target/release/bitcoin-rs
 ```
 
 ## Internal documentation
 
-Once released, `pbtc` documentation will be available [here][doc-url]. Meanwhile it's only possible to build it locally:
+Once released, `bitcoin-rs` documentation will be available [here][doc-url]. Meanwhile it's only possible to build it locally:
 
 ```
-cd parity-bitcoin
+cd bitcoin-rs
 ./tools/doc.sh
-open target/doc/pbtc/index.html
+open target/doc/bitcoin-rs/index.html
 ```

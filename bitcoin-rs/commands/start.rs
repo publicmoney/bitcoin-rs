@@ -48,14 +48,14 @@ impl BlockNotifier {
 
 						let err = system(c_command.as_ptr());
 						if err != 0 {
-							error!(target: "pbtc", "Block notification command {} exited with error code {}", command, err);
+							error!(target: "bitcoin-rs", "Block notification command {} exited with error code {}", command, err);
 						}
 					}
 				}
 				BlockNotifierTask::Stop => break,
 			}
 		}
-		trace!(target: "pbtc", "Block notification thread stopped");
+		trace!(target: "bitcoin-rs", "Block notification thread stopped");
 	}
 }
 
