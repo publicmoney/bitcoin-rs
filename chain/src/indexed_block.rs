@@ -67,6 +67,12 @@ impl IndexedBlock {
 		header_size + txs_size
 	}
 
+	pub fn weight(&self) -> usize {
+		let size = self.size();
+		let size_with_witness = self.size_with_witness();
+		(size * 3) + size_with_witness
+	}
+
 	pub fn merkle_root(&self) -> H256 {
 		merkle_root(&self.transactions.iter().map(|tx| &tx.hash).collect::<Vec<&H256>>())
 	}
@@ -101,12 +107,21 @@ mod tests {
 	use super::IndexedBlock;
 
 	#[test]
-	fn size_with_witness_not_equal_to_size() {
+	fn size_without_witness() {
 		let block_without_witness: IndexedBlock = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
-		assert_eq!(block_without_witness.size(), block_without_witness.size_with_witness());
 
+		assert_eq!(block_without_witness.size(), 132);
+		assert_eq!(block_without_witness.size_with_witness(), 132);
+		assert_eq!(block_without_witness.weight(), 528);
+	}
+
+	#[test]
+	fn size_with_witness() {
 		// bip143 block
 		let block_with_witness: IndexedBlock = "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000".into();
-		assert!(block_with_witness.size() != block_with_witness.size_with_witness());
+
+		assert_eq!(block_with_witness.size(), 132);
+		assert_eq!(block_with_witness.size_with_witness(), 137);
+		assert_eq!(block_with_witness.weight(), 533);
 	}
 }

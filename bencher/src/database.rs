@@ -187,6 +187,7 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 
 // 1. write 12000 blocks
 // 2. write 100 blocks that has 100 transaction each spending outputs from first 1000 blocks
+#[rustfmt::skip]
 pub fn write_heavy(benchmark: &mut Benchmark) {
 	// params
 	const BLOCKS_INITIAL: usize = 12000;
@@ -222,7 +223,6 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 		let mut builder = test_data::block_builder().transaction().coinbase().build();
 
 		for t in 0..TRANSACTIONS {
-			#[rustfmt::skip]
 			builder = builder
 				.transaction()
 				.input()

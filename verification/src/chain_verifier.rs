@@ -420,20 +420,21 @@ mod tests {
 			.into();
 		assert!(tx1.hash() > tx2.hash());
 
+		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.transaction()
 			.coinbase()
 			.output()
 			.value(2)
-			.script_pubkey_with_sigops(100)
-			.build()
+				.script_pubkey_with_sigops(100)
+				.build()
 			.build()
 			.with_transaction(tx2)
 			.with_transaction(tx1)
-			.merkled_header()
-			.time(DOUBLE_SPACING_SECONDS + 101) // to pass BCH work check
-			.parent(parent_hash)
-			.build()
+				.merkled_header()
+				.time(DOUBLE_SPACING_SECONDS + 101) // to pass BCH work check
+				.parent(parent_hash)
+				.build()
 			.build();
 
 		let consensus = ConsensusParams::new(Network::Unitest);

@@ -71,14 +71,16 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 				Some(block_number) => (self.storage.best_block().number - block_number + 1) as i64,
 				None => -1,
 			};
-			let block_size = block.size();
+			let strippedsize = block.size() as u32;
+			let size = block.size_with_witness() as u32;
+			let weight = block.weight() as u32;
 			let median_time = verification::median_timestamp(&block.header.raw, self.storage.as_block_header_provider());
 
 			VerboseBlock {
 				confirmations,
-				size: block_size as u32,
-				strippedsize: block_size as u32, // TODO: segwit
-				weight: block_size as u32,       // TODO: segwit
+				size,
+				strippedsize,
+				weight,
 				height,
 				mediantime: Some(median_time),
 				difficulty: block.header.raw.bits.to_f64(),
@@ -498,7 +500,7 @@ pub mod tests {
 				confirmations: 2, // h1 + h2
 				size: 215,
 				strippedsize: 215,
-				weight: 215,
+				weight: 860,
 				height: Some(1),
 				version: 1,
 				version_hex: "1".to_owned(),
@@ -527,7 +529,7 @@ pub mod tests {
 				confirmations: 1, // h2
 				size: 215,
 				strippedsize: 215,
-				weight: 215,
+				weight: 860,
 				height: Some(2),
 				version: 1,
 				version_hex: "1".to_owned(),
