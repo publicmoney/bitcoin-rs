@@ -934,7 +934,6 @@ where
 					, blocks_speed
 					, self.peers_tasks.information()
 					, self.chain.information());
-				std::process::exit(0);
 			}
 		}
 	}

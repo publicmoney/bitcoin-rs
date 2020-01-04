@@ -386,6 +386,7 @@ pub struct TransactionInputBuilder<F = Identity> {
 	output: Option<chain::OutPoint>,
 	signature: Bytes,
 	sequence: u32,
+	script_witness: Vec<Bytes>,
 }
 
 impl<F> TransactionInputBuilder<F>
@@ -398,6 +399,7 @@ where
 			output: None,
 			signature: Bytes::new_with_len(0),
 			sequence: 0,
+			script_witness: vec![],
 		}
 	}
 
@@ -463,12 +465,17 @@ where
 		self
 	}
 
+	pub fn script_witness(mut self, witness: &'static str) -> Self {
+		self.script_witness.push(witness.into());
+		self
+	}
+
 	pub fn build(self) -> F::Result {
 		self.callback.invoke(chain::TransactionInput {
 			previous_output: self.output.expect("Building input without previous output"),
 			script_sig: self.signature,
 			sequence: self.sequence,
-			script_witness: vec![],
+			script_witness: self.script_witness,
 		})
 	}
 }
