@@ -236,20 +236,18 @@ impl Deserializable for Transaction {
 		T: io::Read,
 	{
 		let version = reader.read()?;
-		let mut inputs: Vec<TransactionInput> = reader.read_list()?;
-		let read_witness = if inputs.is_empty() {
-			let witness_flag: u8 = reader.read()?;
-			if witness_flag != WITNESS_FLAG {
-				return Err(Error::MalformedData);
-			}
-
-			inputs = reader.read_list()?;
+		let has_witness = if reader.peek()? == WITNESS_MARKER {
+			let _marker: u8 = reader.read()?;
+			let _flag: u8 = reader.read()?;
 			true
 		} else {
 			false
 		};
+
+		let mut inputs: Vec<TransactionInput> = reader.read_list()?;
 		let outputs = reader.read_list()?;
-		if read_witness {
+
+		if has_witness {
 			for input in inputs.iter_mut() {
 				input.script_witness = reader.read_list()?;
 			}

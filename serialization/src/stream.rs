@@ -5,7 +5,7 @@ use std::borrow::Borrow;
 use std::io::{self, Write};
 
 /// Do not serialize transaction witness data.
-pub const SERIALIZE_TRANSACTION_WITNESS: u32 = 0x40000000;
+pub const SERIALIZE_TRANSACTION_WITNESS: u32 = 0x00000000;
 
 pub fn serialize<T>(t: &T) -> Bytes
 where

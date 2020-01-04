@@ -164,6 +164,21 @@ where
 		Ok(result)
 	}
 
+	pub fn peek(&mut self) -> Result<u8, Error> {
+		if self.peeked.is_some() {
+			return Err(Error::UnreadData);
+		}
+
+		let peek: &mut [u8] = &mut [0u8];
+		match self.read_slice(peek) {
+			Ok(_) => {
+				self.peeked = Some(peek[0]);
+				Ok(peek[0])
+			}
+			Err(_) => Err(Error::UnexpectedEnd),
+		}
+	}
+
 	#[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
 	pub fn is_finished(&mut self) -> bool {
 		if self.peeked.is_some() {

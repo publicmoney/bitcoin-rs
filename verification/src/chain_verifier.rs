@@ -134,7 +134,7 @@ impl BackwardsCompatibleChainVerifier {
 		// let's do only preverifcation
 		// TODO: full verification
 		let current_time = ::time::get_time().sec as u32;
-		let header = IndexedBlockHeader::new(hash.clone(), header.clone());
+		let header = IndexedBlockHeader::new(*hash, header.clone());
 		let header_verifier = HeaderVerifier::new(&header, self.consensus.network, current_time);
 		header_verifier.check()
 	}
