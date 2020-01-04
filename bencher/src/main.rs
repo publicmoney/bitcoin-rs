@@ -13,28 +13,26 @@ mod verifier;
 
 use std::io::Write;
 use std::str;
-use time::{Duration, PreciseTime};
+use time::{Duration, Instant};
 
 #[derive(Default)]
 pub struct Benchmark {
-	start: Option<PreciseTime>,
-	end: Option<PreciseTime>,
+	start: Option<Instant>,
+	end: Option<Instant>,
 	samples: Option<usize>,
 }
 
 impl Benchmark {
 	pub fn start(&mut self) {
-		self.start = Some(PreciseTime::now());
+		self.start = Some(Instant::now());
 	}
 
 	pub fn stop(&mut self) {
-		self.end = Some(PreciseTime::now());
+		self.end = Some(Instant::now());
 	}
 
 	pub fn evaluate(&self) -> Duration {
-		self.start
-			.expect("benchmarch never ended")
-			.to(self.end.expect("benchmark never started"))
+		self.end.expect("benchmark never started") - self.start.expect("benchmarch never ended")
 	}
 
 	pub fn samples(&mut self, samples: usize) {
@@ -61,13 +59,10 @@ where
 	if let Some(samples) = benchmark.samples {
 		println!(
 			"{} ns/sample",
-			decimal_mark(format!("{}", benchmark.evaluate().num_nanoseconds().unwrap() / samples as i64)),
+			decimal_mark(format!("{}", benchmark.evaluate().whole_nanoseconds() / samples as i128)),
 		);
 	} else {
-		println!(
-			"{} ns",
-			decimal_mark(format!("{}", benchmark.evaluate().num_nanoseconds().unwrap()))
-		);
+		println!("{} ns", decimal_mark(format!("{}", benchmark.evaluate().whole_nanoseconds())));
 	}
 }
 
