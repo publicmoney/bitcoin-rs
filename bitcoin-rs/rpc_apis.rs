@@ -1,5 +1,5 @@
+use crate::rpc::Dependencies;
 use ethcore_rpc::MetaIoHandler;
-use rpc::Dependencies;
 use std::collections::HashSet;
 use std::str::FromStr;
 

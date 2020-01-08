@@ -1,8 +1,8 @@
+use crate::config::Config;
+use crate::util::init_db;
 use clap::ArgMatches;
-use config::Config;
 use primitives::hash::H256;
 use storage::BlockRef;
-use util::init_db;
 
 pub fn rollback(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 	init_db(&cfg)?;
