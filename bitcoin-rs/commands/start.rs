@@ -1,4 +1,6 @@
 use super::super::rpc;
+use crate::util::{init_db, node_table_path};
+use crate::{config, p2p, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use primitives::hash::H256;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -6,8 +8,6 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, SyncListener};
-use util::{init_db, node_table_path};
-use {config, p2p, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 
 enum BlockNotifierTask {
 	NewBlock(H256),

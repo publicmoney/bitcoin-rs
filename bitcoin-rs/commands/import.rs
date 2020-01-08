@@ -1,7 +1,7 @@
+use crate::config::Config;
+use crate::util::init_db;
 use clap::ArgMatches;
-use config::Config;
 use sync::{create_sync_blocks_writer, Error};
-use util::init_db;
 
 pub fn import(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 	init_db(&cfg)?;
