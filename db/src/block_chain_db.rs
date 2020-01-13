@@ -227,7 +227,7 @@ where
 		}
 
 		let mut update = DBTransaction::new();
-		update.insert(KeyValue::BlockHeader(block.hash().clone(), block.header.raw));
+		update.insert(KeyValue::BlockHeader(*block.hash(), block.header.raw));
 		let tx_hashes = block.transactions.iter().map(|tx| tx.hash.clone()).collect::<Vec<_>>();
 		update.insert(KeyValue::BlockTransactions(block.header.hash.clone(), List::from(tx_hashes)));
 
@@ -284,7 +284,7 @@ where
 		}
 
 		let new_best_block = BestBlock {
-			hash: hash.clone(),
+			hash: *hash,
 			number: if block.header.raw.previous_header_hash.is_zero() {
 				assert_eq!(best_block.number, 0);
 				0
@@ -450,7 +450,7 @@ where
 	T: KeyValueDatabase,
 {
 	fn block_number(&self, hash: &H256) -> Option<u32> {
-		self.get(Key::BlockNumber(hash.clone())).and_then(Value::as_block_number)
+		self.get(Key::BlockNumber(*hash)).and_then(Value::as_block_number)
 	}
 
 	fn block_hash(&self, number: u32) -> Option<H256> {
@@ -497,7 +497,7 @@ where
 	T: KeyValueDatabase,
 {
 	fn transaction_meta(&self, hash: &H256) -> Option<TransactionMeta> {
-		self.get(Key::TransactionMeta(hash.clone())).and_then(Value::as_transaction_meta)
+		self.get(Key::TransactionMeta(*hash)).and_then(Value::as_transaction_meta)
 	}
 }
 
@@ -510,7 +510,7 @@ where
 	}
 
 	fn transaction(&self, hash: &H256) -> Option<IndexedTransaction> {
-		self.get(Key::Transaction(hash.clone()))
+		self.get(Key::Transaction(*hash))
 			.and_then(Value::as_transaction)
 			.map(|tx| IndexedTransaction::new(*hash, tx))
 	}

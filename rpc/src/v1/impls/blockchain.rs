@@ -6,14 +6,15 @@ use keys::{self, Address};
 use network::Network;
 use primitives::hash::H256 as GlobalH256;
 use ser::serialize;
+use std::collections::HashMap;
 use storage;
 use v1::helpers::errors::{
 	block_at_height_not_found, block_not_found, transaction_not_found, transaction_of_side_branch, transaction_output_not_found,
 };
 use v1::traits::BlockChain;
-use v1::types::GetTxOutSetInfoResponse;
 use v1::types::H256;
 use v1::types::U256;
+use v1::types::{BlockchainInfo, GetTxOutSetInfoResponse};
 use v1::types::{GetBlockResponse, RawBlock, VerboseBlock};
 use v1::types::{GetTxOutResponse, TransactionOutputScript};
 use verification;
@@ -23,10 +24,12 @@ pub struct BlockChainClient<T: BlockChainClientCoreApi> {
 }
 
 pub trait BlockChainClientCoreApi: Send + Sync + 'static {
+	fn network(&self) -> String;
 	fn best_block_hash(&self) -> GlobalH256;
 	fn block_count(&self) -> u32;
 	fn block_hash(&self, height: u32) -> Option<GlobalH256>;
 	fn difficulty(&self) -> f64;
+	fn median_time(&self) -> u32;
 	fn raw_block(&self, hash: GlobalH256) -> Option<RawBlock>;
 	fn verbose_block(&self, hash: GlobalH256) -> Option<VerboseBlock>;
 	fn verbose_transaction_out(&self, prev_out: OutPoint) -> Result<GetTxOutResponse, Error>;
@@ -44,6 +47,10 @@ impl BlockChainClientCore {
 }
 
 impl BlockChainClientCoreApi for BlockChainClientCore {
+	fn network(&self) -> String {
+		self.network.to_string()
+	}
+
 	fn best_block_hash(&self) -> GlobalH256 {
 		self.storage.best_block().hash
 	}
@@ -58,6 +65,10 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 
 	fn difficulty(&self) -> f64 {
 		self.storage.difficulty()
+	}
+
+	fn median_time(&self) -> u32 {
+		verification::median_timestamp(&self.storage.best_header().raw, self.storage.as_block_header_provider())
 	}
 
 	fn raw_block(&self, hash: GlobalH256) -> Option<RawBlock> {
@@ -175,6 +186,24 @@ impl<T> BlockChain for BlockChainClient<T>
 where
 	T: BlockChainClientCoreApi,
 {
+	fn blockchain_info(&self) -> Result<BlockchainInfo, Error> {
+		Ok(BlockchainInfo {
+			chain: self.core.network(),
+			blocks: self.core.block_count(),
+			headers: self.core.block_count(), // TODO headers can be ahead of blocks
+			bestblockhash: self.best_block_hash().ok(),
+			difficulty: self.difficulty().ok(),
+			mediantime: self.core.median_time(),
+			verificationprogress: 1.0,
+			initialblockdownload: false,
+			chainwork: H256::from(0),
+			size_on_disk: 0,
+			pruned: false,
+			softforks: HashMap::new(),
+			warnings: "".to_string(),
+		})
+	}
+
 	fn best_block_hash(&self) -> Result<H256, Error> {
 		Ok(self.core.best_block_hash().reversed().into())
 	}
@@ -262,6 +291,10 @@ pub mod tests {
 	struct ErrorBlockChainClientCore;
 
 	impl BlockChainClientCoreApi for SuccessBlockChainClientCore {
+		fn network(&self) -> String {
+			Network::Mainnet.to_string()
+		}
+
 		fn best_block_hash(&self) -> GlobalH256 {
 			test_data::genesis().hash()
 		}
@@ -276,6 +309,10 @@ pub mod tests {
 
 		fn difficulty(&self) -> f64 {
 			1f64
+		}
+
+		fn median_time(&self) -> u32 {
+			3919284
 		}
 
 		fn raw_block(&self, _hash: GlobalH256) -> Option<RawBlock> {
@@ -331,6 +368,10 @@ pub mod tests {
 	}
 
 	impl BlockChainClientCoreApi for ErrorBlockChainClientCore {
+		fn network(&self) -> String {
+			Network::Mainnet.to_string()
+		}
+
 		fn best_block_hash(&self) -> GlobalH256 {
 			test_data::genesis().hash()
 		}
@@ -345,6 +386,10 @@ pub mod tests {
 
 		fn difficulty(&self) -> f64 {
 			1f64
+		}
+
+		fn median_time(&self) -> u32 {
+			0
 		}
 
 		fn raw_block(&self, _hash: GlobalH256) -> Option<RawBlock> {
