@@ -258,7 +258,7 @@ impl Chain {
 
 	/// Get block header by hash
 	pub fn block_header_by_hash(&self, hash: &H256) -> Option<IndexedBlockHeader> {
-		if let Some(header) = self.storage.block_header(storage::BlockRef::Hash(hash.clone())) {
+		if let Some(header) = self.storage.block_header(storage::BlockRef::Hash(*hash)) {
 			return Some(header);
 		}
 		self.headers_chain.by_hash(hash)
@@ -269,7 +269,7 @@ impl Chain {
 		match self.hash_chain.contains_in(hash) {
 			Some(queue_index) => BlockState::from_queue_index(queue_index),
 			None => {
-				if self.storage.contains_block(storage::BlockRef::Hash(hash.clone())) {
+				if self.storage.contains_block(storage::BlockRef::Hash(*hash)) {
 					BlockState::Stored
 				} else if self.dead_end_blocks.contains(hash) {
 					BlockState::DeadEnd
@@ -340,7 +340,7 @@ impl Chain {
 
 	/// Mark this block as dead end, so these tasks won't be synchronized
 	pub fn mark_dead_end_block(&mut self, hash: &H256) {
-		self.dead_end_blocks.insert(hash.clone());
+		self.dead_end_blocks.insert(*hash);
 	}
 
 	/// Insert new best block to storage
@@ -386,7 +386,7 @@ impl Chain {
 				// no transactions to reverify, because we have just appended new transactions to the blockchain
 
 				Ok(BlockInsertionResult {
-					canonized_blocks_hashes: vec![block.hash().clone()],
+					canonized_blocks_hashes: vec![*block.hash()],
 					transactions_to_reverify: Vec::new(),
 				})
 			}
@@ -447,7 +447,7 @@ impl Chain {
 				let verifying_transactions: Vec<IndexedTransaction> = self.verifying_transactions.iter().map(|(_, t)| t.clone()).collect();
 				self.verifying_transactions.clear();
 
-				canonized_blocks_hashes.push(block.hash().clone());
+				canonized_blocks_hashes.push(*block.hash());
 
 				let result = BlockInsertionResult {
 					canonized_blocks_hashes,
@@ -528,7 +528,7 @@ impl Chain {
 	pub fn forget_block_with_children(&mut self, hash: &H256) {
 		let mut removal_stack: VecDeque<H256> = VecDeque::new();
 		let mut removal_queue: VecDeque<H256> = VecDeque::new();
-		removal_queue.push_back(hash.clone());
+		removal_queue.push_back(*hash);
 
 		// remove in reverse order to minimize headers operations
 		while let Some(hash) = removal_queue.pop_front() {
@@ -585,7 +585,7 @@ impl Chain {
 
 		// TODO: suboptimal
 		let mut queue: VecDeque<H256> = VecDeque::new();
-		queue.push_back(hash.clone());
+		queue.push_back(*hash);
 		while let Some(hash) = queue.pop_front() {
 			let all_keys: Vec<_> = self.verifying_transactions.keys().cloned().collect();
 			for h in all_keys {
@@ -617,7 +617,7 @@ impl Chain {
 				.read()
 				.read_by_hash(hash)
 				.cloned()
-				.map(|tx| IndexedTransaction::new(hash.clone(), tx))
+				.map(|tx| IndexedTransaction::new(*hash, tx))
 		})
 	}
 

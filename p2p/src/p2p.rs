@@ -179,7 +179,7 @@ impl Context {
 				.then(move |result| {
 					match result {
 						Ok(DeadlineStatus::Meet(Ok(connection))) => {
-							// successfull hanshake
+							// successful handshake
 							trace!("Connected to {}", connection.address);
 							context.node_table.write().insert(connection.address, connection.services);
 							let channel = context.connections.store::<T>(context.clone(), connection, Direction::Outbound);

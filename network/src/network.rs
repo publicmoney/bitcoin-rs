@@ -5,6 +5,7 @@ use chain::IndexedBlock;
 use compact::Compact;
 use primitives::bigint::U256;
 use primitives::hash::H256;
+use std::fmt;
 
 const MAGIC_MAINNET: u32 = 0xD9B4BEF9;
 const MAGIC_TESTNET: u32 = 0x0709110B;
@@ -91,6 +92,17 @@ impl Network {
 			Network::Testnet => H256::from_reversed_str("000000000871ee6842d3648317ccc8a435eb8cc3c2429aee94faff9ba26b05a0"),
 			_ => *self.genesis_block().hash(),
 		}
+	}
+}
+
+impl fmt::Display for Network {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let network = match *self {
+			Network::Mainnet => "main",
+			Network::Testnet => "test",
+			_ => "other",
+		};
+		write!(f, "{}", network)
 	}
 }
 
