@@ -1,5 +1,5 @@
 use super::super::rpc;
-use crate::util::{init_db, node_table_path};
+use crate::util::{db_path, init_db, node_table_path};
 use crate::{config, p2p, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use primitives::hash::H256;
 use std::net::SocketAddr;
@@ -67,7 +67,7 @@ impl SyncListener for BlockNotifier {
 	fn best_storage_block_inserted(&self, block_hash: &H256) {
 		if !self.is_synchronizing.load(Ordering::SeqCst) {
 			self.tx
-				.send(BlockNotifierTask::NewBlock(block_hash.clone()))
+				.send(BlockNotifierTask::NewBlock(*block_hash))
 				.expect("Block notification thread have the same lifetime as `BlockNotifier`")
 		}
 	}
@@ -118,8 +118,10 @@ pub fn start(cfg: config::Config) -> Result<(), String> {
 		local_sync_node.install_sync_listener(Box::new(BlockNotifier::new(block_notify_command)));
 	}
 
+	let db_path = db_path(&cfg.data_dir);
 	let p2p = p2p::P2P::new(p2p_cfg, sync_connection_factory, el.handle()).map_err(|x| x.to_string())?;
 	let rpc_deps = rpc::Dependencies {
+		db_path,
 		network: cfg.network,
 		storage: cfg.db,
 		local_sync_node,

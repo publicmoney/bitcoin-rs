@@ -6,12 +6,17 @@ use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub fn open_db(data_dir: &Option<String>, db_cache: usize) -> storage::SharedStore {
+pub fn db_path(data_dir: &Option<String>) -> String {
 	let db_path = match *data_dir {
 		Some(ref data_dir) => custom_path(&data_dir, "db"),
 		None => app_dir(AppDataType::UserData, &APP_INFO, "db").expect("Failed to get app dir"),
 	};
-	Arc::new(db::BlockChainDatabase::open_at_path(db_path, db_cache).expect("Failed to open database"))
+	db_path.to_str().unwrap().to_string()
+}
+
+pub fn open_db(data_dir: &Option<String>, db_cache: usize) -> storage::SharedStore {
+	let db_path = db_path(data_dir);
+	Arc::new(db::BlockChainDatabase::open_at_path(PathBuf::from(db_path), db_cache).expect("Failed to open database"))
 }
 
 pub fn node_table_path(cfg: &Config) -> PathBuf {

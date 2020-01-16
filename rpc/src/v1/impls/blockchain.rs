@@ -7,6 +7,7 @@ use network::Network;
 use primitives::hash::H256 as GlobalH256;
 use ser::serialize;
 use std::collections::HashMap;
+use std::fs;
 use storage;
 use v1::helpers::errors::{
 	block_at_height_not_found, block_not_found, transaction_not_found, transaction_of_side_branch, transaction_output_not_found,
@@ -24,6 +25,7 @@ pub struct BlockChainClient<T: BlockChainClientCoreApi> {
 }
 
 pub trait BlockChainClientCoreApi: Send + Sync + 'static {
+	fn size_on_disk(&self) -> u64;
 	fn network(&self) -> String;
 	fn best_block_hash(&self) -> GlobalH256;
 	fn block_count(&self) -> u32;
@@ -38,15 +40,26 @@ pub trait BlockChainClientCoreApi: Send + Sync + 'static {
 pub struct BlockChainClientCore {
 	network: Network,
 	storage: storage::SharedStore,
+	db_path: String,
 }
 
 impl BlockChainClientCore {
-	pub fn new(network: Network, storage: storage::SharedStore) -> Self {
-		BlockChainClientCore { network, storage }
+	pub fn new(network: Network, storage: storage::SharedStore, db_path: String) -> Self {
+		BlockChainClientCore { network, storage, db_path }
 	}
 }
 
 impl BlockChainClientCoreApi for BlockChainClientCore {
+	fn size_on_disk(&self) -> u64 {
+		let paths = fs::read_dir(&self.db_path).unwrap();
+
+		paths
+			.filter_map(|entry| entry.ok())
+			.filter_map(|entry| entry.metadata().ok())
+			.filter(|metadata| metadata.is_file())
+			.fold(0, |acc, m| acc + m.len())
+	}
+
 	fn network(&self) -> String {
 		self.network.to_string()
 	}
@@ -197,7 +210,7 @@ where
 			verificationprogress: 1.0,
 			initialblockdownload: false,
 			chainwork: H256::from(0),
-			size_on_disk: 0,
+			size_on_disk: self.core.size_on_disk(),
 			pruned: false,
 			softforks: HashMap::new(),
 			warnings: "".to_string(),
@@ -291,6 +304,10 @@ pub mod tests {
 	struct ErrorBlockChainClientCore;
 
 	impl BlockChainClientCoreApi for SuccessBlockChainClientCore {
+		fn size_on_disk(&self) -> u64 {
+			42000
+		}
+
 		fn network(&self) -> String {
 			Network::Mainnet.to_string()
 		}
@@ -368,6 +385,10 @@ pub mod tests {
 	}
 
 	impl BlockChainClientCoreApi for ErrorBlockChainClientCore {
+		fn size_on_disk(&self) -> u64 {
+			42000
+		}
+
 		fn network(&self) -> String {
 			Network::Mainnet.to_string()
 		}
@@ -403,6 +424,30 @@ pub mod tests {
 		fn verbose_transaction_out(&self, prev_out: OutPoint) -> Result<GetTxOutResponse, Error> {
 			Err(block_not_found(prev_out.hash))
 		}
+	}
+
+	#[test]
+	fn blockchain_info() {
+		let client = BlockChainClient::new(SuccessBlockChainClientCore::default());
+		let mut handler = IoHandler::new();
+		handler.extend_with(client.to_delegate());
+
+		let sample = handler
+			.handle_request_sync(
+				&(r#"
+			{
+				"jsonrpc": "2.0",
+				"method": "getblockchaininfo",
+				"params": [],
+				"id": 1
+			}"#),
+			)
+			.unwrap();
+
+		assert_eq!(
+			&sample,
+			r#"{"jsonrpc":"2.0","result":{"bestblockhash":"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f","blocks":1,"chain":"main","chainwork":"0000000000000000000000000000000000000000000000000000000000000000","difficulty":1.0,"headers":1,"initialblockdownload":false,"mediantime":3919284,"pruned":false,"size_on_disk":42000,"softforks":{},"verificationprogress":1.0,"warnings":""},"id":1}"#
+		);
 	}
 
 	#[test]
@@ -531,7 +576,7 @@ pub mod tests {
 			test_data::block_h2().into(),
 		]));
 
-		let core = BlockChainClientCore::new(Network::Mainnet, storage);
+		let core = BlockChainClientCore::new(Network::Mainnet, storage, "db_path".to_string());
 
 		// get info on block #1:
 		// https://blockexplorer.com/block/00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
@@ -703,7 +748,7 @@ pub mod tests {
 	#[test]
 	fn verbose_transaction_out_contents() {
 		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let core = BlockChainClientCore::new(Network::Mainnet, storage);
+		let core = BlockChainClientCore::new(Network::Mainnet, storage, "db_path".to_string());
 
 		// get info on tx from genesis block:
 		// https://blockchain.info/ru/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b
