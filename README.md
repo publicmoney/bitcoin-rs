@@ -1,4 +1,4 @@
-# A Bitcoin client written in Rust.
+# A ₿itcoin client written in Rust.
 
 Forked from https://github.com/paritytech/parity-bitcoin at the end of 2019.
 
