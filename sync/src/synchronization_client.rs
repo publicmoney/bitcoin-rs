@@ -2,7 +2,7 @@ use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use message::types;
 use parking_lot::Mutex;
 use std::sync::Arc;
-use synchronization_client_core::{ClientCore, SynchronizationClientCore};
+use synchronization_client_core::{ClientCore, Information, SynchronizationClientCore};
 use synchronization_executor::TaskExecutor;
 use synchronization_verifier::{TransactionVerificationSink, Verifier};
 use types::{ClientCoreRef, EmptyBoxFuture, PeerIndex, SyncListenerRef, SynchronizationStateRef};
@@ -121,6 +121,7 @@ use types::{ClientCoreRef, EmptyBoxFuture, PeerIndex, SyncListenerRef, Synchroni
 
 /// Synchronization client trait
 pub trait Client: Send + Sync + 'static {
+	fn information(&self) -> Information;
 	fn on_connect(&self, peer_index: PeerIndex);
 	fn on_disconnect(&self, peer_index: PeerIndex);
 	fn on_inventory(&self, peer_index: PeerIndex, message: types::Inv);
@@ -150,6 +151,10 @@ where
 	T: TaskExecutor,
 	U: Verifier,
 {
+	fn information(&self) -> Information {
+		self.core.lock().information()
+	}
+
 	fn on_connect(&self, peer_index: PeerIndex) {
 		self.core.lock().on_connect(peer_index);
 	}
