@@ -47,7 +47,7 @@ impl BestHeadersChain {
 		self.best.at(height).and_then(|hash| self.headers.get(&hash).cloned())
 	}
 
-	/// Get geader by given hash
+	/// Get header by given hash
 	pub fn by_hash(&self, hash: &H256) -> Option<IndexedBlockHeader> {
 		self.headers.get(hash).cloned()
 	}
@@ -78,7 +78,7 @@ impl BestHeadersChain {
 	pub fn insert(&mut self, header: IndexedBlockHeader) {
 		// append to the best chain
 		if self.best_block_hash() == header.raw.previous_header_hash {
-			let header_hash = header.hash.clone();
+			let header_hash = header.hash;
 			self.headers.insert(header_hash.clone(), header);
 			self.best.push_back(header_hash);
 			return;
@@ -116,7 +116,7 @@ impl BestHeadersChain {
 			self.best.pop_front();
 			self.headers.remove(hash);
 		}
-		self.storage_best_hash = storage_best_hash.clone();
+		self.storage_best_hash = *storage_best_hash;
 	}
 
 	/// Clears headers chain

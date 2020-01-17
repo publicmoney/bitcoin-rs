@@ -9,12 +9,10 @@ use std::cmp::{max, min};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
-#[cfg(test)]
 use synchronization_chain::Information as ChainInformation;
 use synchronization_chain::{BlockInsertionResult, BlockState, Chain, TransactionState};
 use synchronization_executor::{Task, TaskExecutor};
 use synchronization_manager::ManagementWorker;
-#[cfg(test)]
 use synchronization_peers_tasks::Information as PeersTasksInformation;
 use synchronization_peers_tasks::PeersTasks;
 use synchronization_verifier::{BlockVerificationSink, TransactionVerificationSink, VerificationSink, VerificationTask};
@@ -49,14 +47,13 @@ const MAX_BLOCKS_IN_DUPLICATE_REQUEST: BlockHeight = 4;
 const MIN_BLOCKS_IN_DUPLICATE_REQUEST: BlockHeight = 8;
 
 /// Information on current synchronization state.
-#[cfg(test)]
 #[derive(Debug)]
 pub struct Information {
 	/// Current synchronization state.
 	pub state: State,
 	/// Information on synchronization peers.
 	pub peers_tasks: PeersTasksInformation,
-	/// Current synchronization chain inormation.
+	/// Current synchronization chain information.
 	pub chain: ChainInformation,
 	/// Number of currently orphaned blocks.
 	pub orphaned_blocks: usize,
@@ -867,7 +864,6 @@ where
 	}
 
 	/// Get information on current synchronization state.
-	#[cfg(test)]
 	pub fn information(&self) -> Information {
 		Information {
 			state: self.state,

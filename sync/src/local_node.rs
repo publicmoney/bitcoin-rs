@@ -8,6 +8,7 @@ use parking_lot::{Condvar, Mutex};
 use primitives::hash::H256;
 use std::sync::Arc;
 use synchronization_client::Client;
+use synchronization_client_core::Information;
 use synchronization_peers::{BlockAnnouncementType, TransactionAnnouncementType};
 use synchronization_server::{Server, ServerTask};
 use synchronization_verifier::TransactionVerificationSink;
@@ -73,6 +74,10 @@ where
 	/// Return shared reference to synchronization state.
 	pub fn sync_state(&self) -> SynchronizationStateRef {
 		self.state.clone()
+	}
+
+	pub fn information(&self) -> Information {
+		self.client.information()
 	}
 
 	/// When new peer connects to the node

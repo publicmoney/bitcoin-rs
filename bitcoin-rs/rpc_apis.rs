@@ -58,7 +58,13 @@ pub fn setup_rpc(mut handler: MetaIoHandler<()>, apis: ApiSet, deps: Dependencie
 			),
 			Api::Miner => handler.extend_with(MinerClient::new(MinerClientCore::new(deps.local_sync_node.clone())).to_delegate()),
 			Api::BlockChain => handler.extend_with(
-				BlockChainClient::new(BlockChainClientCore::new(deps.network, deps.storage.clone(), deps.db_path.clone())).to_delegate(),
+				BlockChainClient::new(BlockChainClientCore::new(
+					deps.network,
+					deps.storage.clone(),
+					deps.local_sync_node.clone(),
+					deps.db_path.clone(),
+				))
+				.to_delegate(),
 			),
 			Api::Network => handler.extend_with(NetworkClient::new(NetworkClientCore::new(deps.p2p_context.clone())).to_delegate()),
 		}

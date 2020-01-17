@@ -25,8 +25,10 @@ pub struct BlockChainClient<T: BlockChainClientCoreApi> {
 }
 
 pub trait BlockChainClientCoreApi: Send + Sync + 'static {
+	fn is_synchronizing(&self) -> bool;
 	fn size_on_disk(&self) -> u64;
 	fn network(&self) -> String;
+	fn header_count(&self) -> u32;
 	fn best_block_hash(&self) -> GlobalH256;
 	fn block_count(&self) -> u32;
 	fn block_hash(&self, height: u32) -> Option<GlobalH256>;
@@ -40,16 +42,30 @@ pub trait BlockChainClientCoreApi: Send + Sync + 'static {
 pub struct BlockChainClientCore {
 	network: Network,
 	storage: storage::SharedStore,
+	local_sync_node: sync::LocalNodeRef,
 	db_path: String,
 }
 
 impl BlockChainClientCore {
-	pub fn new(network: Network, storage: storage::SharedStore, db_path: String) -> Self {
-		BlockChainClientCore { network, storage, db_path }
+	pub fn new(network: Network, storage: storage::SharedStore, local_sync_node: sync::LocalNodeRef, db_path: String) -> Self {
+		BlockChainClientCore {
+			network,
+			storage,
+			local_sync_node,
+			db_path,
+		}
 	}
 }
 
 impl BlockChainClientCoreApi for BlockChainClientCore {
+	fn header_count(&self) -> u32 {
+		self.block_count() + self.local_sync_node.information().chain.headers.best
+	}
+
+	fn is_synchronizing(&self) -> bool {
+		self.local_sync_node.sync_state().synchronizing()
+	}
+
 	fn size_on_disk(&self) -> u64 {
 		let paths = fs::read_dir(&self.db_path).unwrap();
 
@@ -203,12 +219,12 @@ where
 		Ok(BlockchainInfo {
 			chain: self.core.network(),
 			blocks: self.core.block_count(),
-			headers: self.core.block_count(), // TODO headers can be ahead of blocks
+			headers: self.core.header_count(),
 			bestblockhash: self.best_block_hash().ok(),
 			difficulty: self.difficulty().ok(),
 			mediantime: self.core.median_time(),
 			verificationprogress: 1.0,
-			initialblockdownload: false,
+			initialblockdownload: self.core.is_synchronizing(),
 			chainwork: H256::from(0),
 			size_on_disk: self.core.size_on_disk(),
 			pruned: false,
@@ -304,6 +320,14 @@ pub mod tests {
 	struct ErrorBlockChainClientCore;
 
 	impl BlockChainClientCoreApi for SuccessBlockChainClientCore {
+		fn header_count(&self) -> u32 {
+			1
+		}
+
+		fn is_synchronizing(&self) -> bool {
+			false
+		}
+
 		fn size_on_disk(&self) -> u64 {
 			42000
 		}
@@ -385,6 +409,14 @@ pub mod tests {
 	}
 
 	impl BlockChainClientCoreApi for ErrorBlockChainClientCore {
+		fn header_count(&self) -> u32 {
+			1
+		}
+
+		fn is_synchronizing(&self) -> bool {
+			false
+		}
+
 		fn size_on_disk(&self) -> u64 {
 			42000
 		}

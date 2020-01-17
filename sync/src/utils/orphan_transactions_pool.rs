@@ -35,7 +35,6 @@ impl OrphanTransactionsPool {
 		}
 	}
 
-	#[cfg(test)]
 	/// Get total number of transactions in pool
 	pub fn len(&self) -> usize {
 		self.by_hash.len()
@@ -60,7 +59,7 @@ impl OrphanTransactionsPool {
 
 		for unknown_parent in &unknown_parents {
 			self.by_parent
-				.entry(unknown_parent.clone())
+				.entry(*unknown_parent)
 				.or_insert_with(HashSet::new)
 				.insert(transaction.hash.clone());
 		}
@@ -74,7 +73,7 @@ impl OrphanTransactionsPool {
 		assert!(!self.by_hash.contains_key(hash));
 
 		let mut removal_queue: VecDeque<H256> = VecDeque::new();
-		removal_queue.push_back(hash.clone());
+		removal_queue.push_back(*hash);
 
 		let mut removed_orphans: Vec<IndexedTransaction> = Vec::new();
 		while let Some(hash) = removal_queue.pop_front() {
@@ -88,7 +87,7 @@ impl OrphanTransactionsPool {
 					};
 
 					if all_parents_are_known {
-						removed_orphans_hashes.push(child.clone());
+						removed_orphans_hashes.push(*child);
 						removed_orphans.push(self.by_hash.remove(child).expect("checked couple of lines above").transaction);
 					}
 				}
