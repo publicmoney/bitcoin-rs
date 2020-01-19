@@ -95,7 +95,7 @@ pub struct Information {
 	pub headers: BestHeadersChainInformation,
 }
 
-/// Blockchain from synchroniation point of view, consisting of:
+/// Blockchain from synchronisation point of view, consisting of:
 /// 1) all blocks from the `storage` [oldest blocks]
 /// 2) all blocks currently verifying by `verification_queue`
 /// 3) all blocks currently requested from peers
@@ -579,7 +579,7 @@ impl Chain {
 		self.verifying_transactions.remove(hash).is_some()
 	}
 
-	/// Remove verifying trasaction + all dependent transactions currently verifying
+	/// Remove verifying transaction + all dependent transactions currently verifying
 	pub fn forget_verifying_transaction_with_children(&mut self, hash: &H256) {
 		self.forget_verifying_transaction(hash);
 

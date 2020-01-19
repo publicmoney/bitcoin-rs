@@ -1,17 +1,15 @@
 use super::super::types::{BlockHeight, StorageRef};
 use p2p::InboundSyncConnectionState;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
-// AtomicU32 is unstable => using AtomicUsize here
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// Shared synchronization client state.
-/// It can be slightly innacurate, but the accuracy is not required for it
+/// It can be slightly inaccurate, but that's ok for the uses.
 #[derive(Debug)]
 pub struct SynchronizationState {
 	/// Is synchronization in progress?
 	is_synchronizing: AtomicBool,
 	/// Height of best block in the storage
-	best_storage_block_height: AtomicUsize,
+	best_storage_block_height: AtomicU32,
 }
 
 impl SynchronizationState {
@@ -19,7 +17,7 @@ impl SynchronizationState {
 		let best_storage_block_height = storage.best_block().number;
 		SynchronizationState {
 			is_synchronizing: AtomicBool::new(false),
-			best_storage_block_height: AtomicUsize::new(best_storage_block_height as usize),
+			best_storage_block_height: AtomicU32::new(best_storage_block_height),
 		}
 	}
 
@@ -36,7 +34,7 @@ impl SynchronizationState {
 	}
 
 	pub fn update_best_storage_block_height(&self, height: BlockHeight) {
-		self.best_storage_block_height.store(height as usize, Ordering::SeqCst);
+		self.best_storage_block_height.store(height, Ordering::SeqCst);
 	}
 }
 

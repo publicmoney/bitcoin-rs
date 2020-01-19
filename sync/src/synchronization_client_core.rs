@@ -471,7 +471,7 @@ where
 						blocks_to_verify.extend(self.orphaned_blocks_pool.remove_blocks_for_parent(&block.header.hash));
 						blocks_to_verify.push_front(block);
 						// forget blocks we are going to process
-						let blocks_hashes_to_forget: Vec<_> = blocks_to_verify.iter().map(|b| b.hash().clone()).collect();
+						let blocks_hashes_to_forget: Vec<_> = blocks_to_verify.iter().map(|b| *b.hash()).collect();
 						self.chain.forget_blocks_leave_header(&blocks_hashes_to_forget);
 						// remember that we are verifying these blocks
 						let blocks_headers_to_verify: Vec<_> = blocks_to_verify.iter().map(|b| b.header.clone()).collect();
@@ -621,7 +621,7 @@ where
 			tasks.extend(forced_tasks);
 		}
 
-		// if some blocks requests are marked as last [i.e. blocks are potentialy wrong] => ask peers anyway
+		// if some blocks requests are marked as last [i.e. blocks are potentially wrong] => ask peers anyway
 		if let Some(final_blocks_requests) = final_blocks_requests {
 			let useful_peers = self.peers_tasks.useful_peers();
 			if !useful_peers.is_empty() {
@@ -1338,7 +1338,7 @@ where
 	/// Execute futures, which were waiting for this block verification
 	fn awake_waiting_threads(&mut self, hash: &H256) {
 		// find a peer, which has supplied us with this block
-		if let Entry::Occupied(block_entry) = self.verifying_blocks_by_peer.entry(hash.clone()) {
+		if let Entry::Occupied(block_entry) = self.verifying_blocks_by_peer.entry(*hash) {
 			let peer_index = *block_entry.get();
 			// find a # of blocks, which this thread has supplied
 			if let Entry::Occupied(mut entry) = self.verifying_blocks_futures.entry(peer_index) {
@@ -1424,7 +1424,7 @@ pub mod tests {
 		}
 
 		fn best_storage_block_inserted(&self, block_hash: &H256) {
-			self.data.lock().best_blocks.push(block_hash.clone());
+			self.data.lock().best_blocks.push(*block_hash);
 		}
 	}
 
