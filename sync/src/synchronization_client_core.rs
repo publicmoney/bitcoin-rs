@@ -17,7 +17,9 @@ use synchronization_peers_tasks::Information as PeersTasksInformation;
 use synchronization_peers_tasks::PeersTasks;
 use synchronization_verifier::{BlockVerificationSink, TransactionVerificationSink, VerificationSink, VerificationTask};
 use time::precise_time_s;
-use types::{BlockHeight, ClientCoreRef, EmptyBoxFuture, PeerIndex, PeersRef, SyncListenerRef, SynchronizationStateRef};
+use types::{
+	AverageSpeedMeterRef, BlockHeight, ClientCoreRef, EmptyBoxFuture, PeerIndex, PeersRef, SyncListenerRef, SynchronizationStateRef,
+};
 use utils::{AverageSpeedMeter, HashPosition, MessageBlockHeadersProvider, OrphanBlocksPool, OrphanTransactionsPool};
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 
@@ -37,8 +39,6 @@ const NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_BLOCKS: usize = 20;
 const NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_S: f64 = 20_f64;
 /// Number of blocks to inspect when calculating average sync speed
 const SYNC_SPEED_BLOCKS_TO_INSPECT: usize = 512;
-/// Number of blocks to inspect when calculating average blocks speed
-const BLOCKS_SPEED_BLOCKS_TO_INSPECT: usize = 512;
 /// Minimal time between duplicated blocks requests.
 const MIN_BLOCK_DUPLICATION_INTERVAL_S: f64 = 10_f64;
 /// Maximal number of blocks in duplicate requests.
@@ -121,7 +121,7 @@ pub struct SynchronizationClientCore<T: TaskExecutor> {
 	/// Hashes of items we do not want to relay after verification is completed
 	do_not_relay: HashSet<H256>,
 	/// Block processing speed meter
-	block_speed_meter: AverageSpeedMeter,
+	block_speed_meter: AverageSpeedMeterRef,
 	/// Block synchronization speed meter
 	sync_speed_meter: AverageSpeedMeter,
 	/// Configuration
@@ -213,7 +213,7 @@ where
 			peer_index,
 			types::GetHeaders::with_block_locator_hashes(block_locator_hashes),
 		));
-		// unuseful until respond with headers message
+		// not useful until peer responds with headers message
 		self.peers_tasks.unuseful_peer(peer_index);
 		self.peers_tasks.on_headers_requested(peer_index);
 	}
@@ -830,6 +830,7 @@ where
 		executor: Arc<T>,
 		chain: Chain,
 		chain_verifier: Arc<ChainVerifier>,
+		block_speed_meter: AverageSpeedMeterRef,
 	) -> ClientCoreRef<Self> {
 		let sync = Arc::new(Mutex::new(SynchronizationClientCore {
 			shared_state,
@@ -847,8 +848,8 @@ where
 			verifying_blocks_futures: HashMap::new(),
 			verifying_transactions_sinks: HashMap::new(),
 			do_not_relay: HashSet::new(),
-			block_speed_meter: AverageSpeedMeter::with_inspect_items(SYNC_SPEED_BLOCKS_TO_INSPECT),
-			sync_speed_meter: AverageSpeedMeter::with_inspect_items(BLOCKS_SPEED_BLOCKS_TO_INSPECT),
+			block_speed_meter,
+			sync_speed_meter: AverageSpeedMeter::with_inspect_items(SYNC_SPEED_BLOCKS_TO_INSPECT),
 			config,
 			listener: None,
 			last_dup_time: 0f64,
@@ -1215,6 +1216,7 @@ where
 		} {
 			Ok(insert_result) => {
 				// update shared state
+				self.block_speed_meter.speed();
 				self.shared_state
 					.update_best_storage_block_height(self.chain.best_storage_block().number);
 
@@ -1399,8 +1401,9 @@ pub mod tests {
 	use synchronization_peers::PeersImpl;
 	use synchronization_verifier::tests::DummyVerifier;
 	use types::{ClientCoreRef, PeerIndex, StorageRef, SynchronizationStateRef};
-	use utils::SynchronizationState;
+	use utils::{AverageSpeedMeter, SynchronizationState};
 	use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
+	use BLOCKS_SPEED_BLOCKS_TO_INSPECT;
 
 	#[derive(Default)]
 	struct DummySyncListenerData {
@@ -1441,7 +1444,8 @@ pub mod tests {
 			Some(storage) => storage,
 			None => Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()])),
 		};
-		let sync_state = SynchronizationStateRef::new(SynchronizationState::with_storage(storage.clone()));
+		let block_speed_meter = Arc::new(AverageSpeedMeter::with_inspect_items(BLOCKS_SPEED_BLOCKS_TO_INSPECT));
+		let sync_state = SynchronizationStateRef::new(SynchronizationState::new(storage.clone(), block_speed_meter.clone()));
 		let memory_pool = Arc::new(RwLock::new(MemoryPool::new()));
 		let chain = Chain::new(storage.clone(), memory_pool.clone());
 		let executor = DummyTaskExecutor::new();
@@ -1457,6 +1461,7 @@ pub mod tests {
 			executor.clone(),
 			chain,
 			chain_verifier.clone(),
+			block_speed_meter,
 		);
 		{
 			client_core.lock().set_verify_headers(false);

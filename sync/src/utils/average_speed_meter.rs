@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::Mutex;
 use time;
 
 /// Speed meter with given items number
@@ -7,11 +8,11 @@ pub struct AverageSpeedMeter {
 	/// Number of items to inspect
 	inspect_items: usize,
 	/// Number of items currently inspected
-	inspected_items: VecDeque<f64>,
+	inspected_items: Mutex<VecDeque<f64>>,
 	/// Current speed
-	speed: f64,
+	speed: Mutex<f64>,
 	/// Last timestamp
-	last_timestamp: Option<f64>,
+	last_timestamp: Mutex<Option<f64>>,
 }
 
 impl AverageSpeedMeter {
@@ -19,14 +20,15 @@ impl AverageSpeedMeter {
 		assert!(inspect_items > 0);
 		AverageSpeedMeter {
 			inspect_items,
-			inspected_items: VecDeque::with_capacity(inspect_items),
-			speed: 0_f64,
-			last_timestamp: None,
+			inspected_items: Mutex::new(VecDeque::with_capacity(inspect_items)),
+			speed: Mutex::new(0_f64),
+			last_timestamp: Mutex::new(None),
 		}
 	}
 
 	pub fn speed(&self) -> f64 {
-		let items_per_second = 1_f64 / self.speed;
+		let speed = self.speed.lock().unwrap();
+		let items_per_second = 1_f64 / *speed;
 		if items_per_second.is_normal() {
 			items_per_second
 		} else {
@@ -35,31 +37,39 @@ impl AverageSpeedMeter {
 	}
 
 	pub fn inspected_items_len(&self) -> usize {
-		self.inspected_items.len()
+		self.inspected_items.lock().unwrap().len()
 	}
 
-	pub fn checkpoint(&mut self) {
+	pub fn checkpoint(&self) {
+		let mut speed = self.speed.lock().unwrap();
+		let mut inspected_items = self.inspected_items.lock().unwrap();
 		// if inspected_items is already full => remove oldest item from average
-		if self.inspected_items.len() == self.inspect_items {
-			let oldest = self.inspected_items.pop_front().expect("len() is not zero; qed");
-			self.speed = (self.inspect_items as f64 * self.speed - oldest) / (self.inspect_items as f64 - 1_f64);
+		if inspected_items.len() == self.inspect_items {
+			let oldest = inspected_items.pop_front().expect("len() is not zero; qed");
+			*speed = (self.inspect_items as f64 * *speed - oldest) / (self.inspect_items as f64 - 1_f64);
 		}
 
 		// add new item
 		let now = time::precise_time_s();
-		if let Some(last_timestamp) = self.last_timestamp {
+		let mut last_timestamp = self.last_timestamp.lock().unwrap();
+		if let Some(last_timestamp) = *last_timestamp {
 			let newest = now - last_timestamp;
-			self.speed = (self.inspected_items.len() as f64 * self.speed + newest) / (self.inspected_items.len() as f64 + 1_f64);
-			self.inspected_items.push_back(newest);
+			*speed = (inspected_items.len() as f64 * *speed + newest) / (inspected_items.len() as f64 + 1_f64);
+			inspected_items.push_back(newest);
 		}
-		self.last_timestamp = Some(now);
+		*last_timestamp = Some(now);
 	}
 
-	pub fn start(&mut self) {
-		self.last_timestamp = Some(time::precise_time_s());
+	pub fn start(&self) {
+		*self.last_timestamp.lock().unwrap() = Some(time::precise_time_s());
 	}
 
-	pub fn stop(&mut self) {
-		self.last_timestamp = None;
+	pub fn stop(&self) {
+		*self.last_timestamp.lock().unwrap() = None;
+	}
+
+	#[cfg(test)]
+	pub fn set_speed(&self, new_speed: f64) {
+		*self.speed.lock().unwrap() = new_speed
 	}
 }

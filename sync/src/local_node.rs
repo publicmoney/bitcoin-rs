@@ -89,6 +89,7 @@ where
 			self.peers
 				.set_transaction_announcement_type(peer_index, TransactionAnnouncementType::DoNotAnnounce);
 		}
+		version.start_height().map(|height| self.state.update_best_peer_block(height));
 
 		// start synchronization session with peer
 		self.client.on_connect(peer_index);
@@ -340,8 +341,9 @@ pub mod tests {
 	use synchronization_server::ServerTask;
 	use synchronization_verifier::tests::DummyVerifier;
 	use types::SynchronizationStateRef;
-	use utils::SynchronizationState;
+	use utils::{AverageSpeedMeter, SynchronizationState};
 	use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
+	use BLOCKS_SPEED_BLOCKS_TO_INSPECT;
 
 	pub fn default_filterload() -> types::FilterLoad {
 		types::FilterLoad {
@@ -365,7 +367,8 @@ pub mod tests {
 	) {
 		let memory_pool = Arc::new(RwLock::new(MemoryPool::new()));
 		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let sync_state = SynchronizationStateRef::new(SynchronizationState::with_storage(storage.clone()));
+		let block_speed_meter = Arc::new(AverageSpeedMeter::with_inspect_items(BLOCKS_SPEED_BLOCKS_TO_INSPECT));
+		let sync_state = SynchronizationStateRef::new(SynchronizationState::new(storage.clone(), block_speed_meter.clone()));
 		let chain = Chain::new(storage.clone(), memory_pool.clone());
 		let sync_peers = Arc::new(PeersImpl::default());
 		let executor = DummyTaskExecutor::new();
@@ -381,6 +384,7 @@ pub mod tests {
 			executor.clone(),
 			chain,
 			chain_verifier,
+			block_speed_meter,
 		);
 		let mut verifier = match verifier {
 			Some(verifier) => verifier,

@@ -10,7 +10,7 @@ use synchronization_executor::LocalSynchronizationTaskExecutor;
 use synchronization_peers::Peers;
 use synchronization_server::ServerImpl;
 use synchronization_verifier::AsyncVerifier;
-use utils::SynchronizationState;
+use utils::{AverageSpeedMeter, SynchronizationState};
 
 pub use utils::BlockHeight;
 
@@ -52,3 +52,5 @@ pub type LocalNodeRef = Arc<LocalNode<ServerImpl, SynchronizationClient<LocalSyn
 
 /// Synchronization events listener reference
 pub type SyncListenerRef = Box<dyn SyncListener>;
+
+pub type AverageSpeedMeterRef = Arc<AverageSpeedMeter>;
