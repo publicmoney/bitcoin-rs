@@ -26,6 +26,7 @@ pub struct BlockChainClient<T: BlockChainClientCoreApi> {
 
 pub trait BlockChainClientCoreApi: Send + Sync + 'static {
 	fn is_synchronizing(&self) -> bool;
+	fn synchronization_progress(&self) -> f32;
 	fn size_on_disk(&self) -> u64;
 	fn network(&self) -> String;
 	fn header_count(&self) -> u32;
@@ -42,12 +43,12 @@ pub trait BlockChainClientCoreApi: Send + Sync + 'static {
 pub struct BlockChainClientCore {
 	network: Network,
 	storage: storage::SharedStore,
-	local_sync_node: sync::LocalNodeRef,
+	local_sync_node: Option<sync::LocalNodeRef>, // Might be None only in tests.
 	db_path: String,
 }
 
 impl BlockChainClientCore {
-	pub fn new(network: Network, storage: storage::SharedStore, local_sync_node: sync::LocalNodeRef, db_path: String) -> Self {
+	pub fn new(network: Network, storage: storage::SharedStore, local_sync_node: Option<sync::LocalNodeRef>, db_path: String) -> Self {
 		BlockChainClientCore {
 			network,
 			storage,
@@ -58,12 +59,12 @@ impl BlockChainClientCore {
 }
 
 impl BlockChainClientCoreApi for BlockChainClientCore {
-	fn header_count(&self) -> u32 {
-		self.block_count() + self.local_sync_node.information().chain.headers.best
+	fn is_synchronizing(&self) -> bool {
+		self.local_sync_node.as_ref().unwrap().sync_state().synchronizing()
 	}
 
-	fn is_synchronizing(&self) -> bool {
-		self.local_sync_node.sync_state().synchronizing()
+	fn synchronization_progress(&self) -> f32 {
+		self.local_sync_node.as_ref().unwrap().sync_state().synchronization_progress()
 	}
 
 	fn size_on_disk(&self) -> u64 {
@@ -78,6 +79,10 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 
 	fn network(&self) -> String {
 		self.network.to_string()
+	}
+
+	fn header_count(&self) -> u32 {
+		self.block_count() + self.local_sync_node.as_ref().unwrap().information().chain.headers.best
 	}
 
 	fn best_block_hash(&self) -> GlobalH256 {
@@ -223,7 +228,7 @@ where
 			bestblockhash: self.best_block_hash().ok(),
 			difficulty: self.difficulty().ok(),
 			mediantime: self.core.median_time(),
-			verificationprogress: 1.0,
+			verificationprogress: self.core.synchronization_progress(),
 			initialblockdownload: self.core.is_synchronizing(),
 			chainwork: H256::from(0),
 			size_on_disk: self.core.size_on_disk(),
@@ -328,6 +333,10 @@ pub mod tests {
 			false
 		}
 
+		fn synchronization_progress(&self) -> f32 {
+			1.0
+		}
+
 		fn size_on_disk(&self) -> u64 {
 			42000
 		}
@@ -415,6 +424,10 @@ pub mod tests {
 
 		fn is_synchronizing(&self) -> bool {
 			false
+		}
+
+		fn synchronization_progress(&self) -> f32 {
+			1.0
 		}
 
 		fn size_on_disk(&self) -> u64 {
@@ -608,7 +621,7 @@ pub mod tests {
 			test_data::block_h2().into(),
 		]));
 
-		let core = BlockChainClientCore::new(Network::Mainnet, storage, "db_path".to_string());
+		let core = BlockChainClientCore::new(Network::Mainnet, storage, None, "db_path".to_string());
 
 		// get info on block #1:
 		// https://blockexplorer.com/block/00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
@@ -780,7 +793,7 @@ pub mod tests {
 	#[test]
 	fn verbose_transaction_out_contents() {
 		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let core = BlockChainClientCore::new(Network::Mainnet, storage, "db_path".to_string());
+		let core = BlockChainClientCore::new(Network::Mainnet, storage, None, "db_path".to_string());
 
 		// get info on tx from genesis block:
 		// https://blockchain.info/ru/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b

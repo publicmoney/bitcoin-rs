@@ -13,7 +13,7 @@ pub struct Config {
 	pub local_address: SocketAddr,
 	pub services: Services,
 	pub user_agent: String,
-	pub start_height: i32,
+	pub start_height: u32,
 	pub relay: bool,
 }
 

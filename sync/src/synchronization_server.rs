@@ -520,7 +520,7 @@ where
 					return Some(block_number);
 				}
 
-				block_hash = block_header.raw.previous_header_hash;
+				block_hash = *block_header.raw.previous_header_hash.as_ref();
 			}
 		}
 

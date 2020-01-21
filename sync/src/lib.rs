@@ -45,7 +45,11 @@ use network::{ConsensusParams, Network};
 use parking_lot::RwLock;
 use primitives::hash::H256;
 use std::sync::Arc;
+use utils::AverageSpeedMeter;
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
+
+/// Number of blocks to inspect when calculating average blocks speed
+const BLOCKS_SPEED_BLOCKS_TO_INSPECT: usize = 512;
 
 /// Sync errors.
 #[derive(Debug, PartialEq)]
@@ -121,8 +125,9 @@ pub fn create_local_sync_node(
 		memory_pool.accept_zero_fee_transactions();
 	}
 
+	let block_speed_meter = Arc::new(AverageSpeedMeter::with_inspect_items(BLOCKS_SPEED_BLOCKS_TO_INSPECT));
 	let memory_pool = Arc::new(RwLock::new(memory_pool));
-	let sync_state = SynchronizationStateRef::new(SynchronizationState::with_storage(db.clone()));
+	let sync_state = SynchronizationStateRef::new(SynchronizationState::new(db.clone(), block_speed_meter.clone()));
 	let sync_chain = SyncChain::new(db.clone(), memory_pool.clone());
 	peers.require_peer_services(Services::default().with_witness(true));
 	let chain_verifier = Arc::new(ChainVerifier::new(db.clone(), consensus.clone()));
@@ -140,6 +145,7 @@ pub fn create_local_sync_node(
 		sync_executor.clone(),
 		sync_chain,
 		chain_verifier.clone(),
+		block_speed_meter,
 	);
 	let verifier_sink = Arc::new(CoreVerificationSink::new(sync_client_core.clone()));
 	let verifier = AsyncVerifier::new(chain_verifier, db.clone(), memory_pool.clone(), verifier_sink, verification_params);

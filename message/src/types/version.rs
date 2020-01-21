@@ -27,7 +27,7 @@ impl Payload for Version {
 		"version"
 	}
 
-	// version package is an serialization excpetion
+	// version package is an serialization exception
 	fn deserialize_payload<T>(reader: &mut Reader<T>, _version: u32) -> MessageResult<Self>
 	where
 		T: io::Read,
@@ -97,6 +97,13 @@ impl Version {
 			Version::V106(_, ref v) | Version::V70001(_, ref v, _) => Some(v.user_agent.clone()),
 		}
 	}
+
+	pub fn start_height(&self) -> Option<u32> {
+		match *self {
+			Version::V0(_) => None,
+			Version::V106(_, ref v) | Version::V70001(_, ref v, _) => Some(v.start_height),
+		}
+	}
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -112,7 +119,7 @@ pub struct V106 {
 	pub from: NetAddress,
 	pub nonce: u64,
 	pub user_agent: String,
-	pub start_height: i32,
+	pub start_height: u32,
 }
 
 #[derive(Debug, PartialEq, Clone)]

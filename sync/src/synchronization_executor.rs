@@ -94,7 +94,7 @@ impl LocalSynchronizationTaskExecutor {
 	fn execute_block(&self, peer_index: PeerIndex, block: IndexedBlock) {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending block {} to peer#{}", block.hash().to_reversed_str(), peer_index);
-			self.peers.hash_known_as(peer_index, block.hash().clone(), KnownHashType::Block);
+			self.peers.hash_known_as(peer_index, *block.hash(), KnownHashType::Block);
 			let block = types::Block {
 				block: block.to_raw_block(),
 			};
@@ -121,7 +121,7 @@ impl LocalSynchronizationTaskExecutor {
 	fn execute_witness_block(&self, peer_index: PeerIndex, block: IndexedBlock) {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending witness block {} to peer#{}", block.hash().to_reversed_str(), peer_index);
-			self.peers.hash_known_as(peer_index, block.hash().clone(), KnownHashType::Block);
+			self.peers.hash_known_as(peer_index, *block.hash(), KnownHashType::Block);
 			let block = types::Block {
 				block: block.to_raw_block(),
 			};
@@ -186,10 +186,7 @@ impl LocalSynchronizationTaskExecutor {
 		for peer_index in self.peers.enumerate() {
 			match self.peers.filter_block(peer_index, &block) {
 				BlockAnnouncementType::SendInventory => {
-					self.execute_inventory(
-						peer_index,
-						types::Inv::with_inventory(vec![InventoryVector::block(block.hash().clone())]),
-					);
+					self.execute_inventory(peer_index, types::Inv::with_inventory(vec![InventoryVector::block(*block.hash())]));
 				}
 				BlockAnnouncementType::SendHeaders => {
 					self.execute_headers(peer_index, types::Headers::with_headers(vec![block.header.raw.clone()]), None);
