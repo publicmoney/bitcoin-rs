@@ -19,7 +19,6 @@ extern crate script as global_script;
 extern crate serialization as ser;
 extern crate storage;
 extern crate sync;
-extern crate tokio_core;
 extern crate verification;
 
 pub mod rpc_server;

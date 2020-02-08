@@ -19,8 +19,8 @@ pub fn open_db(data_dir: &Option<String>, db_cache: usize) -> storage::SharedSto
 	Arc::new(db::BlockChainDatabase::open_at_path(PathBuf::from(db_path), db_cache).expect("Failed to open database"))
 }
 
-pub fn node_table_path(cfg: &Config) -> PathBuf {
-	let mut node_table = match cfg.data_dir {
+pub fn node_table_path(data_dir: &Option<String>) -> PathBuf {
+	let mut node_table = match data_dir {
 		Some(ref data_dir) => custom_path(&data_dir, "p2p"),
 		None => app_dir(AppDataType::UserData, &APP_INFO, "p2p").expect("Failed to get app dir"),
 	};

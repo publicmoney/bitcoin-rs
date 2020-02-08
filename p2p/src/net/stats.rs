@@ -1,8 +1,8 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::time::Instant;
-use util::interval::{Interval, RealInterval};
 
+use crate::util::interval::{Interval, RealInterval};
 use message::types::{Ping, Pong};
 use message::{Command, Payload};
 
@@ -147,7 +147,7 @@ impl<I: Interval> PeerStats<I> {
 mod tests {
 
 	use super::{Flow, PeerStats, RunningAverage};
-	use util::interval::{FixedIntervalSpawner, RealInterval};
+	use crate::util::interval::{FixedIntervalSpawner, RealInterval};
 
 	#[test]
 	fn avg() {

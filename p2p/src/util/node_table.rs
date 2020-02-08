@@ -1,3 +1,5 @@
+use crate::util::time::{RealTime, Time};
+use crate::util::InternetProtocol;
 use csv;
 use message::common::{NetAddress, Services};
 use message::types::addr::AddressEntry;
@@ -6,8 +8,6 @@ use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::net::SocketAddr;
 use std::{fs, io, net, path};
-use util::time::{RealTime, Time};
-use util::InternetProtocol;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Node {
@@ -449,11 +449,11 @@ where
 #[cfg(test)]
 mod tests {
 	use super::NodeTable;
+	use crate::util::time::{IncrementalTime, ZeroTime};
+	use crate::InternetProtocol;
 	use message::common::Services;
 	use std::collections::HashSet;
 	use std::net::SocketAddr;
-	use util::time::{IncrementalTime, ZeroTime};
-	use util::InternetProtocol;
 
 	#[test]
 	fn test_node_table_insert() {

@@ -210,70 +210,70 @@ pub mod tests {
 	}
 
 	impl OutboundSyncConnection for DummyOutboundSyncConnection {
-		fn send_inventory(&self, _message: &types::Inv) {
+		fn send_inventory(&self, _message: types::Inv) {
 			*self.messages.lock().entry("inventory".to_owned()).or_insert(0) += 1;
 		}
-		fn send_getdata(&self, _message: &types::GetData) {
+		fn send_getdata(&self, _message: types::GetData) {
 			*self.messages.lock().entry("getdata".to_owned()).or_insert(0) += 1;
 		}
-		fn send_getblocks(&self, _message: &types::GetBlocks) {
+		fn send_getblocks(&self, _message: types::GetBlocks) {
 			*self.messages.lock().entry("getblocks".to_owned()).or_insert(0) += 1;
 		}
-		fn send_getheaders(&self, _message: &types::GetHeaders) {
+		fn send_getheaders(&self, _message: types::GetHeaders) {
 			*self.messages.lock().entry("getheaders".to_owned()).or_insert(0) += 1;
 		}
-		fn send_transaction(&self, _message: &types::Tx) {
+		fn send_transaction(&self, _message: types::Tx) {
 			*self.messages.lock().entry("transaction".to_owned()).or_insert(0) += 1;
 		}
-		fn send_block(&self, _message: &types::Block) {
+		fn send_block(&self, _message: types::Block) {
 			*self.messages.lock().entry("block".to_owned()).or_insert(0) += 1;
 		}
-		fn send_witness_transaction(&self, _message: &types::Tx) {
+		fn send_witness_transaction(&self, _message: types::Tx) {
 			*self.messages.lock().entry("witness_transaction".to_owned()).or_insert(0) += 1;
 		}
-		fn send_witness_block(&self, _message: &types::Block) {
+		fn send_witness_block(&self, _message: types::Block) {
 			*self.messages.lock().entry("witness_block".to_owned()).or_insert(0) += 1;
 		}
-		fn send_headers(&self, _message: &types::Headers) {
+		fn send_headers(&self, _message: types::Headers) {
 			*self.messages.lock().entry("headers".to_owned()).or_insert(0) += 1;
 		}
-		fn respond_headers(&self, _message: &types::Headers, _id: RequestId) {
+		fn respond_headers(&self, _message: types::Headers, _id: RequestId) {
 			*self.messages.lock().entry("headers".to_owned()).or_insert(0) += 1;
 		}
-		fn send_mempool(&self, _message: &types::MemPool) {
+		fn send_mempool(&self, _message: types::MemPool) {
 			*self.messages.lock().entry("mempool".to_owned()).or_insert(0) += 1;
 		}
-		fn send_filterload(&self, _message: &types::FilterLoad) {
+		fn send_filterload(&self, _message: types::FilterLoad) {
 			*self.messages.lock().entry("filterload".to_owned()).or_insert(0) += 1;
 		}
-		fn send_filteradd(&self, _message: &types::FilterAdd) {
+		fn send_filteradd(&self, _message: types::FilterAdd) {
 			*self.messages.lock().entry("filteradd".to_owned()).or_insert(0) += 1;
 		}
-		fn send_filterclear(&self, _message: &types::FilterClear) {
+		fn send_filterclear(&self, _message: types::FilterClear) {
 			*self.messages.lock().entry("filterclear".to_owned()).or_insert(0) += 1;
 		}
-		fn send_merkleblock(&self, _message: &types::MerkleBlock) {
+		fn send_merkleblock(&self, _message: types::MerkleBlock) {
 			*self.messages.lock().entry("merkleblock".to_owned()).or_insert(0) += 1;
 		}
-		fn send_sendheaders(&self, _message: &types::SendHeaders) {
+		fn send_sendheaders(&self, _message: types::SendHeaders) {
 			*self.messages.lock().entry("sendheaders".to_owned()).or_insert(0) += 1;
 		}
-		fn send_feefilter(&self, _message: &types::FeeFilter) {
+		fn send_feefilter(&self, _message: types::FeeFilter) {
 			*self.messages.lock().entry("feefilter".to_owned()).or_insert(0) += 1;
 		}
-		fn send_send_compact(&self, _message: &types::SendCompact) {
+		fn send_send_compact(&self, _message: types::SendCompact) {
 			*self.messages.lock().entry("sendcompact".to_owned()).or_insert(0) += 1;
 		}
-		fn send_compact_block(&self, _message: &types::CompactBlock) {
+		fn send_compact_block(&self, _message: types::CompactBlock) {
 			*self.messages.lock().entry("cmpctblock".to_owned()).or_insert(0) += 1;
 		}
-		fn send_get_block_txn(&self, _message: &types::GetBlockTxn) {
+		fn send_get_block_txn(&self, _message: types::GetBlockTxn) {
 			*self.messages.lock().entry("getblocktxn".to_owned()).or_insert(0) += 1;
 		}
-		fn send_block_txn(&self, _message: &types::BlockTxn) {
+		fn send_block_txn(&self, _message: types::BlockTxn) {
 			*self.messages.lock().entry("blocktxn".to_owned()).or_insert(0) += 1;
 		}
-		fn send_notfound(&self, _message: &types::NotFound) {
+		fn send_notfound(&self, _message: types::NotFound) {
 			*self.messages.lock().entry("notfound".to_owned()).or_insert(0) += 1;
 		}
 		fn ignored(&self, _id: RequestId) {}

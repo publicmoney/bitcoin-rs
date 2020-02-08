@@ -1,7 +1,8 @@
-use bytes::Bytes;
-use message::{deserialize_payload, types, Command, Error, Payload, Services};
-use net::PeerContext;
-use protocol::Protocol;
+use crate::bytes::Bytes;
+use crate::io::Error;
+use crate::net::PeerContext;
+use crate::protocol::Protocol;
+use message::{deserialize_payload, types, Command, Payload, Services};
 use ser::SERIALIZE_TRANSACTION_WITNESS;
 use std::sync::Arc;
 
@@ -44,28 +45,28 @@ pub trait InboundSyncConnection: Send + Sync {
 }
 
 pub trait OutboundSyncConnection: Send + Sync {
-	fn send_inventory(&self, message: &types::Inv);
-	fn send_getdata(&self, message: &types::GetData);
-	fn send_getblocks(&self, message: &types::GetBlocks);
-	fn send_getheaders(&self, message: &types::GetHeaders);
-	fn send_transaction(&self, message: &types::Tx);
-	fn send_block(&self, message: &types::Block);
-	fn send_witness_transaction(&self, message: &types::Tx);
-	fn send_witness_block(&self, message: &types::Block);
-	fn send_headers(&self, message: &types::Headers);
-	fn respond_headers(&self, message: &types::Headers, id: u32);
-	fn send_mempool(&self, message: &types::MemPool);
-	fn send_filterload(&self, message: &types::FilterLoad);
-	fn send_filteradd(&self, message: &types::FilterAdd);
-	fn send_filterclear(&self, message: &types::FilterClear);
-	fn send_merkleblock(&self, message: &types::MerkleBlock);
-	fn send_sendheaders(&self, message: &types::SendHeaders);
-	fn send_feefilter(&self, message: &types::FeeFilter);
-	fn send_send_compact(&self, message: &types::SendCompact);
-	fn send_compact_block(&self, message: &types::CompactBlock);
-	fn send_get_block_txn(&self, message: &types::GetBlockTxn);
-	fn send_block_txn(&self, message: &types::BlockTxn);
-	fn send_notfound(&self, message: &types::NotFound);
+	fn send_inventory(&self, message: types::Inv);
+	fn send_getdata(&self, message: types::GetData);
+	fn send_getblocks(&self, message: types::GetBlocks);
+	fn send_getheaders(&self, message: types::GetHeaders);
+	fn send_transaction(&self, message: types::Tx);
+	fn send_block(&self, message: types::Block);
+	fn send_witness_transaction(&self, message: types::Tx);
+	fn send_witness_block(&self, message: types::Block);
+	fn send_headers(&self, message: types::Headers);
+	fn respond_headers(&self, message: types::Headers, id: u32);
+	fn send_mempool(&self, message: types::MemPool);
+	fn send_filterload(&self, message: types::FilterLoad);
+	fn send_filteradd(&self, message: types::FilterAdd);
+	fn send_filterclear(&self, message: types::FilterClear);
+	fn send_merkleblock(&self, message: types::MerkleBlock);
+	fn send_sendheaders(&self, message: types::SendHeaders);
+	fn send_feefilter(&self, message: types::FeeFilter);
+	fn send_send_compact(&self, message: types::SendCompact);
+	fn send_compact_block(&self, message: types::CompactBlock);
+	fn send_get_block_txn(&self, message: types::GetBlockTxn);
+	fn send_block_txn(&self, message: types::BlockTxn);
+	fn send_notfound(&self, message: types::NotFound);
 	fn ignored(&self, id: u32);
 	fn close(&self);
 }
@@ -81,91 +82,91 @@ impl OutboundSync {
 }
 
 impl OutboundSyncConnection for OutboundSync {
-	fn send_inventory(&self, message: &types::Inv) {
+	fn send_inventory(&self, message: types::Inv) {
 		self.context.send_request(message);
 	}
 
-	fn send_getdata(&self, message: &types::GetData) {
+	fn send_getdata(&self, message: types::GetData) {
 		self.context.send_request(message);
 	}
 
-	fn send_getblocks(&self, message: &types::GetBlocks) {
+	fn send_getblocks(&self, message: types::GetBlocks) {
 		self.context.send_request(message);
 	}
 
-	fn send_getheaders(&self, message: &types::GetHeaders) {
+	fn send_getheaders(&self, message: types::GetHeaders) {
 		self.context.send_request(message);
 	}
 
-	fn send_transaction(&self, message: &types::Tx) {
+	fn send_transaction(&self, message: types::Tx) {
 		self.context.send_request(message);
 	}
 
-	fn send_block(&self, message: &types::Block) {
+	fn send_block(&self, message: types::Block) {
 		self.context.send_request(message);
 	}
 
-	fn send_witness_transaction(&self, message: &types::Tx) {
+	fn send_witness_transaction(&self, message: types::Tx) {
 		self.context.send_request_with_flags(message, SERIALIZE_TRANSACTION_WITNESS);
 	}
 
-	fn send_witness_block(&self, message: &types::Block) {
+	fn send_witness_block(&self, message: types::Block) {
 		self.context.send_request_with_flags(message, SERIALIZE_TRANSACTION_WITNESS);
 	}
 
-	fn send_headers(&self, message: &types::Headers) {
+	fn send_headers(&self, message: types::Headers) {
 		self.context.send_request(message);
 	}
 
-	fn respond_headers(&self, message: &types::Headers, id: u32) {
+	fn respond_headers(&self, message: types::Headers, id: u32) {
 		self.context.send_response(message, id, true);
 	}
 
-	fn send_mempool(&self, message: &types::MemPool) {
+	fn send_mempool(&self, message: types::MemPool) {
 		self.context.send_request(message);
 	}
 
-	fn send_filterload(&self, message: &types::FilterLoad) {
+	fn send_filterload(&self, message: types::FilterLoad) {
 		self.context.send_request(message);
 	}
 
-	fn send_filteradd(&self, message: &types::FilterAdd) {
+	fn send_filteradd(&self, message: types::FilterAdd) {
 		self.context.send_request(message);
 	}
 
-	fn send_filterclear(&self, message: &types::FilterClear) {
+	fn send_filterclear(&self, message: types::FilterClear) {
 		self.context.send_request(message);
 	}
 
-	fn send_merkleblock(&self, message: &types::MerkleBlock) {
+	fn send_merkleblock(&self, message: types::MerkleBlock) {
 		self.context.send_request(message);
 	}
 
-	fn send_sendheaders(&self, message: &types::SendHeaders) {
+	fn send_sendheaders(&self, message: types::SendHeaders) {
 		self.context.send_request(message);
 	}
 
-	fn send_feefilter(&self, message: &types::FeeFilter) {
+	fn send_feefilter(&self, message: types::FeeFilter) {
 		self.context.send_request(message);
 	}
 
-	fn send_send_compact(&self, message: &types::SendCompact) {
+	fn send_send_compact(&self, message: types::SendCompact) {
 		self.context.send_request(message);
 	}
 
-	fn send_compact_block(&self, message: &types::CompactBlock) {
+	fn send_compact_block(&self, message: types::CompactBlock) {
 		self.context.send_request(message);
 	}
 
-	fn send_get_block_txn(&self, message: &types::GetBlockTxn) {
+	fn send_get_block_txn(&self, message: types::GetBlockTxn) {
 		self.context.send_request(message);
 	}
 
-	fn send_block_txn(&self, message: &types::BlockTxn) {
+	fn send_block_txn(&self, message: types::BlockTxn) {
 		self.context.send_request(message);
 	}
 
-	fn send_notfound(&self, message: &types::NotFound) {
+	fn send_notfound(&self, message: types::NotFound) {
 		self.context.send_request(message);
 	}
 

@@ -62,7 +62,7 @@ pub enum Error {
 	Verification(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Verification parameters.
 pub struct VerificationParameters {
 	/// Blocks verification level.

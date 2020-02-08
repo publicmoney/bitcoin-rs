@@ -143,6 +143,7 @@ impl AsyncVerifier {
 		work_receiver: Receiver<VerificationTask>,
 	) {
 		while let Ok(task) = work_receiver.recv() {
+			trace!(target: "sync", "Received new verification task {:?}", task);
 			if !AsyncVerifier::execute_single_task(&sink, &storage, &memory_pool, &verifier, task) {
 				break;
 			}

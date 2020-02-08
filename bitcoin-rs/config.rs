@@ -24,7 +24,6 @@ pub struct Config {
 	pub quiet: bool,
 	pub inbound_connections: u32,
 	pub outbound_connections: u32,
-	pub p2p_threads: usize,
 	pub db_cache: usize,
 	pub data_dir: Option<String>,
 	pub user_agent: String,
@@ -63,11 +62,6 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 	let (in_connections, out_connections) = match network {
 		Network::Testnet | Network::Mainnet | Network::Other(_) => (10, 10),
 		Network::Regtest | Network::Unitest => (1, 0),
-	};
-
-	let p2p_threads = match network {
-		Network::Testnet | Network::Mainnet | Network::Other(_) => 4,
-		Network::Regtest | Network::Unitest => 1,
 	};
 
 	let user_agent = match network {
@@ -149,7 +143,6 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 		seednodes,
 		inbound_connections: in_connections,
 		outbound_connections: out_connections,
-		p2p_threads,
 		db_cache,
 		data_dir,
 		user_agent,

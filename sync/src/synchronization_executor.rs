@@ -70,7 +70,7 @@ impl LocalSynchronizationTaskExecutor {
 	fn execute_getdata(&self, peer_index: PeerIndex, getdata: types::GetData) {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Querying {} unknown items from peer#{}", getdata.inventory.len(), peer_index);
-			connection.send_getdata(&getdata);
+			connection.send_getdata(getdata);
 		}
 	}
 
@@ -79,7 +79,7 @@ impl LocalSynchronizationTaskExecutor {
 			if !getheaders.block_locator_hashes.is_empty() {
 				trace!(target: "sync", "Querying headers starting with {} unknown items from peer#{}", getheaders.block_locator_hashes[0].to_reversed_str(), peer_index);
 			}
-			connection.send_getheaders(&getheaders);
+			connection.send_getheaders(getheaders);
 		}
 	}
 
@@ -87,7 +87,7 @@ impl LocalSynchronizationTaskExecutor {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Querying memory pool contents from peer#{}", peer_index);
 			let mempool = types::MemPool;
-			connection.send_mempool(&mempool);
+			connection.send_mempool(mempool);
 		}
 	}
 
@@ -98,7 +98,7 @@ impl LocalSynchronizationTaskExecutor {
 			let block = types::Block {
 				block: block.to_raw_block(),
 			};
-			connection.send_block(&block);
+			connection.send_block(block);
 		}
 	}
 
@@ -106,7 +106,7 @@ impl LocalSynchronizationTaskExecutor {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending merkle block {} to peer#{}", hash.to_reversed_str(), peer_index);
 			self.peers.hash_known_as(peer_index, hash, KnownHashType::Block);
-			connection.send_merkleblock(&block);
+			connection.send_merkleblock(block);
 		}
 	}
 
@@ -114,7 +114,7 @@ impl LocalSynchronizationTaskExecutor {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending compact block {} to peer#{}", hash.to_reversed_str(), peer_index);
 			self.peers.hash_known_as(peer_index, hash, KnownHashType::CompactBlock);
-			connection.send_compact_block(&block);
+			connection.send_compact_block(block);
 		}
 	}
 
@@ -125,7 +125,7 @@ impl LocalSynchronizationTaskExecutor {
 			let block = types::Block {
 				block: block.to_raw_block(),
 			};
-			connection.send_witness_block(&block);
+			connection.send_witness_block(block);
 		}
 	}
 
@@ -136,7 +136,7 @@ impl LocalSynchronizationTaskExecutor {
 			let transaction = types::Tx {
 				transaction: transaction.raw,
 			};
-			connection.send_transaction(&transaction);
+			connection.send_transaction(transaction);
 		}
 	}
 
@@ -147,28 +147,28 @@ impl LocalSynchronizationTaskExecutor {
 			let transaction = types::Tx {
 				transaction: transaction.raw,
 			};
-			connection.send_witness_transaction(&transaction);
+			connection.send_witness_transaction(transaction);
 		}
 	}
 
 	fn execute_block_txn(&self, peer_index: PeerIndex, blocktxn: types::BlockTxn) {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending blocktxn with {} transactions to peer#{}", blocktxn.request.transactions.len(), peer_index);
-			connection.send_block_txn(&blocktxn);
+			connection.send_block_txn(blocktxn);
 		}
 	}
 
 	fn execute_notfound(&self, peer_index: PeerIndex, notfound: types::NotFound) {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending notfound to peer#{} with {} items", peer_index, notfound.inventory.len());
-			connection.send_notfound(&notfound);
+			connection.send_notfound(notfound);
 		}
 	}
 
 	fn execute_inventory(&self, peer_index: PeerIndex, inventory: types::Inv) {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending inventory to peer#{} with {} items", peer_index, inventory.inventory.len());
-			connection.send_inventory(&inventory);
+			connection.send_inventory(inventory);
 		}
 	}
 
@@ -176,8 +176,8 @@ impl LocalSynchronizationTaskExecutor {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			trace!(target: "sync", "Sending headers to peer#{} with {} items", peer_index, headers.headers.len());
 			match request_id {
-				Some(request_id) => connection.respond_headers(&headers, request_id),
-				None => connection.send_headers(&headers),
+				Some(request_id) => connection.respond_headers(headers, request_id),
+				None => connection.send_headers(headers),
 			}
 		}
 	}

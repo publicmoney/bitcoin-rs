@@ -1,47 +1,30 @@
-use futures::{Future, Poll};
-use io::{accept_handshake, deadline, AcceptHandshake, Deadline};
-use message::MessageResult;
-use net::{Config, Connection};
-use network::Magic;
+use crate::io::{accept_handshake, SharedTcpStream, Error};
+use crate::net::{Config, Connection};
 use std::time::Duration;
-use std::{io, net};
-use tokio_core::net::TcpStream;
-use tokio_core::reactor::Handle;
+use std::net;
+use tokio::net::TcpStream;
+use tokio::time::timeout;
 
-pub fn accept_connection(stream: TcpStream, handle: &Handle, config: &Config, address: net::SocketAddr) -> Deadline<AcceptConnection> {
-	let accept = AcceptConnection {
-		handshake: accept_handshake(stream, config.magic, config.version(&address), config.protocol_minimum),
-		magic: config.magic,
-		address,
+pub async fn accept_connection<'a>(
+	stream: TcpStream,
+	config: &Config,
+	address: net::SocketAddr,
+) -> Result<Connection, Error> {
+
+	let shared_stream: SharedTcpStream = stream.into();
+	let handshake = async {
+
+		let handshake_result = accept_handshake(&shared_stream, config.magic, config.version(&address), config.protocol_minimum).await?;
+
+		Ok(Connection {
+			stream: shared_stream,
+			services: handshake_result.version.services(),
+			version: handshake_result.negotiated_version,
+			version_message: handshake_result.version,
+			magic: config.magic,
+			address
+		})
 	};
 
-	deadline(Duration::new(5, 0), handle, accept).expect("Failed to create timeout")
-}
-
-pub struct AcceptConnection {
-	handshake: AcceptHandshake<TcpStream>,
-	magic: Magic,
-	address: net::SocketAddr,
-}
-
-impl Future for AcceptConnection {
-	type Item = MessageResult<Connection>;
-	type Error = io::Error;
-
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		let (stream, result) = try_ready!(self.handshake.poll());
-		let result = match result {
-			Ok(result) => result,
-			Err(err) => return Ok(Err(err).into()),
-		};
-		let connection = Connection {
-			stream: stream.into(),
-			services: result.version.services(),
-			version: result.negotiated_version,
-			version_message: result.version,
-			magic: self.magic,
-			address: self.address,
-		};
-		Ok(Ok(connection).into())
-	}
+	timeout(Duration::new(5, 0), handshake).await?
 }
