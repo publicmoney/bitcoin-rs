@@ -1,13 +1,12 @@
-use net::{Channel, Connection};
-use p2p::Context;
+use crate::net::{Channel, Connection};
+use crate::p2p::Context;
+use crate::session::SessionFactory;
+use crate::{Direction, PeerId, PeerInfo};
 use parking_lot::RwLock;
-use session::SessionFactory;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::{mem, net};
-use util::{Direction, PeerInfo};
-use PeerId;
 
 const SYNCHRONOUS_RESPONSES: bool = true;
 
@@ -46,7 +45,7 @@ impl Connections {
 	}
 
 	/// Stores new channel.
-	/// Returnes a shared pointer to it.
+	/// Returns a shared pointer to it.
 	pub fn store<T>(&self, context: Arc<Context>, connection: Connection, direction: Direction) -> Arc<Channel>
 	where
 		T: SessionFactory,

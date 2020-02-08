@@ -35,7 +35,7 @@ impl error::Error for Error {
 			Error::Deserialize => "Message Deserialization Error",
 			Error::InvalidCommand => "Invalid Message Command",
 			Error::InvalidMagic => "Invalid Network Magic",
-			Error::InvalidChecksum => "Invalid message chacksum",
+			Error::InvalidChecksum => "Invalid message checksum",
 			Error::InvalidVersion => "Unsupported protocol version",
 		}
 	}

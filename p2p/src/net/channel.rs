@@ -1,7 +1,8 @@
-use io::{read_any_message, ReadAnyMessage, SharedTcpStream};
-use session::Session;
-use tokio_io::io::{write_all, WriteAll};
-use util::PeerInfo;
+use crate::bytes::Bytes;
+use crate::io::{read_any_message, SharedTcpStream, Error};
+use crate::session::Session;
+use crate::PeerInfo;
+use message::Command;
 
 pub struct Channel {
 	stream: SharedTcpStream,
@@ -18,19 +19,19 @@ impl Channel {
 		}
 	}
 
-	pub fn write_message<T>(&self, message: T) -> WriteAll<SharedTcpStream, T>
+	pub async fn write_message<T>(&self, message: T) -> std::io::Result<()>
 	where
 		T: AsRef<[u8]>,
 	{
-		write_all(self.stream.clone(), message)
+		self.stream.write_all(message.as_ref()).await
 	}
 
-	pub fn read_message(&self) -> ReadAnyMessage<SharedTcpStream> {
-		read_any_message(self.stream.clone(), self.peer_info.magic)
+	pub async fn read_message(&self) -> Result<(Command, Bytes), Error> {
+		read_any_message(&self.stream, self.peer_info.magic).await
 	}
 
-	pub fn shutdown(&self) {
-		self.stream.shutdown();
+	pub async fn shutdown(&self) {
+		self.stream.shutdown().await;
 	}
 
 	pub fn version(&self) -> u32 {

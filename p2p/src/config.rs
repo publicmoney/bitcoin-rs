@@ -1,12 +1,9 @@
+use crate::{InternetProtocol, NetConfig};
 use message::common::Services;
-use net::Config as NetConfig;
 use std::{net, path};
-use util::InternetProtocol;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-	/// Number of threads used by p2p thread pool.
-	pub threads: usize,
 	/// Number of inbound connections.
 	pub inbound_connections: u32,
 	/// Number of outbound connections.

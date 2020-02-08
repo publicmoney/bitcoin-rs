@@ -7,7 +7,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
-use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, SyncListener};
+use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, SyncListener, LocalNodeRef};
+use tokio::runtime;
+use tokio::runtime::Runtime;
+use p2p::LocalSyncNodeRef;
 
 enum BlockNotifierTask {
 	NewBlock(H256),
@@ -82,15 +85,32 @@ impl Drop for BlockNotifier {
 	}
 }
 
+/// Setup functions in here spawn new threads (which should be done off the main thread).
 pub fn start(cfg: config::Config) -> Result<(), String> {
-	let mut el = p2p::event_loop();
-
 	init_db(&cfg)?;
 
-	let nodes_path = node_table_path(&cfg);
+	let sync_peers = create_sync_peers();
+	let local_sync_node = create_local_sync_node(cfg.consensus.clone(), cfg.db.clone(), sync_peers.clone(), cfg.verification_params.clone());
+	let sync_connection_factory = create_sync_connection_factory(sync_peers.clone(), local_sync_node.clone());
+
+	if let Some(block_notify_command) = cfg.block_notify_command.clone() {
+		local_sync_node.install_sync_listener(Box::new(BlockNotifier::new(block_notify_command)));
+	}
+
+	let mut threaded_rt: Runtime = runtime::Builder::new()
+		.threaded_scheduler()
+		.enable_io()
+		.enable_time()
+		.build()
+		.expect("Unable to create tokio runtime");
+
+	threaded_rt.block_on(start_async(cfg, sync_connection_factory, local_sync_node))
+}
+
+/// All work that happens in here is handled by the Tokio runtime.
+pub async fn start_async(cfg: config::Config, sync_connection_factory: LocalSyncNodeRef, local_sync_node: LocalNodeRef) -> Result<(), String> {
 
 	let p2p_cfg = p2p::Config {
-		threads: cfg.p2p_threads,
 		inbound_connections: cfg.inbound_connections,
 		outbound_connections: cfg.outbound_connections,
 		connection: p2p::NetConfig {
@@ -105,32 +125,22 @@ pub fn start(cfg: config::Config) -> Result<(), String> {
 		},
 		peers: cfg.connect.map_or_else(|| vec![], |x| vec![x]),
 		seeds: cfg.seednodes,
-		node_table_path: nodes_path,
+		node_table_path: node_table_path(&cfg.data_dir),
 		preferable_services: cfg.services,
 		internet_protocol: cfg.internet_protocol,
 	};
+	let p2p = p2p::P2P::new(p2p_cfg, sync_connection_factory).map_err(|e| e.to_string())?;
 
-	let sync_peers = create_sync_peers();
-	let local_sync_node = create_local_sync_node(cfg.consensus, cfg.db.clone(), sync_peers.clone(), cfg.verification_params);
-	let sync_connection_factory = create_sync_connection_factory(sync_peers.clone(), local_sync_node.clone());
-
-	if let Some(block_notify_command) = cfg.block_notify_command {
-		local_sync_node.install_sync_listener(Box::new(BlockNotifier::new(block_notify_command)));
-	}
-
-	let db_path = db_path(&cfg.data_dir);
-	let p2p = p2p::P2P::new(p2p_cfg, sync_connection_factory, el.handle()).map_err(|x| x.to_string())?;
 	let rpc_deps = rpc::Dependencies {
-		db_path,
+		db_path: db_path(&cfg.data_dir),
 		network: cfg.network,
 		storage: cfg.db,
 		local_sync_node,
 		p2p_context: p2p.context().clone(),
-		remote: el.remote(),
 	};
 	let _rpc_server = rpc::new_http(cfg.rpc_config, rpc_deps)?;
 
-	p2p.run().map_err(|_| "Failed to start p2p module")?;
-	el.run(p2p::forever()).unwrap();
+	p2p.run().await;
+
 	Ok(())
 }

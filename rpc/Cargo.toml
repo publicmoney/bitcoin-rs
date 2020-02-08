@@ -11,7 +11,6 @@ serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 rustc-hex = "2"
-tokio-core = "0.1.1"
 jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-macros = { git = "https://github.com/ethcore/jsonrpc.git" }
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc.git" }

@@ -1,5 +1,5 @@
 use crate::rpc_apis::{self, ApiSet};
-use ethcore_rpc::{start_http, Compatibility, MetaIoHandler, Remote, Server};
+use ethcore_rpc::{start_http, Compatibility, MetaIoHandler, Server};
 use network::Network;
 use p2p;
 use std::io;
@@ -14,7 +14,6 @@ pub struct Dependencies {
 	pub local_sync_node: sync::LocalNodeRef,
 	pub storage: storage::SharedStore,
 	pub p2p_context: Arc<p2p::Context>,
-	pub remote: Remote,
 }
 
 #[derive(Debug, PartialEq)]

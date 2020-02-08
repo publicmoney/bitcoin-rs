@@ -1,38 +1,51 @@
-use futures::{Async, Future, Poll};
-use io::{read_message, write_message, ReadMessage, WriteMessage};
+use crate::io::{read_message, write_message, SharedTcpStream};
 use message::types::{Verack, Version};
-use message::{Error, Message, MessageResult};
+use message::{Error as MessageError, Message};
 use network::Magic;
-use std::{cmp, io};
-use tokio_io::{AsyncRead, AsyncWrite};
+use std::cmp;
+use crate::io::Error;
 
-pub fn handshake<A>(a: A, magic: Magic, version: Version, min_version: u32) -> Handshake<A>
-where
-	A: AsyncWrite + AsyncRead,
-{
-	Handshake {
-		version: version.version(),
-		nonce: version.nonce(),
-		state: HandshakeState::SendVersion(write_message(a, version_message(magic, version))),
-		magic,
-		min_version,
+pub async fn handshake(a: &SharedTcpStream, magic: Magic, version: Version, min_version: u32) -> Result<HandshakeResult, Error> {
+	write_message(a, version_message(magic, &version)).await?;
+
+	let peer_version: Version = read_message(a, magic, 0).await?;
+
+	if peer_version.version() < min_version {
+		return Err(MessageError::InvalidVersion.into());
 	}
+	if let (Some(self_nonce), Some(peer_nonce)) = (version.nonce(), peer_version.nonce()) {
+		if self_nonce == peer_nonce {
+			return Err(MessageError::InvalidVersion.into());
+		}
+	}
+	write_message(a, verack_message(magic)).await?;
+
+	let _: Verack = read_message(a, magic, 0).await?;
+
+	Ok(HandshakeResult {
+		negotiated_version: negotiate_version(version.version(), peer_version.version()),
+		version: peer_version,
+	})
 }
 
-pub fn accept_handshake<A>(a: A, magic: Magic, version: Version, min_version: u32) -> AcceptHandshake<A>
-where
-	A: AsyncWrite + AsyncRead,
-{
-	AcceptHandshake {
-		version: version.version(),
-		nonce: version.nonce(),
-		state: AcceptHandshakeState::ReceiveVersion {
-			local_version: Some(version),
-			future: read_message(a, magic, 0),
-		},
-		magic,
-		min_version,
+pub async fn accept_handshake(a: &SharedTcpStream, magic: Magic, version: Version, min_version: u32) -> Result<HandshakeResult, Error> {
+	let peer_version: Version = read_message(a, magic, 0).await?;
+
+	if peer_version.version() < min_version {
+		return Err(MessageError::InvalidVersion.into());
 	}
+	if let (Some(self_nonce), Some(nonce)) = (version.nonce(), peer_version.nonce()) {
+		if self_nonce == nonce {
+			return Err(MessageError::InvalidVersion.into());
+		}
+	}
+	write_message(a, version_message(magic, &version)).await?;
+	write_message(a, verack_message(magic)).await?;
+
+	Ok(HandshakeResult {
+		negotiated_version: negotiate_version(version.version(), peer_version.version()),
+		version: peer_version,
+	})
 }
 
 pub fn negotiate_version(local: u32, other: u32) -> u32 {
@@ -45,233 +58,24 @@ pub struct HandshakeResult {
 	pub negotiated_version: u32,
 }
 
-fn version_message(magic: Magic, version: Version) -> Message<Version> {
-	Message::new(magic, version.version(), &version).expect("version message should always be serialized correctly")
+fn version_message(magic: Magic, version: &Version) -> Message<Version> {
+	Message::new(magic, version.version(), version).expect("version message should always be serialized correctly")
 }
 
 fn verack_message(magic: Magic) -> Message<Verack> {
 	Message::new(magic, 0, &Verack).expect("verack message should always be serialized correctly")
 }
 
-enum HandshakeState<A> {
-	SendVersion(WriteMessage<Version, A>),
-	ReceiveVersion(ReadMessage<Version, A>),
-	SendVerack {
-		version: Option<Version>,
-		future: WriteMessage<Verack, A>,
-	},
-	ReceiveVerack {
-		version: Option<Version>,
-		future: ReadMessage<Verack, A>,
-	},
-}
-
-enum AcceptHandshakeState<A> {
-	ReceiveVersion {
-		local_version: Option<Version>,
-		future: ReadMessage<Version, A>,
-	},
-	SendVersion {
-		version: Option<Version>,
-		future: WriteMessage<Version, A>,
-	},
-	SendVerack {
-		version: Option<Version>,
-		future: WriteMessage<Verack, A>,
-	},
-}
-
-pub struct Handshake<A> {
-	state: HandshakeState<A>,
-	magic: Magic,
-	version: u32,
-	nonce: Option<u64>,
-	min_version: u32,
-}
-
-pub struct AcceptHandshake<A> {
-	state: AcceptHandshakeState<A>,
-	magic: Magic,
-	version: u32,
-	nonce: Option<u64>,
-	min_version: u32,
-}
-
-impl<A> Future for Handshake<A>
-where
-	A: AsyncRead + AsyncWrite,
-{
-	type Item = (A, MessageResult<HandshakeResult>);
-	type Error = io::Error;
-
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		loop {
-			let next_state = match self.state {
-				HandshakeState::SendVersion(ref mut future) => {
-					let (stream, _) = try_ready!(future.poll());
-					HandshakeState::ReceiveVersion(read_message(stream, self.magic, 0))
-				}
-				HandshakeState::ReceiveVersion(ref mut future) => {
-					let (stream, version) = try_ready!(future.poll());
-					let version = match version {
-						Ok(version) => version,
-						Err(err) => return Ok((stream, Err(err.into())).into()),
-					};
-
-					if version.version() < self.min_version {
-						return Ok((stream, Err(Error::InvalidVersion)).into());
-					}
-					if let (Some(self_nonce), Some(nonce)) = (self.nonce, version.nonce()) {
-						if self_nonce == nonce {
-							return Ok((stream, Err(Error::InvalidVersion)).into());
-						}
-					}
-
-					HandshakeState::SendVerack {
-						version: Some(version),
-						future: write_message(stream, verack_message(self.magic)),
-					}
-				}
-				HandshakeState::SendVerack {
-					ref mut version,
-					ref mut future,
-				} => {
-					let (stream, _) = try_ready!(future.poll());
-
-					let version = version.take().expect("verack must be preceded by version");
-
-					HandshakeState::ReceiveVerack {
-						version: Some(version),
-						future: read_message(stream, self.magic, 0),
-					}
-				}
-				HandshakeState::ReceiveVerack {
-					ref mut version,
-					ref mut future,
-				} => {
-					let (stream, _verack) = try_ready!(future.poll());
-					let version = version.take().expect("verack must be preceded by version");
-
-					let result = HandshakeResult {
-						negotiated_version: negotiate_version(self.version, version.version()),
-						version,
-					};
-
-					return Ok(Async::Ready((stream, Ok(result))));
-				}
-			};
-			self.state = next_state;
-		}
-	}
-}
-
-impl<A> Future for AcceptHandshake<A>
-where
-	A: AsyncRead + AsyncWrite,
-{
-	type Item = (A, MessageResult<HandshakeResult>);
-	type Error = io::Error;
-
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		loop {
-			let next_state = match self.state {
-				AcceptHandshakeState::ReceiveVersion {
-					ref mut local_version,
-					ref mut future,
-				} => {
-					let (stream, version) = try_ready!(future.poll());
-					let version = match version {
-						Ok(version) => version,
-						Err(err) => return Ok((stream, Err(err.into())).into()),
-					};
-
-					if version.version() < self.min_version {
-						return Ok((stream, Err(Error::InvalidVersion)).into());
-					}
-					if let (Some(self_nonce), Some(nonce)) = (self.nonce, version.nonce()) {
-						if self_nonce == nonce {
-							return Ok((stream, Err(Error::InvalidVersion)).into());
-						}
-					}
-
-					let local_version = local_version.take().expect("local version must be set");
-					AcceptHandshakeState::SendVersion {
-						version: Some(version),
-						future: write_message(stream, version_message(self.magic, local_version)),
-					}
-				}
-				AcceptHandshakeState::SendVersion {
-					ref mut version,
-					ref mut future,
-				} => {
-					let (stream, _) = try_ready!(future.poll());
-					AcceptHandshakeState::SendVerack {
-						version: version.take(),
-						future: write_message(stream, verack_message(self.magic)),
-					}
-				}
-				AcceptHandshakeState::SendVerack {
-					ref mut version,
-					ref mut future,
-				} => {
-					let (stream, _) = try_ready!(future.poll());
-
-					let version = version.take().expect("verack must be preceded by version");
-
-					let result = HandshakeResult {
-						negotiated_version: negotiate_version(self.version, version.version()),
-						version,
-					};
-
-					return Ok(Async::Ready((stream, Ok(result))));
-				}
-			};
-			self.state = next_state;
-		}
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::{accept_handshake, handshake, HandshakeResult};
-	use bytes::Bytes;
-	use futures::{Future, Poll};
+	use crate::io::shared_tcp_stream::SharedTcpStream;
 	use message::types::version::{Version, V0, V106, V70001};
 	use message::types::Verack;
-	use message::{Error, Message};
+	use message::{Error as MessageError, Message};
+	use std::error::Error;
 	use network::Network;
 	use ser::Stream;
-	use std::io;
-	use tokio_io::{AsyncRead, AsyncWrite};
-
-	pub struct TestIo {
-		read: io::Cursor<Bytes>,
-		write: Bytes,
-	}
-
-	impl io::Read for TestIo {
-		fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-			io::Read::read(&mut self.read, buf)
-		}
-	}
-
-	impl AsyncRead for TestIo {}
-
-	impl io::Write for TestIo {
-		fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-			io::Write::write(&mut self.write, buf)
-		}
-
-		fn flush(&mut self) -> io::Result<()> {
-			io::Write::flush(&mut self.write)
-		}
-	}
-
-	impl AsyncWrite for TestIo {
-		fn shutdown(&mut self) -> Poll<(), io::Error> {
-			Ok(().into())
-		}
-	}
 
 	fn local_version() -> Version {
 		Version::V70001(
@@ -316,104 +120,84 @@ mod tests {
 		)
 	}
 
-	#[test]
-	fn test_handshake() {
+	#[tokio::test]
+	async fn test_handshake() {
 		let magic = Network::Mainnet.magic();
-		let version = 70012;
 		let local_version = local_version();
 		let remote_version = remote_version();
 
 		let mut remote_stream = Stream::new();
-		remote_stream.append_slice(Message::new(magic, version, &remote_version).unwrap().as_ref());
-		remote_stream.append_slice(Message::new(magic, version, &Verack).unwrap().as_ref());
+		remote_stream.append_slice(Message::new(magic, remote_version.version(), &remote_version).unwrap().as_ref());
+		remote_stream.append_slice(Message::new(magic, remote_version.version(), &Verack).unwrap().as_ref());
+		let shared_stream = SharedTcpStream::new(remote_stream.out());
+
+		let mut expected_stream = Stream::new();
+		expected_stream.append_slice(Message::new(magic, remote_version.version(), &local_version).unwrap().as_ref());
+		expected_stream.append_slice(Message::new(magic, remote_version.version(), &Verack).unwrap().as_ref());
 
 		let expected = HandshakeResult {
 			version: remote_version,
 			negotiated_version: 70001,
 		};
 
-		let mut expected_stream = Stream::new();
-		expected_stream.append_slice(Message::new(magic, version, &local_version).unwrap().as_ref());
-		expected_stream.append_slice(Message::new(magic, version, &Verack).unwrap().as_ref());
-
-		let test_io = TestIo {
-			read: io::Cursor::new(remote_stream.out()),
-			write: Bytes::default(),
-		};
-
-		let hs = handshake(test_io, magic, local_version, 0).wait().unwrap();
-		assert_eq!(hs.0.write, expected_stream.out());
-		assert_eq!(hs.1.unwrap(), expected);
+		let hs = handshake(&shared_stream, magic, local_version, 0).await;
+		assert_eq!(shared_stream.get_written().await, expected_stream.out());
+		assert_eq!(hs.unwrap(), expected);
 	}
 
-	#[test]
-	fn test_accept_handshake() {
+	#[tokio::test]
+	async fn test_accept_handshake() {
 		let magic = Network::Mainnet.magic();
-		let version = 70012;
 		let local_version = local_version();
 		let remote_version = remote_version();
 
 		let mut remote_stream = Stream::new();
-		remote_stream.append_slice(Message::new(magic, version, &remote_version).unwrap().as_ref());
+		remote_stream.append_slice(Message::new(magic, remote_version.version(), &remote_version).unwrap().as_ref());
+		let shared_stream = SharedTcpStream::new(remote_stream.out());
 
-		let test_io = TestIo {
-			read: io::Cursor::new(remote_stream.out()),
-			write: Bytes::default(),
-		};
+		let mut expected_stream = Stream::new();
+		expected_stream.append_slice(Message::new(magic, local_version.version(), &local_version).unwrap().as_ref());
+		expected_stream.append_slice(Message::new(magic, local_version.version(), &Verack).unwrap().as_ref());
 
 		let expected = HandshakeResult {
 			version: remote_version,
 			negotiated_version: 70001,
 		};
 
-		let mut expected_stream = Stream::new();
-		expected_stream.append_slice(Message::new(magic, version, &local_version).unwrap().as_ref());
-		expected_stream.append_slice(Message::new(magic, version, &Verack).unwrap().as_ref());
-
-		let hs = accept_handshake(test_io, magic, local_version, 0).wait().unwrap();
-		assert_eq!(hs.0.write, expected_stream.out());
-		assert_eq!(hs.1.unwrap(), expected);
+		let hs = accept_handshake(&shared_stream, magic, local_version, 0).await;
+		assert_eq!(shared_stream.get_written().await, expected_stream.out());
+		assert_eq!(hs.unwrap(), expected);
 	}
 
-	#[test]
-	fn test_self_handshake() {
+	#[tokio::test]
+	async fn test_self_handshake() {
 		let magic = Network::Mainnet.magic();
-		let version = 70012;
 		let remote_version = local_version();
 		let local_version = local_version();
 
 		let mut remote_stream = Stream::new();
-		remote_stream.append_slice(Message::new(magic, version, &remote_version).unwrap().as_ref());
+		remote_stream.append_slice(Message::new(magic, remote_version.version(), &remote_version).unwrap().as_ref());
+		let shared_stream = SharedTcpStream::new(remote_stream.out());
 
-		let test_io = TestIo {
-			read: io::Cursor::new(remote_stream.out()),
-			write: Bytes::default(),
-		};
+		let expected_error = MessageError::InvalidVersion;
 
-		let expected = Error::InvalidVersion;
-
-		let hs = handshake(test_io, magic, local_version, 0).wait().unwrap();
-		assert_eq!(hs.1.unwrap_err(), expected);
+		let hs = handshake(&shared_stream, magic, local_version, 0).await;
+		assert_eq!(expected_error.description(), hs.unwrap_err().source().unwrap().description());
 	}
 
-	#[test]
-	fn test_accept_self_handshake() {
+	#[tokio::test]
+	async fn test_accept_self_handshake() {
 		let magic = Network::Mainnet.magic();
-		let version = 70012;
 		let remote_version = local_version();
 		let local_version = local_version();
 
 		let mut remote_stream = Stream::new();
-		remote_stream.append_slice(Message::new(magic, version, &remote_version).unwrap().as_ref());
+		remote_stream.append_slice(Message::new(magic, remote_version.version(), &remote_version).unwrap().as_ref());
+		let shared_stream = SharedTcpStream::new(remote_stream.out());
 
-		let test_io = TestIo {
-			read: io::Cursor::new(remote_stream.out()),
-			write: Bytes::default(),
-		};
+		let expected_error = MessageError::InvalidVersion;
 
-		let expected = Error::InvalidVersion;
-
-		let hs = accept_handshake(test_io, magic, local_version, 0).wait().unwrap();
-		assert_eq!(hs.1.unwrap_err(), expected);
+		let hs = accept_handshake(&shared_stream, magic, local_version, 0).await;
+		assert_eq!(expected_error.description(), hs.unwrap_err().source().unwrap().description());
 	}
 }

@@ -1,11 +1,12 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::io::Error;
+use crate::net::PeerContext;
+use crate::protocol::Protocol;
+use crate::Direction;
 use message::types::{Addr, GetAddr};
-use message::{deserialize_payload, Command, Error, Payload};
-use net::PeerContext;
-use protocol::Protocol;
+use message::{deserialize_payload, Command, Payload};
 use std::sync::Arc;
 use std::time::Duration;
-use util::Direction;
 
 pub struct AddrProtocol {
 	/// Context
@@ -26,7 +27,7 @@ impl AddrProtocol {
 impl Protocol for AddrProtocol {
 	fn initialize(&mut self) {
 		if let Direction::Outbound = self.context.info().direction {
-			self.context.send_request(&GetAddr);
+			self.context.send_request(GetAddr);
 		}
 	}
 
@@ -37,7 +38,7 @@ impl Protocol for AddrProtocol {
 			let _: GetAddr = deserialize_payload(payload, self.context.info().version)?;
 			let entries = self.context.global().node_table_entries().into_iter().map(Into::into).collect();
 			let addr = Addr::new(entries);
-			self.context.send_response_inline(&addr);
+			self.context.send_response_inline(addr);
 		} else if command == &Addr::command() {
 			let addr: Addr = deserialize_payload(payload, self.context.info().version)?;
 			match addr {
@@ -78,8 +79,8 @@ impl SeednodeProtocol {
 
 impl Protocol for SeednodeProtocol {
 	fn on_message(&mut self, command: &Command, _payload: &Bytes) -> Result<(), Error> {
-		// Seednodes send addr message more than once with different addresses.
-		// We can't disconenct after first read. Let's delay it by 60 seconds.
+		// Seed nodes send addr message more than once with different addresses.
+		// We can't disconnect after first read. Let's delay it by 60 seconds.
 		if !self.disconnecting && command == &Addr::command() {
 			self.disconnecting = true;
 			let context = self.context.global().clone();

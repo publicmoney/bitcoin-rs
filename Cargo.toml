@@ -12,6 +12,7 @@ env_logger = "0.7"
 app_dirs = { git = "https://github.com/paritytech/app-dirs-rs" }
 libc = "0.2"
 clap = { version = "2", features = ["yaml"] }
+tokio = { version = "0.2.11", features = ["full"] }
 chain = { path = "chain" }
 keys = { path = "keys" }
 message = { path = "message" }

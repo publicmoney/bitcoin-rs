@@ -1,110 +1,58 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::io::{read_header, SharedTcpStream, Error};
 use crypto::checksum;
-use futures::{Async, Future, Poll};
-use io::{read_header, ReadHeader};
-use message::{Command, Error, MessageHeader, MessageResult};
+use message::{Command, Error as MessageError};
 use network::Magic;
-use std::io;
-use tokio_io::io::{read_exact, ReadExact};
-use tokio_io::AsyncRead;
 
-pub fn read_any_message<A>(a: A, magic: Magic) -> ReadAnyMessage<A>
-where
-	A: AsyncRead,
-{
-	ReadAnyMessage {
-		state: ReadAnyMessageState::ReadHeader(read_header(a, magic)),
+pub async fn read_any_message(a: &SharedTcpStream, magic: Magic) -> Result<(Command, Bytes), Error> {
+
+	let header = read_header(&a, magic).await?;
+
+	let mut buf = Bytes::new_with_len(header.len as usize);
+	a.read_exact(buf.as_mut()).await?;
+
+	if checksum(&buf) != header.checksum {
+		return Err(MessageError::InvalidChecksum.into());
 	}
-}
-
-pub enum ReadAnyMessageState<A> {
-	ReadHeader(ReadHeader<A>),
-	ReadPayload {
-		header: MessageHeader,
-		future: ReadExact<A, Bytes>,
-	},
-}
-
-pub struct ReadAnyMessage<A> {
-	state: ReadAnyMessageState<A>,
-}
-
-impl<A> Future for ReadAnyMessage<A>
-where
-	A: AsyncRead,
-{
-	type Item = MessageResult<(Command, Bytes)>;
-	type Error = io::Error;
-
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		loop {
-			let next_state = match self.state {
-				ReadAnyMessageState::ReadHeader(ref mut header) => {
-					let (stream, header) = try_ready!(header.poll());
-					let header = match header {
-						Ok(header) => header,
-						Err(err) => return Ok(Err(err).into()),
-					};
-					ReadAnyMessageState::ReadPayload {
-						future: read_exact(stream, Bytes::new_with_len(header.len as usize)),
-						header,
-					}
-				}
-				ReadAnyMessageState::ReadPayload {
-					ref mut header,
-					ref mut future,
-				} => {
-					let (_stream, bytes) = try_ready!(future.poll());
-					if checksum(&bytes) != header.checksum {
-						return Ok(Err(Error::InvalidChecksum).into());
-					}
-
-					return Ok(Async::Ready(Ok((header.command.clone(), bytes))));
-				}
-			};
-
-			self.state = next_state;
-		}
-	}
+	Ok((header.command.clone(), buf.into()))
 }
 
 #[cfg(test)]
 mod tests {
 	use super::read_any_message;
-	use bytes::Bytes;
-	use futures::Future;
-	use message::Error;
+	use crate::io::shared_tcp_stream::SharedTcpStream;
+	use message::Error as MessageError;
 	use network::Network;
+	use std::error::Error as StdError;
 
-	#[test]
-	fn test_read_any_message() {
-		let raw: Bytes = "f9beb4d970696e6700000000000000000800000083c00c765845303b6da97786".into();
-		let name = "ping".into();
-		let nonce = "5845303b6da97786".into();
-		let expected = (name, nonce);
+	#[tokio::test]
+	async fn test_read_any_message() {
+		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c00c765845303b6da97786".into());
+		let expected = ("ping".into(), "5845303b6da97786".into());
 
-		assert_eq!(
-			read_any_message(raw.as_ref(), Network::Mainnet.magic()).wait().unwrap(),
-			Ok(expected)
-		);
-		assert_eq!(
-			read_any_message(raw.as_ref(), Network::Testnet.magic()).wait().unwrap(),
-			Err(Error::InvalidMagic)
-		);
+		assert_eq!(read_any_message(&stream, Network::Mainnet.magic()).await.unwrap(), expected);
 	}
 
-	#[test]
-	fn test_read_too_short_any_message() {
-		let raw: Bytes = "f9beb4d970696e6700000000000000000800000083c00c765845303b6da977".into();
-		assert!(read_any_message(raw.as_ref(), Network::Mainnet.magic()).wait().is_err());
+	#[tokio::test]
+	async fn test_read_any_message_error_wrong_magic() {
+		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c00c765845303b6da97786".into());
+		let expected_error = MessageError::InvalidMagic;
+
+		assert_eq!(expected_error.description(), read_any_message(&stream, Network::Testnet.magic()).await.unwrap_err().source().unwrap().description());
 	}
 
-	#[test]
-	fn test_read_any_message_with_invalid_checksum() {
-		let raw: Bytes = "f9beb4d970696e6700000000000000000800000083c01c765845303b6da97786".into();
-		assert_eq!(
-			read_any_message(raw.as_ref(), Network::Mainnet.magic()).wait().unwrap(),
-			Err(Error::InvalidChecksum)
-		);
+	#[tokio::test]
+	async fn test_read_any_message_error_too_short() {
+		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c00c765845303b6da977".into());
+
+		assert!(read_any_message(&stream, Network::Mainnet.magic()).await.is_err());
+	}
+
+	#[tokio::test]
+	async fn test_read_any_message_error_invalid_checksum() {
+		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c01c765845303b6da97786".into());
+		let expected_error = MessageError::InvalidChecksum;
+
+		assert_eq!(expected_error.description(), read_any_message(&stream, Network::Mainnet.magic()).await.unwrap_err().source().unwrap().description());
 	}
 }

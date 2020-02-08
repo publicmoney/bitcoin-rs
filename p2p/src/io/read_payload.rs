@@ -1,78 +1,48 @@
-use bytes::Bytes;
-use crypto::checksum;
-use futures::{Future, Poll};
-use hash::H32;
-use message::{deserialize_payload, Error, MessageResult, Payload};
-use std::io;
-use std::marker::PhantomData;
-use tokio_io::io::{read_exact, ReadExact};
-use tokio_io::AsyncRead;
+use crate::bytes::Bytes;
+use crate::hash::H32;
+use crate::io::{SharedTcpStream, Error};
+use message::{deserialize_payload, Payload, Error as MessageError};
 
-pub fn read_payload<M, A>(a: A, version: u32, len: usize, checksum: H32) -> ReadPayload<M, A>
+pub async fn read_payload<M>(a: &SharedTcpStream, version: u32, len: usize, checksum: H32) -> Result<M, Error>
 where
-	A: AsyncRead,
 	M: Payload,
 {
-	ReadPayload {
-		reader: read_exact(a, Bytes::new_with_len(len)),
-		version,
-		checksum,
-		payload_type: PhantomData,
+	let mut buf = Bytes::new_with_len(len);
+	a.read_exact(buf.as_mut()).await?;
+	if crypto::checksum(&buf) != checksum {
+		return Err(MessageError::InvalidChecksum.into());
 	}
-}
-
-pub struct ReadPayload<M, A> {
-	reader: ReadExact<A, Bytes>,
-	version: u32,
-	checksum: H32,
-	payload_type: PhantomData<M>,
-}
-
-impl<M, A> Future for ReadPayload<M, A>
-where
-	A: AsyncRead,
-	M: Payload,
-{
-	type Item = (A, MessageResult<M>);
-	type Error = io::Error;
-
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		let (read, data) = try_ready!(self.reader.poll());
-		if checksum(&data) != self.checksum {
-			return Ok((read, Err(Error::InvalidChecksum)).into());
-		}
-		let payload = deserialize_payload(&data, self.version);
-		Ok((read, payload).into())
-	}
+	deserialize_payload(&buf, version).map_err(|e| e.into())
 }
 
 #[cfg(test)]
 mod tests {
 	use super::read_payload;
-	use bytes::Bytes;
-	use futures::Future;
+	use crate::io::shared_tcp_stream::SharedTcpStream;
 	use message::types::Ping;
-	use message::Error;
+	use message::Error as MessageError;
+	use std::error::Error;
 
-	#[test]
-	fn test_read_payload() {
-		let raw: Bytes = "5845303b6da97786".into();
+	#[tokio::test]
+	async fn test_read_payload() {
+		let stream = SharedTcpStream::new("5845303b6da97786".into());
 		let ping = Ping::new(u64::from_str_radix("8677a96d3b304558", 16).unwrap());
-		assert_eq!(read_payload(raw.as_ref(), 0, 8, "83c00c76".into()).wait().unwrap().1, Ok(ping));
+
+		assert_eq!(read_payload::<Ping>(&stream, 0, 8, "83c00c76".into()).await.unwrap(), ping);
 	}
 
-	#[test]
-	fn test_read_payload_with_invalid_checksum() {
-		let raw: Bytes = "5845303b6da97786".into();
-		assert_eq!(
-			read_payload::<Ping, _>(raw.as_ref(), 0, 8, "83c00c75".into()).wait().unwrap().1,
-			Err(Error::InvalidChecksum)
-		);
+	#[tokio::test]
+	async fn test_read_payload_with_invalid_checksum() {
+		let stream = SharedTcpStream::new("5845303b6da97786".into());
+		let expected_err = MessageError::InvalidChecksum;
+
+		assert_eq!(expected_err.description(), read_payload::<Ping>(&stream, 0, 8, "83c00c75".into()).await.unwrap_err().source().unwrap().description());
 	}
 
-	#[test]
-	fn test_read_too_short_payload() {
-		let raw: Bytes = "5845303b6da977".into();
-		assert!(read_payload::<Ping, _>(raw.as_ref(), 0, 8, "83c00c76".into()).wait().is_err());
+	#[tokio::test]
+	async fn test_read_too_short_payload() {
+		let stream = SharedTcpStream::new("5845303b6da977".into());
+
+		assert!(read_payload::<Ping>(&stream, 0, 8, "83c00c76".into()).await.is_err());
 	}
 }

@@ -1,10 +1,9 @@
-use futures::{finished, lazy};
+use crate::net::PeerStats;
+use crate::util::{ConfigurableSynchronizer, ResponseQueue, Responses, Synchronizer};
+use crate::{Context, PeerInfo};
 use message::{Message, Payload};
-use net::PeerStats;
-use p2p::Context;
 use parking_lot::Mutex;
 use std::sync::Arc;
-use util::{ConfigurableSynchronizer, PeerInfo, ResponseQueue, Responses, Synchronizer};
 
 pub struct PeerContext {
 	context: Arc<Context>,
@@ -63,17 +62,17 @@ impl PeerContext {
 	}
 
 	/// Request is always automatically send.
-	pub fn send_request<T>(&self, payload: &T)
+	pub fn send_request<T>(&self, payload: T)
 	where
-		T: Payload,
+		T: Payload + Sync,
 	{
 		self.send_request_with_flags(payload, 0)
 	}
 
 	/// Request is always automatically send.
-	pub fn send_request_with_flags<T>(&self, payload: &T, serialization_flags: u32)
+	pub fn send_request_with_flags<T>(&self, payload: T, serialization_flags: u32)
 	where
-		T: Payload,
+		T: Payload + Send + Sync,
 	{
 		let send = Context::send_to_peer(self.context.clone(), self.info.id, payload, serialization_flags);
 		self.context.spawn(send);
@@ -85,9 +84,9 @@ impl PeerContext {
 		d
 	}
 
-	pub fn send_response_inline<T>(&self, payload: &T)
+	pub fn send_response_inline<T>(&self, payload: T)
 	where
-		T: Payload,
+		T: Payload + Sync,
 	{
 		let id = self.declare_response();
 		self.send_response(payload, id, true);
@@ -105,9 +104,9 @@ impl PeerContext {
 	}
 
 	/// Responses are sent in order defined by synchronizer.
-	pub fn send_response<T>(&self, payload: &T, id: u32, is_final: bool)
+	pub fn send_response<T>(&self, payload: T, id: u32, is_final: bool)
 	where
-		T: Payload,
+		T: Payload + Sync,
 	{
 		trace!("response ready: {}, id: {}, final: {}", T::command(), id, is_final);
 		let mut sync = self.synchronizer.lock();
@@ -118,13 +117,13 @@ impl PeerContext {
 				self.context.spawn(send);
 				self.send_awaiting(&mut sync, &mut queue, id);
 			} else {
-				queue.push_finished_response(id, self.to_message(payload).into());
+				queue.push_finished_response(id, self.to_message(&payload).into());
 			}
 		} else if sync.is_permitted(id) {
 			let send = Context::send_to_peer(self.context.clone(), self.info.id, payload, 0);
 			self.context.spawn(send);
 		} else {
-			queue.push_unfinished_response(id, self.to_message(payload).into());
+			queue.push_unfinished_response(id, self.to_message(&payload).into());
 		}
 	}
 
@@ -132,11 +131,7 @@ impl PeerContext {
 	pub fn close(&self) {
 		let context = self.context.clone();
 		let peer_id = self.info.id;
-		let close = lazy(move || {
-			context.close_channel(peer_id);
-			finished::<(), ()>(())
-		});
-		self.context.spawn(close);
+		context.clone().spawn(async move { context.close_channel(peer_id) });
 	}
 
 	pub fn info(&self) -> &PeerInfo {
