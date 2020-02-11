@@ -1,16 +1,16 @@
 use super::super::rpc;
 use crate::util::{db_path, init_db, node_table_path};
 use crate::{config, p2p, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
+use p2p::LocalSyncNodeRef;
 use primitives::hash::H256;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
-use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, SyncListener, LocalNodeRef};
+use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, LocalNodeRef, SyncListener};
 use tokio::runtime;
 use tokio::runtime::Runtime;
-use p2p::LocalSyncNodeRef;
 
 enum BlockNotifierTask {
 	NewBlock(H256),
@@ -90,7 +90,12 @@ pub fn start(cfg: config::Config) -> Result<(), String> {
 	init_db(&cfg)?;
 
 	let sync_peers = create_sync_peers();
-	let local_sync_node = create_local_sync_node(cfg.consensus.clone(), cfg.db.clone(), sync_peers.clone(), cfg.verification_params.clone());
+	let local_sync_node = create_local_sync_node(
+		cfg.consensus.clone(),
+		cfg.db.clone(),
+		sync_peers.clone(),
+		cfg.verification_params.clone(),
+	);
 	let sync_connection_factory = create_sync_connection_factory(sync_peers.clone(), local_sync_node.clone());
 
 	if let Some(block_notify_command) = cfg.block_notify_command.clone() {
@@ -108,8 +113,11 @@ pub fn start(cfg: config::Config) -> Result<(), String> {
 }
 
 /// All work that happens in here is handled by the Tokio runtime.
-pub async fn start_async(cfg: config::Config, sync_connection_factory: LocalSyncNodeRef, local_sync_node: LocalNodeRef) -> Result<(), String> {
-
+pub async fn start_async(
+	cfg: config::Config,
+	sync_connection_factory: LocalSyncNodeRef,
+	local_sync_node: LocalNodeRef,
+) -> Result<(), String> {
 	let p2p_cfg = p2p::Config {
 		inbound_connections: cfg.inbound_connections,
 		outbound_connections: cfg.outbound_connections,
@@ -139,6 +147,8 @@ pub async fn start_async(cfg: config::Config, sync_connection_factory: LocalSync
 		p2p_context: p2p.context().clone(),
 	};
 	let _rpc_server = rpc::new_http(cfg.rpc_config, rpc_deps)?;
+
+	let _portal = portal::start();
 
 	p2p.run().await;
 

@@ -1,9 +1,9 @@
+use crate::io::Error;
 use crate::io::{read_message, write_message, SharedTcpStream};
 use message::types::{Verack, Version};
 use message::{Error as MessageError, Message};
 use network::Magic;
 use std::cmp;
-use crate::io::Error;
 
 pub async fn handshake(a: &SharedTcpStream, magic: Magic, version: Version, min_version: u32) -> Result<HandshakeResult, Error> {
 	write_message(a, version_message(magic, &version)).await?;
@@ -73,9 +73,9 @@ mod tests {
 	use message::types::version::{Version, V0, V106, V70001};
 	use message::types::Verack;
 	use message::{Error as MessageError, Message};
-	use std::error::Error;
 	use network::Network;
 	use ser::Stream;
+	use std::error::Error;
 
 	fn local_version() -> Version {
 		Version::V70001(

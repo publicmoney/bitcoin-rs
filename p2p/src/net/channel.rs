@@ -1,5 +1,5 @@
 use crate::bytes::Bytes;
-use crate::io::{read_any_message, SharedTcpStream, Error};
+use crate::io::{read_any_message, Error, SharedTcpStream};
 use crate::session::Session;
 use crate::PeerInfo;
 use message::Command;

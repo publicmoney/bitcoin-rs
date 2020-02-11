@@ -40,7 +40,7 @@ pub const PROTOCOL_VERSION: u32 = 70_014;
 pub const PROTOCOL_MINIMUM: u32 = 70_001;
 pub const USER_AGENT: &'static str = "bitcoin-rs";
 pub const REGTEST_USER_AGENT: &'static str = "/Satoshi:0.12.1/";
-pub const LOG_INFO: &'static str = "sync=info";
+pub const LOG_INFO: &'static str = "info";
 
 fn main() {
 	// Always print backtrace on panic.

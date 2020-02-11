@@ -125,7 +125,7 @@ java -jar pull-tests-f56eec3.jar
 
 ## Going online
 
-By default bitcoin-rs connects to bitcoin-core seednodes. Full list is available [here](./bitcoin-rs/seednodes.rs).
+By default bitcoin-rs connects to bitcoin-core seednodes. Full list is available [here](bitcoin-rs/seednodes.rs).
 
 To start syncing the main network, just start the client, passing selected fork flag. For example:
 
