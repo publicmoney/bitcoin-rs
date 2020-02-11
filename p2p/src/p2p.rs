@@ -1,3 +1,4 @@
+use crate::io::Error;
 use crate::net::{accept_connection, connect, Channel, ConnectionCounter, Connections};
 use crate::session::{NormalSessionFactory, SeednodeSessionFactory, SessionFactory};
 use crate::util::{Node, NodeTable};
@@ -15,7 +16,6 @@ use tokio::time::delay_for;
 use tokio::time::interval;
 use tokio::{net::TcpListener, net::TcpStream, stream::StreamExt};
 use trust_dns_resolver::TokioAsyncResolver;
-use crate::io::Error;
 
 /// Network context.
 pub struct Context {
@@ -333,11 +333,11 @@ impl Context {
 	where
 		T: AsRef<[u8]> + Send + 'static,
 	{
-//		trace!("Sending {} message to {}", T::command(), channel.peer_info().address);
+		//		trace!("Sending {} message to {}", T::command(), channel.peer_info().address);
 		match channel.write_message(message).await {
 			Ok(_) => {
 				// successful send
-//				trace!("Sent {} message to {}", T::command(), channel.peer_info().address);
+				//				trace!("Sent {} message to {}", T::command(), channel.peer_info().address);
 			}
 			Err(err) => {
 				// network error

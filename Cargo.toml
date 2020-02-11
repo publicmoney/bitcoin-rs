@@ -27,6 +27,7 @@ sync = { path = "sync" }
 import = { path = "import" }
 logs = { path = "logs" }
 rpc = { path = "rpc" }
+portal = { path= "portal" }
 primitives = { path = "primitives" }
 
 [build-dependencies]

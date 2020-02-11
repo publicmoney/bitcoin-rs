@@ -1,7 +1,7 @@
 use crate::bytes::Bytes;
 use crate::hash::H32;
-use crate::io::{SharedTcpStream, Error};
-use message::{deserialize_payload, Payload, Error as MessageError};
+use crate::io::{Error, SharedTcpStream};
+use message::{deserialize_payload, Error as MessageError, Payload};
 
 pub async fn read_payload<M>(a: &SharedTcpStream, version: u32, len: usize, checksum: H32) -> Result<M, Error>
 where
@@ -36,7 +36,15 @@ mod tests {
 		let stream = SharedTcpStream::new("5845303b6da97786".into());
 		let expected_err = MessageError::InvalidChecksum;
 
-		assert_eq!(expected_err.description(), read_payload::<Ping>(&stream, 0, 8, "83c00c75".into()).await.unwrap_err().source().unwrap().description());
+		assert_eq!(
+			expected_err.description(),
+			read_payload::<Ping>(&stream, 0, 8, "83c00c75".into())
+				.await
+				.unwrap_err()
+				.source()
+				.unwrap()
+				.description()
+		);
 	}
 
 	#[tokio::test]

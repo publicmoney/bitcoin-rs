@@ -1,5 +1,5 @@
-use crate::io::{SharedTcpStream, Error};
-use message::{MessageHeader};
+use crate::io::{Error, SharedTcpStream};
+use message::MessageHeader;
 use network::Magic;
 
 pub async fn read_header(a: &SharedTcpStream, magic: Magic) -> Result<MessageHeader, Error> {
@@ -34,7 +34,15 @@ mod tests {
 		let stream = SharedTcpStream::new("f9beb4d96164647200000000000000001f000000ed52399b".into());
 		let expected_error = MessageError::InvalidMagic;
 
-		assert_eq!(expected_error.description(), read_header(&stream, Network::Testnet.magic()).await.unwrap_err().source().unwrap().description());
+		assert_eq!(
+			expected_error.description(),
+			read_header(&stream, Network::Testnet.magic())
+				.await
+				.unwrap_err()
+				.source()
+				.unwrap()
+				.description()
+		);
 	}
 
 	#[tokio::test]

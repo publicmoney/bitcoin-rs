@@ -1,5 +1,5 @@
-use crate::io::{read_header, read_payload, SharedTcpStream, Error};
-use message::{Payload, Error as MessageError};
+use crate::io::{read_header, read_payload, Error, SharedTcpStream};
+use message::{Error as MessageError, Payload};
 use network::Magic;
 
 pub async fn read_message<M>(a: &SharedTcpStream, magic: Magic, version: u32) -> Result<M, Error>
@@ -36,7 +36,15 @@ mod tests {
 		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c00c765845303b6da97786".into());
 		let expected_error = MessageError::InvalidMagic;
 
-		assert_eq!(expected_error.description(), read_message::<Ping>(&stream, Network::Testnet.magic(), 0).await.unwrap_err().source().unwrap().description());
+		assert_eq!(
+			expected_error.description(),
+			read_message::<Ping>(&stream, Network::Testnet.magic(), 0)
+				.await
+				.unwrap_err()
+				.source()
+				.unwrap()
+				.description()
+		);
 	}
 
 	#[tokio::test]
@@ -44,7 +52,15 @@ mod tests {
 		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c00c765845303b6da97786".into());
 		let expected_error = MessageError::InvalidCommand;
 
-		assert_eq!(expected_error.description(), read_message::<Pong>(&stream, Network::Mainnet.magic(), 0).await.unwrap_err().source().unwrap().description());
+		assert_eq!(
+			expected_error.description(),
+			read_message::<Pong>(&stream, Network::Mainnet.magic(), 0)
+				.await
+				.unwrap_err()
+				.source()
+				.unwrap()
+				.description()
+		);
 	}
 
 	#[tokio::test]
@@ -59,6 +75,14 @@ mod tests {
 		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c01c765845303b6da97786".into());
 		let expected_error = MessageError::InvalidChecksum;
 
-		assert_eq!(expected_error.description(), read_message::<Ping>(&stream, Network::Mainnet.magic(), 0).await.unwrap_err().source().unwrap().description());
+		assert_eq!(
+			expected_error.description(),
+			read_message::<Ping>(&stream, Network::Mainnet.magic(), 0)
+				.await
+				.unwrap_err()
+				.source()
+				.unwrap()
+				.description()
+		);
 	}
 }

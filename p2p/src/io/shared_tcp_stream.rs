@@ -1,17 +1,17 @@
-use std::io;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::io::AsyncWriteExt;
-use tokio::net::TcpStream;
-use tokio::sync::Mutex;
 #[cfg(test)]
 use crate::bytes::Bytes;
+use std::io;
 #[cfg(test)]
 use std::io::Cursor;
 #[cfg(test)]
 use std::io::ErrorKind;
+use std::net::SocketAddr;
+use std::sync::Arc;
 #[cfg(not(test))]
 use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 
 #[cfg(not(test))]
 pub struct SharedTcpStream {

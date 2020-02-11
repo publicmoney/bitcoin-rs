@@ -1,11 +1,10 @@
 use crate::bytes::Bytes;
-use crate::io::{read_header, SharedTcpStream, Error};
+use crate::io::{read_header, Error, SharedTcpStream};
 use crypto::checksum;
 use message::{Command, Error as MessageError};
 use network::Magic;
 
 pub async fn read_any_message(a: &SharedTcpStream, magic: Magic) -> Result<(Command, Bytes), Error> {
-
 	let header = read_header(&a, magic).await?;
 
 	let mut buf = Bytes::new_with_len(header.len as usize);
@@ -38,7 +37,15 @@ mod tests {
 		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c00c765845303b6da97786".into());
 		let expected_error = MessageError::InvalidMagic;
 
-		assert_eq!(expected_error.description(), read_any_message(&stream, Network::Testnet.magic()).await.unwrap_err().source().unwrap().description());
+		assert_eq!(
+			expected_error.description(),
+			read_any_message(&stream, Network::Testnet.magic())
+				.await
+				.unwrap_err()
+				.source()
+				.unwrap()
+				.description()
+		);
 	}
 
 	#[tokio::test]
@@ -53,6 +60,14 @@ mod tests {
 		let stream = SharedTcpStream::new("f9beb4d970696e6700000000000000000800000083c01c765845303b6da97786".into());
 		let expected_error = MessageError::InvalidChecksum;
 
-		assert_eq!(expected_error.description(), read_any_message(&stream, Network::Mainnet.magic()).await.unwrap_err().source().unwrap().description());
+		assert_eq!(
+			expected_error.description(),
+			read_any_message(&stream, Network::Mainnet.magic())
+				.await
+				.unwrap_err()
+				.source()
+				.unwrap()
+				.description()
+		);
 	}
 }
