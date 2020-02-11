@@ -13,7 +13,7 @@ problem_files=()
 # first collect all the files that need reformatting
 for file in $(git diff --name-only --cached); do
 	if [ ${file: -3} == ".rs" ]; then
-		rustfmt --check $file &>/dev/null
+		cargo fmt -- --check $file &>/dev/null
 		if [ $? != 0 ]; then
 			problem_files+=($file)
 		fi
@@ -22,12 +22,12 @@ done
 
 if [ ${#problem_files[@]} == 0 ]; then
   # nothing to do
-  printf "[pre_commit] rustfmt \033[0;32mok\033[0m \n"
+  printf "[pre_commit] cargo fmt \033[0;32mok\033[0m \n"
 else
   # reformat the files that need it and re-stage them.
-	printf "[pre_commit] the following files were rustfmt'd before commit: \n"
+	printf "[pre_commit] the following files were cargo fmt'd before commit: \n"
   for file in ${problem_files[@]}; do
-    rustfmt $file
+    cargo fmt -- $file
     git add $file
 		printf "\033[0;32m    $file\033[0m \n"
   done
