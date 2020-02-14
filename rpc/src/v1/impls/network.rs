@@ -1,5 +1,4 @@
 use jsonrpc_core::Error;
-use jsonrpc_macros::Trailing;
 use p2p;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -34,7 +33,7 @@ where
 		}
 	}
 
-	fn node_info(&self, _dns: bool, node_addr: Trailing<String>) -> Result<Vec<NodeInfo>, Error> {
+	fn node_info(&self, _dns: bool, node_addr: Option<String>) -> Result<Vec<NodeInfo>, Error> {
 		let node_addr: Option<String> = node_addr.into();
 		Ok(match node_addr {
 			None => self.api.nodes_info(),
