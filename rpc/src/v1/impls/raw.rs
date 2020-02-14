@@ -1,7 +1,6 @@
 use chain::{IndexedTransaction as GlobalIndexedTransaction, Transaction as GlobalTransaction};
 use global_script::Script;
 use jsonrpc_core::Error;
-use jsonrpc_macros::Trailing;
 use keys::Address;
 use network::{ConsensusParams, Network};
 use primitives::bytes::Bytes as GlobalBytes;
@@ -27,7 +26,7 @@ pub trait RawClientCoreApi: Send + Sync + 'static {
 		&self,
 		inputs: Vec<TransactionInput>,
 		outputs: TransactionOutputs,
-		lock_time: Trailing<u32>,
+		lock_time: Option<u32>,
 	) -> Result<GlobalTransaction, String>;
 	fn get_raw_transaction(&self, hash: GlobalH256, verbose: bool) -> Result<GetRawTransactionResponse, Error>;
 	fn transaction_to_verbose_transaction(&self, transaction: GlobalIndexedTransaction) -> Transaction;
@@ -51,7 +50,7 @@ impl RawClientCore {
 	pub fn do_create_raw_transaction(
 		inputs: Vec<TransactionInput>,
 		outputs: TransactionOutputs,
-		lock_time: Trailing<u32>,
+		lock_time: Option<u32>,
 	) -> Result<GlobalTransaction, String> {
 		use global_script::Builder as ScriptBuilder;
 
@@ -127,7 +126,7 @@ impl RawClientCoreApi for RawClientCore {
 		&self,
 		inputs: Vec<TransactionInput>,
 		outputs: TransactionOutputs,
-		lock_time: Trailing<u32>,
+		lock_time: Option<u32>,
 	) -> Result<GlobalTransaction, String> {
 		RawClientCore::do_create_raw_transaction(inputs, outputs, lock_time)
 	}
@@ -286,7 +285,7 @@ where
 		&self,
 		inputs: Vec<TransactionInput>,
 		outputs: TransactionOutputs,
-		lock_time: Trailing<u32>,
+		lock_time: Option<u32>,
 	) -> Result<RawTransaction, Error> {
 		// reverse hashes of inputs
 		let inputs: Vec<_> = inputs
@@ -311,7 +310,7 @@ where
 		Ok(self.core.transaction_to_verbose_transaction(transaction))
 	}
 
-	fn get_raw_transaction(&self, hash: H256, verbose: Trailing<bool>) -> Result<GetRawTransactionResponse, Error> {
+	fn get_raw_transaction(&self, hash: H256, verbose: Option<bool>) -> Result<GetRawTransactionResponse, Error> {
 		let global_hash: GlobalH256 = hash.clone().into();
 		self.core.get_raw_transaction(global_hash.reversed(), verbose.unwrap_or_default())
 	}

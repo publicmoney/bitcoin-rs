@@ -1,7 +1,6 @@
 use chain::OutPoint;
 use global_script::Script;
 use jsonrpc_core::Error;
-use jsonrpc_macros::Trailing;
 use keys::{self, Address};
 use network::Network;
 use primitives::hash::H256 as GlobalH256;
@@ -257,7 +256,7 @@ where
 		Ok(self.core.difficulty())
 	}
 
-	fn block(&self, hash: H256, verbose: Trailing<bool>) -> Result<GetBlockResponse, Error> {
+	fn block(&self, hash: H256, verbose: Option<bool>) -> Result<GetBlockResponse, Error> {
 		let global_hash: GlobalH256 = hash.clone().into();
 		if verbose.unwrap_or_default() {
 			let verbose_block = self.core.verbose_block(global_hash.reversed());
@@ -279,7 +278,7 @@ where
 		.ok_or(block_not_found(hash))
 	}
 
-	fn transaction_out(&self, transaction_hash: H256, out_index: u32, _include_mempool: Trailing<bool>) -> Result<GetTxOutResponse, Error> {
+	fn transaction_out(&self, transaction_hash: H256, out_index: u32, _include_mempool: Option<bool>) -> Result<GetTxOutResponse, Error> {
 		// TODO: include_mempool
 		let transaction_hash: GlobalH256 = transaction_hash.into();
 		self.core

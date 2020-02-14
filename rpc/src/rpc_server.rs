@@ -5,7 +5,7 @@ use std::io;
 use std::net::SocketAddr;
 
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_http<M: jsonrpc_core::Metadata>(
+pub fn start_http<M: std::default::Default + jsonrpc_core::Metadata>(
 	addr: &SocketAddr,
 	cors_domains: Option<Vec<String>>,
 	allowed_hosts: Option<Vec<String>>,
@@ -24,6 +24,7 @@ pub fn start_http<M: jsonrpc_core::Metadata>(
 
 	ServerBuilder::new(handler)
 		.cors(cors_domains.into())
+		//		.event_loop_executor(executor) TODO use existing tokio runtime instead of starting a new one (when jsonrpc-http-server has upgraded to tokio 0.2)
 		.allowed_hosts(allowed_hosts.map(|hosts| hosts.into_iter().map(Host::from).collect()).into())
 		.start_http(addr)
 }
