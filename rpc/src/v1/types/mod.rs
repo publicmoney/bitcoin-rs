@@ -9,6 +9,7 @@ mod get_tx_out_response;
 mod get_tx_out_set_info_response;
 mod hash;
 mod nodes;
+mod peer;
 mod script;
 mod transaction;
 mod uint;
@@ -23,6 +24,7 @@ pub use self::get_tx_out_response::GetTxOutResponse;
 pub use self::get_tx_out_set_info_response::GetTxOutSetInfoResponse;
 pub use self::hash::{H160, H256};
 pub use self::nodes::{AddNodeOperation, NodeInfo};
+pub use self::peer::Peer;
 pub use self::script::ScriptType;
 pub use self::transaction::{
 	GetRawTransactionResponse, RawTransaction, SignedTransactionInput, SignedTransactionOutput, Transaction, TransactionInput,
