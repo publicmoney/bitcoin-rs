@@ -1,5 +1,8 @@
 # An implementation of the ₿itcoin protocol written in Rust.
 
+![CI](https://github.com/publicmoney/bitcoin-rs/workflows/Rust/badge.svg)
+[![license](https://img.shields.io/github/license/publicmoney/bitcoin-rs)](https://github.com/publicmoeny/bitcoin-rs/LICENSE)
+
 This is a work in progress and is not recommended for production use.
 
 All contributions are very welcome. 
