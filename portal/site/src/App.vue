@@ -1,15 +1,17 @@
 <template>
     <div id="app">
       <h1>Bitcoin RS Portal</h1>
-    <info/>
+        <tabbed-node-info/>
   </div>
 </template>
 
 <script>
-  import info from './components/Info.vue'
+  import TabbedNodeInfo from "./components/TabbedNodeInfo";
   export default {
     name: 'app',
-    components: {'info': info}
+    components: {
+        TabbedNodeInfo,
+    }
   }
 </script>
 
