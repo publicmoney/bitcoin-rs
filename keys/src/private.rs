@@ -25,19 +25,20 @@ pub struct Private {
 impl Private {
 	pub fn sign(&self, message: &Message) -> Result<Signature, Error> {
 		let context = &SECP256K1;
-		let secret = key::SecretKey::from_slice(context, &*self.secret)?;
+		let secret = key::SecretKey::from_slice(&*self.secret)?;
 		let message = SecpMessage::from_slice(&**message)?;
-		let signature = context.sign(&message, &secret)?;
-		let data = signature.serialize_der(context);
-		Ok(data.into())
+		let signature = context.sign(&message, &secret);
+		let data = signature.serialize_der();
+
+		Ok(data.as_ref().into())
 	}
 
 	pub fn sign_compact(&self, message: &Message) -> Result<CompactSignature, Error> {
 		let context = &SECP256K1;
-		let secret = key::SecretKey::from_slice(context, &*self.secret)?;
+		let secret = key::SecretKey::from_slice(&*self.secret)?;
 		let message = SecpMessage::from_slice(&**message)?;
-		let signature = context.sign_recoverable(&message, &secret)?;
-		let (recovery_id, data) = signature.serialize_compact(context);
+		let signature = context.sign_recoverable(&message, &secret);
+		let (recovery_id, data) = signature.serialize_compact();
 		let recovery_id = recovery_id.to_i32() as u8;
 		let mut signature = H520::default();
 		signature[1..65].copy_from_slice(&data[0..64]);
