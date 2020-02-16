@@ -36,17 +36,18 @@ impl KeyPair {
 
 	pub fn from_private(private: Private) -> Result<KeyPair, Error> {
 		let context = &SECP256K1;
-		let s: key::SecretKey = key::SecretKey::from_slice(context, &*private.secret)?;
-		let pub_key = key::PublicKey::from_secret_key(context, &s)?;
-		let serialized = pub_key.serialize_vec(context, private.compressed);
+		let s: key::SecretKey = key::SecretKey::from_slice(&*private.secret)?;
+		let pub_key = key::PublicKey::from_secret_key(context, &s);
 
 		let public = if private.compressed {
+			let serialized = pub_key.serialize();
 			let mut public = H264::default();
-			public.copy_from_slice(&serialized[0..33]);
+			public.copy_from_slice(&serialized);
 			Public::Compressed(public)
 		} else {
+			let serialized = pub_key.serialize_uncompressed();
 			let mut public = H520::default();
-			public.copy_from_slice(&serialized[0..65]);
+			public.copy_from_slice(&serialized);
 			Public::Normal(public)
 		};
 
@@ -56,12 +57,11 @@ impl KeyPair {
 	}
 
 	pub fn from_keypair(sec: key::SecretKey, public: key::PublicKey, network: Network) -> Self {
-		let context = &SECP256K1;
-		let serialized = public.serialize_vec(context, false);
+		let serialized = public.serialize_uncompressed();
 		let mut secret = Secret::default();
 		secret.copy_from_slice(&sec[0..32]);
 		let mut public = H520::default();
-		public.copy_from_slice(&serialized[0..65]);
+		public.copy_from_slice(&serialized);
 
 		KeyPair {
 			private: Private {
