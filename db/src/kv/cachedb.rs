@@ -33,10 +33,10 @@ where
 		for op in &tx.operations {
 			match *op {
 				Operation::Insert(KeyValue::BlockHeader(ref hash, ref header)) => {
-					self.header.lock().insert(hash.clone(), KeyState::Insert(header.clone()));
+					self.header.lock().insert(*hash, KeyState::Insert(header.clone()));
 				}
 				Operation::Delete(Key::BlockHeader(ref hash)) => {
-					self.header.lock().insert(hash.clone(), KeyState::Delete);
+					self.header.lock().insert(*hash, KeyState::Delete);
 				}
 				_ => (),
 			}
