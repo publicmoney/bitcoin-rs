@@ -9,7 +9,7 @@ pub enum Error {
 	/// Cannot decanonize block
 	#[display(fmt = "Cannot decanonize block")]
 	CannotDecanonize,
-	/// Uknown parent
+	/// Unknown parent
 	#[display(fmt = "Block parent is unknown")]
 	UnknownParent,
 	/// Ancient fork

@@ -3,7 +3,7 @@ name = "db"
 version = "0.1.0"
 
 [dependencies]
-rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
+rocksdb = { version = "0.13", features = ["snappy"], default-features = false }
 elastic-array = "0.11"
 parking_lot = "0.10"
 log = "0.4"
