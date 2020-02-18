@@ -1,5 +1,5 @@
+use crate::memory_pool::{Entry, MemoryPool, OrderingStrategy};
 use chain::{IndexedTransaction, OutPoint, TransactionOutput};
-use memory_pool::{Entry, MemoryPool, OrderingStrategy};
 use network::ConsensusParams;
 use primitives::compact::Compact;
 use primitives::hash::H256;
@@ -309,10 +309,10 @@ mod tests {
 
 	use self::test_data::{ChainBuilder, TransactionBuilder};
 	use super::{BlockAssembler, BlockTemplate, NextStep, SizePolicy};
+	use crate::fee::{FeeCalculator, NonZeroFeeCalculator};
+	use crate::memory_pool::MemoryPool;
 	use chain::IndexedTransaction;
 	use db::BlockChainDatabase;
-	use fee::{FeeCalculator, NonZeroFeeCalculator};
-	use memory_pool::MemoryPool;
 	use network::{ConsensusParams, Network};
 	use primitives::hash::H256;
 	use std::sync::Arc;

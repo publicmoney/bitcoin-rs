@@ -1,17 +1,19 @@
 <script>
     import info from './Info'
     import peers from './Peers'
+    import mempool from './Mempool'
 
     export default {
         name: "tabbed-node-info",
         components: {
             info,
-            peers
+            peers,
+            mempool
         },
         data: function() {
             return {
                 currentTab: "info",
-                tabs: ["Info", "Peers"]
+                tabs: ["Info", "Peers", "Mempool"]
             }
         },
         computed: {

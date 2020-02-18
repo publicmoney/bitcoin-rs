@@ -1,4 +1,4 @@
-use block_assembler::BlockTemplate;
+use crate::block_assembler::BlockTemplate;
 use byteorder::{LittleEndian, WriteBytesExt};
 use chain::{merkle_root, Transaction};
 use crypto::dhash256;
@@ -138,7 +138,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::{find_solution, CoinbaseTransactionBuilder};
-	use block_assembler::BlockTemplate;
+	use crate::block_assembler::BlockTemplate;
 	use chain::{Transaction, TransactionInput, TransactionOutput};
 	use keys::AddressHash;
 	use primitives::bigint::{Uint, U256};

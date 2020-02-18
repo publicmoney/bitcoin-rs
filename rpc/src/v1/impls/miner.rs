@@ -1,8 +1,9 @@
 use jsonrpc_core::Error;
 use miner;
+use miner::MemoryPoolInformation;
 use sync;
 use v1::traits::Miner;
-use v1::types::{BlockTemplate, BlockTemplateRequest};
+use v1::types::{BlockTemplate, BlockTemplateRequest, MempoolInfo};
 
 pub struct MinerClient<T: MinerClientCoreApi> {
 	core: T,
@@ -10,6 +11,7 @@ pub struct MinerClient<T: MinerClientCoreApi> {
 
 pub trait MinerClientCoreApi: Send + Sync + 'static {
 	fn get_block_template(&self) -> miner::BlockTemplate;
+	fn get_mempool_info(&self) -> miner::MemoryPoolInformation;
 }
 
 pub struct MinerClientCore {
@@ -25,6 +27,10 @@ impl MinerClientCore {
 impl MinerClientCoreApi for MinerClientCore {
 	fn get_block_template(&self) -> miner::BlockTemplate {
 		self.local_sync_node.get_block_template()
+	}
+
+	fn get_mempool_info(&self) -> MemoryPoolInformation {
+		self.local_sync_node.information().chain.transactions
 	}
 }
 
@@ -43,6 +49,10 @@ where
 {
 	fn get_block_template(&self, _request: BlockTemplateRequest) -> Result<BlockTemplate, Error> {
 		Ok(self.core.get_block_template().into())
+	}
+
+	fn mempool_info(&self) -> Result<MempoolInfo, Error> {
+		Ok(self.core.get_mempool_info().into())
 	}
 }
 
@@ -75,6 +85,13 @@ pub mod tests {
 				sigop_limit: 88,
 			}
 		}
+
+		fn get_mempool_info(&self) -> MemoryPoolInformation {
+			MemoryPoolInformation {
+				transactions_count: 500,
+				transactions_size_in_bytes: 50000,
+			}
+		}
 	}
 
 	#[test]
@@ -100,6 +117,30 @@ pub mod tests {
 		assert_eq!(
 			&sample,
 			r#"{"jsonrpc":"2.0","result":{"bits":44,"coinbaseaux":null,"coinbasetxn":null,"coinbasevalue":66,"curtime":33,"height":55,"mintime":null,"mutable":null,"noncerange":null,"previousblockhash":"0000000000000000000000000000000000000000000000000000000000000001","rules":null,"sigoplimit":88,"sizelimit":77,"target":"0000000000000000000000000000000000000000000000000000000000000000","transactions":[{"data":"00000000013ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a0000000000000000000101000000000000000000000000","depends":null,"fee":null,"hash":null,"required":false,"sigops":null,"txid":null,"weight":null}],"vbavailable":null,"vbrequired":null,"version":777,"weightlimit":null},"id":1}"#
+		);
+	}
+
+	#[test]
+	fn getmempool_accepted() {
+		let client = MinerClient::new(SuccessMinerClientCore::default());
+		let mut handler = IoHandler::new();
+		handler.extend_with(client.to_delegate());
+
+		let sample = handler
+			.handle_request_sync(
+				&(r#"
+			{
+				"jsonrpc": "2.0",
+				"method": "getmempoolinfo",
+				"params": [],
+				"id": 1
+			}"#),
+			)
+			.unwrap();
+
+		assert_eq!(
+			&sample,
+			r#"{"jsonrpc":"2.0","result":{"bytes":0,"maxmempool":0,"mempoolminfee":0,"minrelaytxfee":0,"size":500,"usage":50000},"id":1}"#
 		);
 	}
 }

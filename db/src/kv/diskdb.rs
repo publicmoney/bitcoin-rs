@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
-const DB_BACKGROUND_COMPACTIONS: i32 = 2;
+const DB_BACKGROUND_COMPACTIONS: i32 = 4;
 
 /// Compaction profile for the database settings
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -146,11 +146,11 @@ impl Database {
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
-
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
 
 		// compaction settings
+		opts.set_level_compaction_dynamic_level_bytes(true);
 		opts.set_compaction_style(DBCompactionStyle::Universal);
 		opts.set_target_file_size_base(config.compaction.initial_file_size);
 

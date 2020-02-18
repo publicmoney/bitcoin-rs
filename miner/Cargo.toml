@@ -2,6 +2,7 @@
 name = "miner"
 version = "0.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
+edition = "2018"
 
 [dependencies]
 byteorder = "1.0"

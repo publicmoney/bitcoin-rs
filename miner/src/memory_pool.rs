@@ -5,8 +5,8 @@
 //! transactions.
 //! It also guarantees that ancestor-descendant relation won't break during ordered removal (ancestors always removed
 //! before descendants). Removal using `remove_by_hash` can break this rule.
+use crate::fee::MemoryPoolFeeCalculator;
 use chain::{IndexedTransaction, OutPoint, Transaction, TransactionOutput};
-use fee::MemoryPoolFeeCalculator;
 use heapsize::HeapSizeOf;
 use primitives::bytes::Bytes;
 use primitives::hash::H256;
@@ -56,9 +56,9 @@ pub struct Entry {
 	pub transaction: Transaction,
 	/// In-pool ancestors hashes for this transaction
 	pub ancestors: HashSet<H256>,
-	/// Transaction hash (stored for effeciency)
+	/// Transaction hash (stored for efficiency)
 	pub hash: H256,
-	/// Transaction size (stored for effeciency)
+	/// Transaction size (stored for efficiency)
 	pub size: usize,
 	/// Throughout index of this transaction in memory pool (non persistent)
 	pub storage_index: u64,
@@ -308,7 +308,7 @@ impl Storage {
 		for input_hash in entry.transaction.inputs.iter().map(|input| &input.previous_output.hash) {
 			self.references
 				.by_input
-				.entry(input_hash.clone())
+				.entry(*input_hash)
 				.or_insert_with(HashSet::new)
 				.insert(entry.hash.clone());
 		}
@@ -860,7 +860,7 @@ impl MemoryPool {
 		for ancestor_entry in ancestors_entries {
 			ancestors.insert(ancestor_entry.hash.clone());
 			for grand_ancestor in &ancestor_entry.ancestors {
-				ancestors.insert(grand_ancestor.clone());
+				ancestors.insert(*grand_ancestor);
 			}
 		}
 		ancestors
@@ -977,8 +977,8 @@ pub mod tests {
 
 	use self::test_data::{ChainBuilder, TransactionBuilder};
 	use super::{DoubleSpendCheckResult, MemoryPool, OrderingStrategy};
+	use crate::fee::NonZeroFeeCalculator;
 	use chain::{OutPoint, Transaction};
-	use fee::NonZeroFeeCalculator;
 	use heapsize::HeapSizeOf;
 
 	fn to_memory_pool(chain: &mut ChainBuilder) -> MemoryPool {
