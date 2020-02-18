@@ -1,7 +1,7 @@
+use crate::MemoryPool;
 use chain::Transaction;
 use ser::Serializable;
 use storage::{DuplexTransactionOutputProvider, TransactionOutputProvider};
-use MemoryPool;
 
 /// Transaction fee calculator for memory pool
 pub trait MemoryPoolFeeCalculator {
