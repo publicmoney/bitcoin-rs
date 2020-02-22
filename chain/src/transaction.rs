@@ -354,9 +354,9 @@ mod tests {
 
 		let transaction_with_witness: Transaction =
 			"0000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000".into();
-		assert!(
-			serialize_with_flags(&transaction_with_witness, 0)
-				!= serialize_with_flags(&transaction_with_witness, SERIALIZE_TRANSACTION_WITNESS)
+		assert_ne!(
+			serialize_with_flags(&transaction_with_witness, 0),
+			serialize_with_flags(&transaction_with_witness, SERIALIZE_TRANSACTION_WITNESS)
 		);
 	}
 
@@ -368,6 +368,6 @@ mod tests {
 
 		let transaction_with_witness: Transaction =
 			"0000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000".into();
-		assert!(transaction_with_witness.hash() != transaction_with_witness.witness_hash());
+		assert_ne!(transaction_with_witness.hash(), transaction_with_witness.witness_hash());
 	}
 }
