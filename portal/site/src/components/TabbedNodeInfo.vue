@@ -1,5 +1,6 @@
 <script>
     import info from './Info'
+	import network from './Network'
     import peers from './Peers'
     import mempool from './Mempool'
 
@@ -7,13 +8,14 @@
         name: "tabbed-node-info",
         components: {
             info,
+			network,
             peers,
             mempool
         },
         data: function() {
             return {
                 currentTab: "info",
-                tabs: ["Info", "Peers", "Mempool"]
+                tabs: ["Info", "Network", "Peers", "Mempool"]
             }
         },
         computed: {

@@ -2,7 +2,7 @@ use crate::rpc::HttpConfiguration as RpcHttpConfig;
 use crate::rpc_apis::ApiSet;
 use crate::seednodes::{mainnet_seednodes, testnet_seednodes};
 use crate::util::open_db;
-use crate::{REGTEST_USER_AGENT, USER_AGENT};
+use crate::{REGTEST_USER_AGENT, USER_AGENT, USER_AGENT_VERSION};
 use clap;
 use message::Services;
 use network::{ConsensusParams, Network};
@@ -65,7 +65,7 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 	};
 
 	let user_agent = match network {
-		Network::Testnet | Network::Mainnet | Network::Unitest | Network::Other(_) => USER_AGENT.into(),
+		Network::Testnet | Network::Mainnet | Network::Unitest | Network::Other(_) => format!("{}:{}", USER_AGENT, USER_AGENT_VERSION),
 		Network::Regtest => REGTEST_USER_AGENT.into(),
 	};
 

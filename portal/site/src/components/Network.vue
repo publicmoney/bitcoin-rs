@@ -1,11 +1,11 @@
 <template>
     <div id="main">
-        <h2>Memory Pool Information</h2>
-        <ul id="info">
-            <li v-for="(value, name) in info" v-bind:key="name">
-                {{ name }}: {{ value }}
-            </li>
-        </ul>
+        <h2>Network Info</h2>
+		<ul id="network">
+			<li v-for="(value, name) in network" v-bind:key="name">
+				{{ name }}: {{ value }}
+			</li>
+		</ul>
     </div>
 </template>
 
@@ -13,20 +13,23 @@
     #main {
         text-align: left;
     }
+    #peer {
+        margin-bottom: 30px;
+    }
 </style>
 
 <script>
     import {request} from '../jsonrpc'
     export default {
-        name: 'mempool',
+        name: 'network',
         data: function() {
             return {
-                info: 'loading'
+                network: 'loading',
             };
         },
         methods: {
             loadInfo: async function() {
-                this.info = await request('getmempoolinfo', []);
+                this.network = await request('getnetworkinfo', []);
             }
         },
         mounted: function () {

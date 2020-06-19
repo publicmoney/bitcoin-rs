@@ -148,6 +148,7 @@ impl Database {
 		opts.set_use_fsync(false);
 		opts.set_max_background_flushes(DB_BACKGROUND_FLUSHES);
 		opts.set_max_background_compactions(DB_BACKGROUND_COMPACTIONS);
+		opts.set_write_buffer_size(128 * 1024 * 1024);
 
 		// compaction settings
 		opts.set_level_compaction_dynamic_level_bytes(true);
@@ -256,12 +257,12 @@ impl Database {
 	pub fn get(&self, key: &RawKey) -> Result<Option<Bytes>, String> {
 		match key.location {
 			Location::DB => {
-				let value = self.db.get_opt(&key.key, &self.read_opts)?;
+				let value = self.db.get_pinned_opt(&key.key, &self.read_opts)?;
 				Ok(value.map(|v| (&*v).into()))
 			}
 			Location::Column(col) => {
 				let cf = self.db.cf_handle(&format!("col{}", col)).expect("column not found");
-				let value = self.db.get_cf_opt(cf, &key.key, &self.read_opts)?;
+				let value = self.db.get_pinned_cf_opt(cf, &key.key, &self.read_opts)?;
 				Ok(value.map(|v| (&*v).into()))
 			}
 		}

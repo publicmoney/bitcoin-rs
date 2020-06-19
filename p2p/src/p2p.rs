@@ -47,6 +47,14 @@ impl Context {
 		Ok(context)
 	}
 
+	pub fn get_user_agent(&self) -> String {
+		self.config.connection.user_agent.clone()
+	}
+
+	pub fn get_version(&self) -> u32 {
+		self.config.connection.protocol_version
+	}
+
 	/// Spawns a future using thread pool and schedules execution of it with event loop handle.
 	pub fn spawn<F>(&self, f: F)
 	where
@@ -396,7 +404,7 @@ impl Context {
 
 pub struct P2P {
 	/// P2P config.
-	config: Config,
+	pub config: Config,
 	/// Network context.
 	context: Arc<Context>,
 }

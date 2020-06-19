@@ -4,8 +4,8 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use v1::helpers::errors;
 use v1::traits::Network as NetworkRpc;
-use v1::types::Peer;
 use v1::types::{AddNodeOperation, NodeInfo};
+use v1::types::{NetworkInfo, Peer};
 
 pub trait NetworkApi: Send + Sync + 'static {
 	fn add_node(&self, socket_addr: SocketAddr) -> Result<(), p2p::NodeTableError>;
@@ -15,12 +15,17 @@ pub trait NetworkApi: Send + Sync + 'static {
 	fn nodes_info(&self) -> Vec<NodeInfo>;
 	fn peers_info(&self) -> Vec<Peer>;
 	fn connection_count(&self) -> usize;
+	fn network_info(&self) -> NetworkInfo;
 }
 
 impl<T> NetworkRpc for NetworkClient<T>
 where
 	T: NetworkApi,
 {
+	fn network_info(&self) -> Result<NetworkInfo, Error> {
+		Ok(self.api.network_info())
+	}
+
 	fn add_node(&self, node: String, operation: AddNodeOperation) -> Result<(), Error> {
 		let addr = node
 			.parse()
@@ -141,5 +146,23 @@ impl NetworkApi for NetworkClientCore {
 
 	fn connection_count(&self) -> usize {
 		self.p2p.connections().count()
+	}
+
+	fn network_info(&self) -> NetworkInfo {
+		NetworkInfo {
+			connections: self.p2p.connections().count(),
+			incrementalfee: 0,
+			localaddresses: Vec::new(),
+			localrelay: false,
+			localservices: "".to_string(),
+			networkactive: true,
+			networks: Vec::new(),
+			protocolversion: self.p2p.get_version() as usize,
+			relayfee: 0,
+			version: 0,
+			subversion: self.p2p.get_user_agent(),
+			timeoffset: 0,
+			warnings: "".to_string(),
+		}
 	}
 }
