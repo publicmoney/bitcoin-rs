@@ -1,52 +1,7 @@
-[package]
-name = "bitcoin-rs"
-version = "0.1.0"
-license = "GPL-3.0"
-description = "Bitcoin Rust"
-build = "build.rs"
-edition = "2018"
-
-[dependencies]
-log = "0.4"
-env_logger = "0.7"
-app_dirs = "1.2.1"
-libc = "0.2"
-clap = { version = "2", features = ["yaml"] }
-tokio = { version = "0.2.11", features = ["full"] }
-message = { path = "message" }
-network = { path = "network" }
-p2p = { path = "p2p" }
-storage = { path = "storage" }
-db = { path = "db" }
-verification = { path = "verification" }
-sync = { path = "sync" }
-import = { path = "import" }
-logs = { path = "logs" }
-rpc = { path = "rpc" }
-portal = { path= "portal" }
-primitives = { path = "primitives" }
-
-[build-dependencies]
-built = "0.3"
-
-[profile.dev]
-debug = true
-panic = 'abort'
-
-[profile.release]
-debug = true
-panic = 'abort'
-
-[profile.test]
-debug = true
-
-[[bin]]
-name = "bitcoin-rs"
-path = "bitcoin-rs/main.rs"
-
 [workspace]
 members = [
 	"bencher",
+	"bitcoin-rs",
 	"chain",
 	"crypto",
 	"db",
@@ -67,3 +22,14 @@ members = [
 	"sync",
 	"verification",
 ]
+
+[profile.dev]
+debug = true
+panic = 'abort'
+
+[profile.release]
+debug = true
+panic = 'abort'
+
+[profile.test]
+debug = true
