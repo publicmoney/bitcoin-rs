@@ -443,6 +443,7 @@ mod tests {
 		assert_eq!(expected, verifier.verify(VerificationLevel::Header, &block.clone().into()));
 	}
 
+	// TODO fix the test
 	#[test]
 	#[ignore]
 	fn coinbase_happy() {

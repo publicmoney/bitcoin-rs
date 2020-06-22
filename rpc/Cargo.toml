@@ -1,7 +1,6 @@
 [package]
 name = "rpc"
 version = "0.1.0"
-authors = ["Ethcore <admin@ethcore.io>"]
 
 [lib]
 
@@ -17,7 +16,7 @@ jsonrpc-http-server = "14.2.0"
 
 sync = { path = "../sync" }
 serialization = { path = "../serialization" }
-chain = { path = "../chain" }
+chain = { path = "../chain", features = ["test-helpers"] }
 primitives = { path = "../primitives" }
 p2p = { path = "../p2p" }
 network = { path = "../network" }

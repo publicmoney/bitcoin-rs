@@ -1,7 +1,7 @@
 use crate::rpc_apis::{self, ApiSet};
-use ethcore_rpc::{start_http, Compatibility, MetaIoHandler, Server};
 use network::Network;
 use p2p;
+use rpc::{start_http, Compatibility, MetaIoHandler, Server};
 use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;

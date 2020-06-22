@@ -1,6 +1,6 @@
 use super::super::rpc;
 use crate::util::{db_path, init_db, node_table_path};
-use crate::{config, p2p, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
+use crate::{config, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use p2p::LocalSyncNodeRef;
 use primitives::hash::H256;
 use std::net::SocketAddr;

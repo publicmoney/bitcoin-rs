@@ -150,7 +150,7 @@ impl BloomFilterData {
 	pub fn contains(&self, data: &[u8]) -> bool {
 		for hash_function_idx in 0..self.hash_functions_num {
 			let murmur_seed = hash_function_idx.overflowing_mul(SEED_OFFSET).0.overflowing_add(self.tweak).0;
-			let murmur_hash = murmur3_32(&mut data.as_ref(), murmur_seed) as usize % self.filter.len();
+			let murmur_hash = murmur3_32::<&[u8]>(&mut data.as_ref(), murmur_seed) as usize % self.filter.len();
 			let index = (murmur_hash & !7usize) | ((murmur_hash & 7) ^ 7);
 			if !self
 				.filter
@@ -167,7 +167,7 @@ impl BloomFilterData {
 	pub fn insert(&mut self, data: &[u8]) {
 		for hash_function_idx in 0..self.hash_functions_num {
 			let murmur_seed = hash_function_idx.overflowing_mul(SEED_OFFSET).0.overflowing_add(self.tweak).0;
-			let murmur_hash = murmur3_32(&mut data.as_ref(), murmur_seed) as usize % self.filter.len();
+			let murmur_hash = murmur3_32::<&[u8]>(&mut data.as_ref(), murmur_seed) as usize % self.filter.len();
 			let index = (murmur_hash & !7usize) | ((murmur_hash & 7) ^ 7);
 			self.filter.set(index, true);
 		}

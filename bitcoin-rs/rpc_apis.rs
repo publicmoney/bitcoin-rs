@@ -1,5 +1,6 @@
 use crate::rpc::Dependencies;
-use ethcore_rpc::MetaIoHandler;
+use rpc::v1::*;
+use rpc::MetaIoHandler;
 use std::collections::HashSet;
 use std::str::FromStr;
 
@@ -49,8 +50,6 @@ impl ApiSet {
 }
 
 pub fn setup_rpc(mut handler: MetaIoHandler<()>, apis: ApiSet, deps: Dependencies) -> MetaIoHandler<()> {
-	use ethcore_rpc::v1::*;
-
 	for api in apis.list_apis() {
 		match api {
 			Api::Raw => handler.extend_with(

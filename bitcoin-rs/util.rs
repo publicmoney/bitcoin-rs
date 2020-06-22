@@ -1,7 +1,6 @@
 use crate::config::Config;
-use crate::{storage, APP_INFO};
+use crate::APP_INFO;
 use app_dirs::{app_dir, AppDataType};
-use db;
 use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::sync::Arc;

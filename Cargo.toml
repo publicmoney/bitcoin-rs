@@ -2,24 +2,20 @@
 name = "bitcoin-rs"
 version = "0.1.0"
 license = "GPL-3.0"
-description = "Bitcoin client"
+description = "Bitcoin Rust"
 build = "build.rs"
 edition = "2018"
 
 [dependencies]
 log = "0.4"
 env_logger = "0.7"
-app_dirs = { git = "https://github.com/paritytech/app-dirs-rs" }
+app_dirs = "1.2.1"
 libc = "0.2"
 clap = { version = "2", features = ["yaml"] }
 tokio = { version = "0.2.11", features = ["full"] }
-chain = { path = "chain" }
-keys = { path = "keys" }
 message = { path = "message" }
 network = { path = "network" }
-miner = { path = "miner" }
 p2p = { path = "p2p" }
-script = { path = "script" }
 storage = { path = "storage" }
 db = { path = "db" }
 verification = { path = "verification" }
@@ -45,8 +41,29 @@ panic = 'abort'
 debug = true
 
 [[bin]]
-path = "bitcoin-rs/main.rs"
 name = "bitcoin-rs"
+path = "bitcoin-rs/main.rs"
 
 [workspace]
-members = ["bencher"]
+members = [
+	"bencher",
+	"chain",
+	"crypto",
+	"db",
+	"import",
+	"keys",
+	"logs",
+	"message",
+	"miner",
+	"network",
+	"p2p",
+	"portal",
+	"primitives",
+	"rpc",
+	"script",
+	"serialization",
+	"serialization_derive",
+	"storage",
+	"sync",
+	"verification",
+]
