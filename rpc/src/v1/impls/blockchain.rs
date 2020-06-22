@@ -12,12 +12,13 @@ use v1::helpers::errors::{
 	block_at_height_not_found, block_not_found, transaction_not_found, transaction_of_side_branch, transaction_output_not_found,
 };
 use v1::traits::BlockChain;
-use v1::types::H256;
 use v1::types::U256;
 use v1::types::{BlockchainInfo, GetTxOutSetInfoResponse};
+use v1::types::{ChainTxStats, H256};
 use v1::types::{GetBlockResponse, RawBlock, VerboseBlock};
 use v1::types::{GetTxOutResponse, TransactionOutputScript};
 use verification;
+use verification::constants::TARGET_SPACING_SECONDS;
 
 pub struct BlockChainClient<T: BlockChainClientCoreApi> {
 	core: T,
@@ -37,6 +38,7 @@ pub trait BlockChainClientCoreApi: Send + Sync + 'static {
 	fn raw_block(&self, hash: GlobalH256) -> Option<RawBlock>;
 	fn verbose_block(&self, hash: GlobalH256) -> Option<VerboseBlock>;
 	fn verbose_transaction_out(&self, prev_out: OutPoint) -> Result<GetTxOutResponse, Error>;
+	fn chain_tx_stats(&self, nblocks: Option<usize>, blockhash: Option<String>) -> Result<ChainTxStats, Error>;
 }
 
 pub struct BlockChainClientCore {
@@ -204,6 +206,50 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 			coinbase: transaction.raw.is_coinbase(),
 		})
 	}
+	fn chain_tx_stats(&self, nblocks: Option<usize>, _blockhash: Option<String>) -> Result<ChainTxStats, Error> {
+		let one_month_blocks = 30 * 24 * 60 * 60 / TARGET_SPACING_SECONDS;
+		let nblocks = nblocks.unwrap_or(one_month_blocks as usize) as u32;
+		let start_meta = self.storage.block_meta(nblocks.into()).ok_or(block_not_found(nblocks))?;
+
+		// TODO enable when hashes are unified
+		// let (end_hash, end_meta): (GlobalH256, storage::BlockMeta) = if blockhash.is_some() {
+		// 	let hash = blockhash.clone().unwrap();
+		// 	let global_hash: GlobalH256 = GlobalH256::from_reversed_str(hash.clone().as_str());
+		// 	// let hash =  H256::from(blockhash.unwrap().as_str());
+		// 	let meta = self.storage.block_meta(BlockRef::Hash(global_hash))
+		// 		.ok_or(block_not_found(blockhash.unwrap()))?;
+		// 	(global_hash, meta)
+		// } else {
+		// 	let hash = self.storage.best_block().hash;
+		// 	(hash, self.storage.block_meta(BlockRef::Hash(hash)).unwrap())
+		// };
+
+		// if end_meta.number < nblocks {
+		// 	return Err(invalid_params("nblocks", "nblocks is greater than blockhash"))
+		// }
+		// let time_start = self.storage.block_header(nblocks.into()).unwrap().raw.time;
+		// let time_end = self.storage.block_header(end_meta.number.into()).unwrap().raw.time;
+
+		// Ok(ChainTxStats {
+		// 	time: time_end as usize,
+		// 	txcount: end_meta.n_chain_tx as usize,
+		// 	window_final_block_hash: end_hash.to_reversed_str(),
+		// 	window_block_count: (end_meta.number - start_meta.number) as usize,
+		// 	window_tx_count: (end_meta.n_chain_tx - start_meta.n_chain_tx) as usize,
+		// 	window_interval: (time_end - time_start) as usize,
+		// 	txrate: ((end_meta.n_chain_tx - start_meta.n_chain_tx) / (time_end - time_start)) as usize,
+		// })
+
+		Ok(ChainTxStats {
+			time: 0,
+			txcount: start_meta.n_chain_tx as usize,
+			window_final_block_hash: "".to_string(),
+			window_block_count: 0,
+			window_tx_count: 0,
+			window_interval: 0,
+			txrate: 0,
+		})
+	}
 }
 
 impl<T> BlockChainClient<T>
@@ -294,6 +340,10 @@ where
 
 	fn transaction_out_set_info(&self) -> Result<GetTxOutSetInfoResponse, Error> {
 		rpc_unimplemented!()
+	}
+
+	fn chain_tx_stats(&self, nblocks: Option<usize>, blockhash: Option<String>) -> Result<ChainTxStats, Error> {
+		self.core.chain_tx_stats(nblocks, blockhash)
 	}
 }
 
@@ -414,6 +464,10 @@ pub mod tests {
 				coinbase: false,
 			})
 		}
+
+		fn chain_tx_stats(&self, _nblocks: Option<usize>, _blockhash: Option<String>) -> Result<ChainTxStats, Error> {
+			Ok(ChainTxStats::default())
+		}
 	}
 
 	impl BlockChainClientCoreApi for ErrorBlockChainClientCore {
@@ -467,6 +521,10 @@ pub mod tests {
 
 		fn verbose_transaction_out(&self, prev_out: OutPoint) -> Result<GetTxOutResponse, Error> {
 			Err(block_not_found(prev_out.hash))
+		}
+
+		fn chain_tx_stats(&self, nblocks: Option<usize>, _blockhash: Option<String>) -> Result<ChainTxStats, Error> {
+			Err(block_not_found(nblocks))
 		}
 	}
 

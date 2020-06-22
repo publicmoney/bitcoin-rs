@@ -3,21 +3,20 @@ use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction, OutPoint, Tran
 use hash::H256;
 use kv::{
 	AutoFlushingOverlayDatabase, CacheDatabase, DatabaseConfig, DiskDatabase, Key, KeyState, KeyValue, KeyValueDatabase, MemoryDatabase,
-	OverlayDatabase, Transaction as DBTransaction, Value,
+	OverlayDatabase, Transaction as DBTransaction, Value, COL_BLOCK_META,
 };
-use kv::{
-	COL_BLOCK_HASHES, COL_BLOCK_HEADERS, COL_BLOCK_NUMBERS, COL_BLOCK_TRANSACTIONS, COL_COUNT, COL_TRANSACTIONS, COL_TRANSACTIONS_META,
-};
+use kv::{COL_BLOCK_HASHES, COL_BLOCK_HEADERS, COL_BLOCK_TRANSACTIONS, COL_COUNT, COL_TRANSACTIONS, COL_TRANSACTIONS_META};
 use parking_lot::RwLock;
 use ser::{deserialize, serialize, List};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use storage::{
-	BestBlock, BlockChain, BlockHeaderProvider, BlockOrigin, BlockProvider, BlockRef, CanonStore, ConfigStore, Error, ForkChain, Forkable,
-	SideChainOrigin, Store, TransactionMeta, TransactionMetaProvider, TransactionOutputProvider, TransactionProvider,
+	BlockChain, BlockHeaderProvider, BlockHeight, BlockMeta, BlockOrigin, BlockProvider, BlockRef, CanonStore, ConfigStore, Error,
+	ForkChain, Forkable, SideChainOrigin, Store, TransactionMeta, TransactionMetaProvider, TransactionOutputProvider, TransactionProvider,
 };
 
+// TODO Don't need to store best block and best hash, should just use hash and BlockMeta
 const KEY_BEST_BLOCK_NUMBER: &'static str = "best_block_number";
 const KEY_BEST_BLOCK_HASH: &'static str = "best_block_hash";
 
@@ -27,7 +26,7 @@ pub struct BlockChainDatabase<T>
 where
 	T: KeyValueDatabase,
 {
-	best_block: RwLock<BestBlock>,
+	best_block: RwLock<BlockHeight>,
 	db: T,
 }
 
@@ -65,7 +64,7 @@ impl BlockChainDatabase<CacheDatabase<AutoFlushingOverlayDatabase<DiskDatabase>>
 
 		cfg.set_cache(Some(COL_BLOCK_HASHES), total_cache / 12);
 		cfg.set_cache(Some(COL_BLOCK_TRANSACTIONS), total_cache / 12);
-		cfg.set_cache(Some(COL_BLOCK_NUMBERS), total_cache / 12);
+		cfg.set_cache(Some(COL_BLOCK_META), total_cache / 12);
 
 		cfg.bloom_filters.insert(Some(COL_TRANSACTIONS_META), 32);
 
@@ -107,7 +106,7 @@ impl<T> BlockChainDatabase<T>
 where
 	T: KeyValueDatabase,
 {
-	fn read_best_block(db: &T) -> Option<BestBlock> {
+	fn read_best_block(db: &T) -> Option<BlockHeight> {
 		let best_number = db
 			.get(&Key::Meta(KEY_BEST_BLOCK_NUMBER))
 			.map(KeyState::into_option)
@@ -119,10 +118,11 @@ where
 
 		match (best_number, best_hash) {
 			(Ok(None), Ok(None)) => None,
-			(Ok(Some(number)), Ok(Some(hash))) => Some(BestBlock {
-				number: deserialize(&**number).expect("Inconsistent DB. Invalid best block number."),
-				hash: deserialize(&**hash).expect("Inconsistent DB. Invalid best block hash."),
-			}),
+			(Ok(Some(number)), Ok(Some(hash))) => {
+				let number: u32 = deserialize(&**number).expect("Inconsistent DB. Invalid best block number.");
+				let hash = deserialize(&**hash).expect("Inconsistent DB. Invalid best block hash.");
+				Some(BlockHeight { hash, number })
+			}
 			_ => panic!("Inconsistent DB"),
 		}
 	}
@@ -135,7 +135,7 @@ where
 		}
 	}
 
-	pub fn best_block(&self) -> BestBlock {
+	pub fn best_block(&self) -> BlockHeight {
 		self.best_block.read().clone()
 	}
 
@@ -164,7 +164,8 @@ where
 
 	pub fn block_origin(&self, header: &IndexedBlockHeader) -> Result<BlockOrigin, Error> {
 		let best_block = self.best_block.read();
-		assert_eq!(Some(best_block.hash.clone()), self.block_hash(best_block.number));
+
+		assert_eq!(Some(best_block.hash), self.block_hash(best_block.number));
 		if self.contains_block(header.hash.clone().into()) {
 			// it does not matter if it's canon chain or side chain block
 			return Ok(BlockOrigin::KnownBlock);
@@ -196,11 +197,11 @@ where
 							.collect(),
 						block_number,
 					};
-					if block_number > best_block.number {
-						return Ok(BlockOrigin::SideChainBecomingCanonChain(origin));
+					return if block_number > best_block.number {
+						Ok(BlockOrigin::SideChainBecomingCanonChain(origin))
 					} else {
-						return Ok(BlockOrigin::SideChain(origin));
-					}
+						Ok(BlockOrigin::SideChain(origin))
+					};
 				}
 				None => {
 					sidechain_route.push(next_hash.clone());
@@ -227,8 +228,8 @@ where
 		}
 
 		let mut update = DBTransaction::new();
-		update.insert(KeyValue::BlockHeader(*block.hash(), block.header.raw));
 		let tx_hashes = block.transactions.iter().map(|tx| tx.hash.clone()).collect::<Vec<_>>();
+		update.insert(KeyValue::BlockHeader(*block.hash(), block.header.raw));
 		update.insert(KeyValue::BlockTransactions(block.header.hash.clone(), List::from(tx_hashes)));
 
 		for tx in block.transactions.into_iter() {
@@ -240,10 +241,10 @@ where
 
 	/// Rollbacks single best block
 	fn rollback_best(&self) -> Result<H256, Error> {
-		let best_block_hash = self.best_block.read().hash.clone();
-		let tx_to_decanonize = self.block_transaction_hashes(best_block_hash.into());
+		let best_block = self.best_block.read().clone();
+		let tx_to_decanonize = self.block_transaction_hashes(best_block.hash.into());
 		let decanonized_hash = self.decanonize()?;
-		debug_assert_eq!(best_block_hash, decanonized_hash);
+		debug_assert_eq!(best_block.hash, decanonized_hash);
 
 		// and now remove decanonized block from database
 		// all code currently works in assumption that origin of all blocks is one of:
@@ -257,7 +258,7 @@ where
 
 		self.db.write(update).map_err(Error::DatabaseError)?;
 
-		Ok(self.best_block().hash)
+		Ok(self.best_block.read().hash)
 	}
 
 	/// Marks block as a new best block.
@@ -283,21 +284,32 @@ where
 			return Err(Error::CannotCanonize);
 		}
 
-		let new_best_block = BestBlock {
+		let new_meta = if block.header.raw.previous_header_hash.is_zero() {
+			assert_eq!(best_block.number, 0);
+			BlockMeta {
+				number: 0,
+				n_tx: block.transactions.len() as u32,
+				n_chain_tx: block.transactions.len() as u32,
+			}
+		} else {
+			let best_meta = self.block_meta(best_block.hash.into()).ok_or(Error::UnknownParent)?;
+			BlockMeta {
+				number: best_block.number + 1,
+				n_tx: block.transactions.len() as u32,
+				n_chain_tx: best_meta.n_chain_tx + block.transactions.len() as u32,
+			}
+		};
+
+		let new_best_block = BlockHeight {
 			hash: *hash,
-			number: if block.header.raw.previous_header_hash.is_zero() {
-				assert_eq!(best_block.number, 0);
-				0
-			} else {
-				best_block.number + 1
-			},
+			number: new_meta.number,
 		};
 
 		trace!(target: "db", "canonize {:?}", new_best_block);
 
 		let mut update = DBTransaction::new();
-		update.insert(KeyValue::BlockHash(new_best_block.number, new_best_block.hash.clone()));
-		update.insert(KeyValue::BlockNumber(new_best_block.hash.clone(), new_best_block.number));
+		update.insert(KeyValue::BlockHash(new_best_block.number, new_best_block.hash));
+		update.insert(KeyValue::BlockMeta(*block.hash(), new_meta));
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_HASH, serialize(&new_best_block.hash)));
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_NUMBER, serialize(&new_best_block.number)));
 
@@ -357,7 +369,7 @@ where
 		let block_number = best_block.number;
 		let block_hash = best_block.hash.clone();
 
-		let new_best_block = BestBlock {
+		let new_best_block = BlockHeight {
 			hash: block.header.raw.previous_header_hash.clone(),
 			number: if best_block.number > 0 {
 				best_block.number - 1
@@ -371,7 +383,7 @@ where
 
 		let mut update = DBTransaction::new();
 		update.delete(Key::BlockHash(block_number));
-		update.delete(Key::BlockNumber(block_hash.clone()));
+		update.delete(Key::BlockMeta(block_hash));
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_HASH, serialize(&new_best_block.hash)));
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_NUMBER, serialize(&new_best_block.number)));
 
@@ -449,12 +461,20 @@ impl<T> BlockProvider for BlockChainDatabase<T>
 where
 	T: KeyValueDatabase,
 {
-	fn block_number(&self, hash: &H256) -> Option<u32> {
-		self.get(Key::BlockNumber(*hash)).and_then(Value::as_block_number)
+	fn block_meta(&self, block_ref: BlockRef) -> Option<BlockMeta> {
+		let hash = match block_ref {
+			BlockRef::Number(n) => self.block_hash(n).unwrap(),
+			BlockRef::Hash(h) => h,
+		};
+		self.get(Key::BlockMeta(hash)).and_then(Value::as_block_meta)
 	}
 
 	fn block_hash(&self, number: u32) -> Option<H256> {
 		self.get(Key::BlockHash(number)).and_then(Value::as_block_hash)
+	}
+
+	fn block_number(&self, hash: &H256) -> Option<u32> {
+		self.block_meta(BlockRef::Hash(*hash)).map(|b| b.number)
 	}
 
 	fn block(&self, block_ref: BlockRef) -> Option<IndexedBlock> {
@@ -590,7 +610,7 @@ impl<T> Store for BlockChainDatabase<T>
 where
 	T: KeyValueDatabase,
 {
-	fn best_block(&self) -> BestBlock {
+	fn best_block(&self) -> BlockHeight {
 		BlockChainDatabase::best_block(self)
 	}
 

@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use hash::H256;
-use BlockRef;
+use {BlockMeta, BlockRef};
 
 pub trait BlockHeaderProvider {
 	/// resolves header bytes by block reference (number/hash)
@@ -12,11 +12,14 @@ pub trait BlockHeaderProvider {
 }
 
 pub trait BlockProvider: BlockHeaderProvider {
-	/// resolves number by block hash
-	fn block_number(&self, hash: &H256) -> Option<u32>;
+	/// resolves block meta data
+	fn block_meta(&self, block_ref: BlockRef) -> Option<BlockMeta>;
 
 	/// resolves hash by block number
 	fn block_hash(&self, number: u32) -> Option<H256>;
+
+	/// resolves block number by block hash
+	fn block_number(&self, hash: &H256) -> Option<u32>;
 
 	/// resolves deserialized block body by block reference (number/hash)
 	fn block(&self, block_ref: BlockRef) -> Option<IndexedBlock>;

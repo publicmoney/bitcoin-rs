@@ -1,10 +1,10 @@
 use jsonrpc_core::Error;
 use jsonrpc_derive::rpc;
-use v1::types::BlockchainInfo;
 use v1::types::GetBlockResponse;
 use v1::types::GetTxOutResponse;
 use v1::types::GetTxOutSetInfoResponse;
 use v1::types::H256;
+use v1::types::{BlockchainInfo, ChainTxStats};
 
 /// bitcoin-rs blockchain data interface.
 #[rpc(server)]
@@ -41,4 +41,8 @@ pub trait BlockChain {
 	/// @curl-example: curl --data-binary '{"jsonrpc": "2.0", "method": "gettxoutsetinfo", "params": [], "id":1 }' -H 'content-type: application/json' http://127.0.0.1:8332/
 	#[rpc(name = "gettxoutsetinfo")]
 	fn transaction_out_set_info(&self) -> Result<GetTxOutSetInfoResponse, Error>;
+	/// Compute statistics about the total number and rate of transactions in the chain.
+	/// @curl-example: curl --data-binary '{"jsonrpc": "2.0", "method": "getchaintxstats", "params": [], "id":1 }' -H 'content-type: application/json' http://127.0.0.1:8332/
+	#[rpc(name = "getchaintxstats")]
+	fn chain_tx_stats(&self, nblocks: Option<usize>, blockhash: Option<String>) -> Result<ChainTxStats, Error>;
 }

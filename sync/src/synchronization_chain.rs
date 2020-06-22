@@ -104,7 +104,7 @@ pub struct Chain {
 	/// Genesis block hash (stored for optimizations)
 	genesis_block_hash: H256,
 	/// Best storage block (stored for optimizations)
-	best_storage_block: storage::BestBlock,
+	best_storage_block: storage::BlockHeight,
 	/// Local blocks storage
 	storage: StorageRef,
 	/// In-memory queue of blocks hashes
@@ -198,9 +198,9 @@ impl Chain {
 	}
 
 	/// Get best block
-	pub fn best_block(&self) -> storage::BestBlock {
+	pub fn best_block(&self) -> storage::BlockHeight {
 		match self.hash_chain.back() {
-			Some(hash) => storage::BestBlock {
+			Some(hash) => storage::BlockHeight {
 				number: self.best_storage_block.number + self.hash_chain.len(),
 				hash: hash.clone(),
 			},
@@ -209,17 +209,17 @@ impl Chain {
 	}
 
 	/// Get best storage block
-	pub fn best_storage_block(&self) -> storage::BestBlock {
+	pub fn best_storage_block(&self) -> storage::BlockHeight {
 		self.best_storage_block.clone()
 	}
 
 	/// Get best block header
-	pub fn best_block_header(&self) -> storage::BestBlock {
+	pub fn best_block_header(&self) -> storage::BlockHeight {
 		let headers_chain_information = self.headers_chain.information();
 		if headers_chain_information.best == 0 {
 			return self.best_storage_block();
 		}
-		storage::BestBlock {
+		storage::BlockHeight {
 			number: self.best_storage_block.number + headers_chain_information.best,
 			hash: self
 				.headers_chain
@@ -237,14 +237,6 @@ impl Chain {
 			// we try to keep these in order, but they are probably not
 			self.hash_chain.at(number - self.best_storage_block.number)
 		}
-	}
-
-	/// Get block number by hash
-	pub fn block_number(&self, hash: &H256) -> Option<BlockHeight> {
-		if let Some(number) = self.storage.block_number(hash) {
-			return Some(number);
-		}
-		self.headers_chain.height(hash).map(|p| self.best_storage_block.number + p + 1)
 	}
 
 	/// Get block header by number

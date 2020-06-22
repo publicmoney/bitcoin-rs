@@ -7,17 +7,17 @@ use ser::List;
 use std::collections::HashMap;
 use std::mem::replace;
 use std::sync::Arc;
-use storage::TransactionMeta;
+use storage::{BlockMeta, TransactionMeta};
 
 #[derive(Default, Debug)]
 struct InnerDatabase {
 	meta: HashMap<&'static str, KeyState<Bytes>>,
 	block_hash: HashMap<u32, KeyState<H256>>,
+	block_meta: HashMap<H256, KeyState<BlockMeta>>,
 	block_header: HashMap<H256, KeyState<BlockHeader>>,
 	block_transactions: HashMap<H256, KeyState<List<H256>>>,
 	transaction: HashMap<H256, KeyState<ChainTransaction>>,
 	transaction_meta: HashMap<H256, KeyState<TransactionMeta>>,
-	block_number: HashMap<H256, KeyState<u32>>,
 	configuration: HashMap<&'static str, KeyState<Bytes>>,
 }
 
@@ -53,9 +53,9 @@ impl MemoryDatabase {
 			.into_iter()
 			.flat_map(|(key, state)| state.into_operation(key, KeyValue::TransactionMeta, Key::TransactionMeta));
 
-		let block_number = replace(&mut db.block_number, HashMap::default())
+		let block_meta = replace(&mut db.block_meta, HashMap::default())
 			.into_iter()
-			.flat_map(|(key, state)| state.into_operation(key, KeyValue::BlockNumber, Key::BlockNumber));
+			.flat_map(|(key, state)| state.into_operation(key, KeyValue::BlockMeta, Key::BlockMeta));
 
 		let configuration = replace(&mut db.configuration, HashMap::default())
 			.into_iter()
@@ -68,7 +68,7 @@ impl MemoryDatabase {
 				.chain(block_transactions)
 				.chain(transaction)
 				.chain(transaction_meta)
-				.chain(block_number)
+				.chain(block_meta)
 				.chain(configuration)
 				.collect(),
 		}
@@ -87,6 +87,9 @@ impl KeyValueDatabase for MemoryDatabase {
 					KeyValue::BlockHash(key, value) => {
 						db.block_hash.insert(key, KeyState::Insert(value));
 					}
+					KeyValue::BlockMeta(key, value) => {
+						db.block_meta.insert(key, KeyState::Insert(value));
+					}
 					KeyValue::BlockHeader(key, value) => {
 						db.block_header.insert(key, KeyState::Insert(value));
 					}
@@ -99,9 +102,6 @@ impl KeyValueDatabase for MemoryDatabase {
 					KeyValue::TransactionMeta(key, value) => {
 						db.transaction_meta.insert(key, KeyState::Insert(value));
 					}
-					KeyValue::BlockNumber(key, value) => {
-						db.block_number.insert(key, KeyState::Insert(value));
-					}
 					KeyValue::Configuration(key, value) => {
 						db.configuration.insert(key, KeyState::Insert(value));
 					}
@@ -112,6 +112,9 @@ impl KeyValueDatabase for MemoryDatabase {
 					}
 					Key::BlockHash(key) => {
 						db.block_hash.insert(key, KeyState::Delete);
+					}
+					Key::BlockMeta(key) => {
+						db.block_meta.insert(key, KeyState::Delete);
 					}
 					Key::BlockHeader(key) => {
 						db.block_header.insert(key, KeyState::Delete);
@@ -124,9 +127,6 @@ impl KeyValueDatabase for MemoryDatabase {
 					}
 					Key::TransactionMeta(key) => {
 						db.transaction_meta.insert(key, KeyState::Delete);
-					}
-					Key::BlockNumber(key) => {
-						db.block_number.insert(key, KeyState::Delete);
 					}
 					Key::Configuration(key) => {
 						db.configuration.insert(key, KeyState::Delete);
@@ -142,6 +142,7 @@ impl KeyValueDatabase for MemoryDatabase {
 		let result = match *key {
 			Key::Meta(ref key) => db.meta.get(key).cloned().unwrap_or_default().map(Value::Meta),
 			Key::BlockHash(ref key) => db.block_hash.get(key).cloned().unwrap_or_default().map(Value::BlockHash),
+			Key::BlockMeta(ref key) => db.block_meta.get(key).cloned().unwrap_or_default().map(Value::BlockMeta),
 			Key::BlockHeader(ref key) => db.block_header.get(key).cloned().unwrap_or_default().map(Value::BlockHeader),
 			Key::BlockTransactions(ref key) => db
 				.block_transactions
@@ -156,7 +157,6 @@ impl KeyValueDatabase for MemoryDatabase {
 				.cloned()
 				.unwrap_or_default()
 				.map(Value::TransactionMeta),
-			Key::BlockNumber(ref key) => db.block_number.get(key).cloned().unwrap_or_default().map(Value::BlockNumber),
 			Key::Configuration(ref key) => db.configuration.get(key).cloned().unwrap_or_default().map(Value::Configuration),
 		};
 

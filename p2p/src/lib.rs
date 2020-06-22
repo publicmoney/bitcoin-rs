@@ -22,9 +22,9 @@ mod util;
 
 pub use primitives::{bytes, hash};
 
+pub use crate::p2p::{Context, P2P};
 pub use config::Config;
 pub use net::Config as NetConfig;
-pub use p2p::{Context, P2P};
 pub use protocol::{
 	InboundSyncConnection, InboundSyncConnectionRef, InboundSyncConnectionState, InboundSyncConnectionStateRef, LocalSyncNode,
 	LocalSyncNodeRef, OutboundSyncConnection, OutboundSyncConnectionRef,

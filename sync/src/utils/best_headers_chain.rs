@@ -52,11 +52,6 @@ impl BestHeadersChain {
 		self.headers.get(hash).cloned()
 	}
 
-	/// Get height of main chain
-	pub fn height(&self, hash: &H256) -> Option<u32> {
-		self.best.position(hash)
-	}
-
 	/// Get all direct child blocks hashes of given block hash
 	pub fn children(&self, hash: &H256) -> Vec<H256> {
 		self.best
@@ -149,7 +144,6 @@ mod tests {
 		let chain = BestHeadersChain::new(H256::default());
 		assert_eq!(chain.at(0), None);
 		assert_eq!(chain.by_hash(&H256::from(0)), None);
-		assert_eq!(chain.height(&H256::default()), None);
 		assert_eq!(chain.children(&H256::default()), vec![]);
 		assert_eq!(chain.best_block_hash(), H256::default());
 	}

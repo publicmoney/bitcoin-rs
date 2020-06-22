@@ -1,7 +1,8 @@
 use chain::IndexedBlockHeader;
 use std::sync::Arc;
+use BlockHeight;
 use {
-	BestBlock, BlockChain, BlockHeaderProvider, BlockProvider, Error, Forkable, TransactionMetaProvider, TransactionOutputProvider,
+	BlockChain, BlockHeaderProvider, BlockProvider, Error, Forkable, TransactionMetaProvider, TransactionOutputProvider,
 	TransactionProvider,
 };
 
@@ -21,7 +22,7 @@ pub trait ConfigStore {
 /// Blockchain storage interface
 pub trait Store: AsSubstore {
 	/// get best block
-	fn best_block(&self) -> BestBlock;
+	fn best_block(&self) -> BlockHeight;
 
 	/// get best header
 	fn best_header(&self) -> IndexedBlockHeader;
