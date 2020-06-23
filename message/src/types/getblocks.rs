@@ -1,7 +1,7 @@
-use hash::H256;
+use crate::hash::H256;
+use crate::{MessageResult, Payload};
 use ser::{Reader, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 pub const GETBLOCKS_MAX_RESPONSE_HASHES: usize = 500;
 

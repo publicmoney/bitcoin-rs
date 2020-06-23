@@ -1,3 +1,11 @@
+use crate::synchronization_client::Client;
+use crate::synchronization_client_core::Information;
+use crate::synchronization_peers::{BlockAnnouncementType, TransactionAnnouncementType};
+use crate::synchronization_server::{Server, ServerTask};
+use crate::synchronization_verifier::TransactionVerificationSink;
+use crate::types::{
+	ClientRef, MemoryPoolRef, PeerIndex, PeersRef, RequestId, ServerRef, StorageRef, SyncListenerRef, SynchronizationStateRef,
+};
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use futures::{finished, lazy};
 use message::types;
@@ -7,13 +15,7 @@ use network::ConsensusParams;
 use parking_lot::{Condvar, Mutex};
 use primitives::hash::H256;
 use std::sync::Arc;
-use synchronization_client::Client;
-use synchronization_client_core::Information;
-use synchronization_peers::{BlockAnnouncementType, TransactionAnnouncementType};
-use synchronization_server::{Server, ServerTask};
-use synchronization_verifier::TransactionVerificationSink;
 use time;
-use types::{ClientRef, MemoryPoolRef, PeerIndex, PeersRef, RequestId, ServerRef, StorageRef, SyncListenerRef, SynchronizationStateRef};
 
 /// Local synchronization node
 pub struct LocalNode<U: Server, V: Client> {
@@ -321,6 +323,18 @@ pub mod tests {
 	extern crate test_data;
 
 	use super::LocalNode;
+	use crate::synchronization_chain::Chain;
+	use crate::synchronization_client::SynchronizationClient;
+	use crate::synchronization_client_core::{Config, CoreVerificationSink, SynchronizationClientCore};
+	use crate::synchronization_executor::tests::DummyTaskExecutor;
+	use crate::synchronization_executor::Task;
+	use crate::synchronization_peers::PeersImpl;
+	use crate::synchronization_server::tests::DummyServer;
+	use crate::synchronization_server::ServerTask;
+	use crate::synchronization_verifier::tests::DummyVerifier;
+	use crate::types::SynchronizationStateRef;
+	use crate::utils::{AverageSpeedMeter, SynchronizationState};
+	use crate::BLOCKS_SPEED_BLOCKS_TO_INSPECT;
 	use chain::Transaction;
 	use db::BlockChainDatabase;
 	use message::common::{InventoryType, InventoryVector};
@@ -331,19 +345,7 @@ pub mod tests {
 	use primitives::bytes::Bytes;
 	use std::iter::repeat;
 	use std::sync::Arc;
-	use synchronization_chain::Chain;
-	use synchronization_client::SynchronizationClient;
-	use synchronization_client_core::{Config, CoreVerificationSink, SynchronizationClientCore};
-	use synchronization_executor::tests::DummyTaskExecutor;
-	use synchronization_executor::Task;
-	use synchronization_peers::PeersImpl;
-	use synchronization_server::tests::DummyServer;
-	use synchronization_server::ServerTask;
-	use synchronization_verifier::tests::DummyVerifier;
-	use types::SynchronizationStateRef;
-	use utils::{AverageSpeedMeter, SynchronizationState};
 	use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
-	use BLOCKS_SPEED_BLOCKS_TO_INSPECT;
 
 	pub fn default_filterload() -> types::FilterLoad {
 		types::FilterLoad {

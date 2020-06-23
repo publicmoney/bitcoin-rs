@@ -1,8 +1,8 @@
 //! Bitcoin network
 //! https://www.anintegratedworld.com/unravelling-the-mysterious-block-chain-magic-number/
 
+use crate::compact::Compact;
 use chain::IndexedBlock;
-use compact::Compact;
 use primitives::bigint::U256;
 use primitives::hash::H256;
 use std::fmt;
@@ -111,7 +111,7 @@ mod tests {
 	use super::{
 		Network, MAGIC_MAINNET, MAGIC_REGTEST, MAGIC_TESTNET, MAGIC_UNITEST, MAX_BITS_MAINNET, MAX_BITS_REGTEST, MAX_BITS_TESTNET,
 	};
-	use compact::Compact;
+	use crate::compact::Compact;
 
 	#[test]
 	fn test_network_magic_number() {

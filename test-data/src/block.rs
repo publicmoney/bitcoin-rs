@@ -1,8 +1,8 @@
 //! Block builder
 
 use super::genesis;
+use crate::invoke::{Identity, Invoke};
 use chain;
-use invoke::{Identity, Invoke};
 use primitives::bytes::Bytes;
 use primitives::compact::Compact;
 use primitives::hash::H256;

@@ -1,9 +1,9 @@
+use crate::v1::traits::Miner;
+use crate::v1::types::{BlockTemplate, BlockTemplateRequest, MempoolInfo};
 use jsonrpc_core::Error;
 use miner;
 use miner::MemoryPoolInformation;
 use sync;
-use v1::traits::Miner;
-use v1::types::{BlockTemplate, BlockTemplateRequest, MempoolInfo};
 
 pub struct MinerClient<T: MinerClientCoreApi> {
 	core: T,
@@ -59,11 +59,11 @@ where
 #[cfg(test)]
 pub mod tests {
 	use super::*;
+	use crate::v1::traits::Miner;
 	use chain;
 	use jsonrpc_core::IoHandler;
 	use miner;
 	use primitives::hash::H256;
-	use v1::traits::Miner;
 
 	#[derive(Default)]
 	struct SuccessMinerClientCore;

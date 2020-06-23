@@ -1,11 +1,11 @@
+use crate::types::PeerIndex;
+use crate::utils::{ConnectionFilter, KnownHashType};
 use chain::{IndexedBlock, IndexedTransaction};
 use message::{types, Services};
 use p2p::OutboundSyncConnectionRef;
 use parking_lot::RwLock;
 use primitives::hash::H256;
 use std::collections::HashMap;
-use types::PeerIndex;
-use utils::{ConnectionFilter, KnownHashType};
 
 /// Block announcement type
 #[derive(Debug, Clone, Copy)]

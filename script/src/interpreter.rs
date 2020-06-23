@@ -1,11 +1,11 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::script::MAX_SCRIPT_ELEMENT_SIZE;
+use crate::sign::{Sighash, SignatureVersion};
+use crate::{script, Builder, Error, Num, Opcode, Script, ScriptWitness, SignatureChecker, Stack, VerificationFlags};
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
 use crypto::{dhash160, dhash256, ripemd160, sha1, sha256};
 use keys::{Public, Signature};
-use script::MAX_SCRIPT_ELEMENT_SIZE;
-use sign::{Sighash, SignatureVersion};
 use std::{cmp, mem};
-use {script, Builder, Error, Num, Opcode, Script, ScriptWitness, SignatureChecker, Stack, VerificationFlags};
 
 /// Helper function.
 fn check_signature(
@@ -1125,14 +1125,14 @@ pub fn eval_script(
 #[cfg(test)]
 mod tests {
 	use super::{eval_script, is_public_key, verify_script};
-	use bytes::Bytes;
-	use chain::Transaction;
-	use script::MAX_SCRIPT_ELEMENT_SIZE;
-	use sign::SignatureVersion;
-	use {
+	use crate::bytes::Bytes;
+	use crate::script::MAX_SCRIPT_ELEMENT_SIZE;
+	use crate::sign::SignatureVersion;
+	use crate::{
 		Builder, Error, NoopSignatureChecker, Num, Opcode, Script, ScriptWitness, Stack, TransactionInputSigner,
 		TransactionSignatureChecker, VerificationFlags,
 	};
+	use chain::Transaction;
 
 	#[test]
 	fn tests_is_public_key() {

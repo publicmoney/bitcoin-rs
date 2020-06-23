@@ -1,11 +1,11 @@
+use crate::v1::helpers::errors;
+use crate::v1::traits::Network as NetworkRpc;
+use crate::v1::types::{AddNodeOperation, NodeInfo};
+use crate::v1::types::{NetworkInfo, Peer};
 use jsonrpc_core::Error;
 use p2p;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use v1::helpers::errors;
-use v1::traits::Network as NetworkRpc;
-use v1::types::{AddNodeOperation, NodeInfo};
-use v1::types::{NetworkInfo, Peer};
 
 pub trait NetworkApi: Send + Sync + 'static {
 	fn add_node(&self, socket_addr: SocketAddr) -> Result<(), p2p::NodeTableError>;

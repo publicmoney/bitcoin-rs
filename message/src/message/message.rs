@@ -1,9 +1,9 @@
-use bytes::{Bytes, TaggedBytes};
-use common::Command;
+use crate::bytes::{Bytes, TaggedBytes};
+use crate::common::Command;
+use crate::serialization::serialize_payload_with_flags;
+use crate::{MessageHeader, MessageResult, Payload};
 use network::Magic;
 use ser::Stream;
-use serialization::serialize_payload_with_flags;
-use {MessageHeader, MessageResult, Payload};
 
 pub fn to_raw_message(magic: Magic, command: Command, payload: &Bytes) -> Bytes {
 	let header = MessageHeader::for_data(magic, command, payload);

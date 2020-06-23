@@ -1,9 +1,9 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::hash::H256;
+use crate::{MessageResult, Payload};
 use chain::BlockHeader;
-use hash::H256;
 use ser::{Reader, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct MerkleBlock {

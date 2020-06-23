@@ -1,6 +1,6 @@
+use crate::{MessageResult, Payload};
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]

@@ -1,7 +1,7 @@
 //! Transaction index
 
+use crate::bytes::Bytes;
 use bit_vec::BitVec;
-use bytes::Bytes;
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
 

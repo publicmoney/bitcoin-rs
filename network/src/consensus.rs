@@ -1,5 +1,5 @@
-use hash::H256;
-use {Deployment, Magic, Network};
+use crate::hash::H256;
+use crate::{Deployment, Magic, Network};
 
 #[derive(Debug, Clone)]
 /// Parameters that influence chain consensus.

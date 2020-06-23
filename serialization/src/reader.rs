@@ -1,4 +1,4 @@
-use compact_integer::CompactInteger;
+use crate::compact_integer::CompactInteger;
 use std::{io, marker};
 
 pub fn deserialize<R, T>(buffer: R) -> Result<T, Error>

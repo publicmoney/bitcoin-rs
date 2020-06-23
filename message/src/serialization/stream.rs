@@ -1,6 +1,6 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::{Error, MessageResult, Payload};
 use ser::Stream;
-use {Error, MessageResult, Payload};
 
 pub fn serialize_payload<T>(t: &T, version: u32) -> MessageResult<Bytes>
 where

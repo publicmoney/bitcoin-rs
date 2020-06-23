@@ -1,9 +1,9 @@
 //! Serialized script, used inside transaction inputs and outputs.
 
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::{Error, Opcode};
 use keys::{self, AddressHash, Public};
 use std::{fmt, ops};
-use {Error, Opcode};
 
 /// Maximum number of bytes pushable to the stack
 pub const MAX_SCRIPT_ELEMENT_SIZE: usize = 520;
@@ -570,8 +570,8 @@ pub fn is_witness_commitment_script(script: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::{Script, ScriptAddress, ScriptType, MAX_SCRIPT_ELEMENT_SIZE};
+	use crate::{Builder, Opcode};
 	use keys::{Address, Public};
-	use {Builder, Opcode};
 
 	#[test]
 	fn test_is_pay_to_script_hash() {

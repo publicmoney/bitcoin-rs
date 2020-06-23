@@ -1,4 +1,11 @@
 use super::Error;
+use crate::synchronization_chain::Chain;
+use crate::synchronization_verifier::{
+	BlockVerificationSink, SyncVerifier, TransactionVerificationSink, VerificationSink, VerificationTask, Verifier,
+};
+use crate::types::StorageRef;
+use crate::utils::OrphanBlocksPool;
+use crate::VerificationParameters;
 use chain;
 use network::ConsensusParams;
 use parking_lot::Mutex;
@@ -6,13 +13,6 @@ use primitives::hash::H256;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use storage;
-use synchronization_chain::Chain;
-use synchronization_verifier::{
-	BlockVerificationSink, SyncVerifier, TransactionVerificationSink, VerificationSink, VerificationTask, Verifier,
-};
-use types::StorageRef;
-use utils::OrphanBlocksPool;
-use VerificationParameters;
 
 /// Maximum number of orphaned in-memory blocks
 pub const MAX_ORPHANED_BLOCKS: usize = 1024;
@@ -146,11 +146,11 @@ mod tests {
 
 	use super::super::Error;
 	use super::{BlocksWriter, MAX_ORPHANED_BLOCKS};
+	use crate::VerificationParameters;
 	use db::BlockChainDatabase;
 	use network::{ConsensusParams, Network};
 	use std::sync::Arc;
 	use verification::VerificationLevel;
-	use VerificationParameters;
 
 	fn default_verification_params() -> VerificationParameters {
 		VerificationParameters {

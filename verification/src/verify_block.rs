@@ -1,9 +1,9 @@
-use chain::IndexedBlock;
-use error::{Error, TransactionError};
-use network::ConsensusParams;
-use sigops::transaction_sigops;
+use crate::chain::IndexedBlock;
+use crate::error::{Error, TransactionError};
+use crate::network::ConsensusParams;
+use crate::sigops::transaction_sigops;
+use crate::storage::NoopStore;
 use std::collections::HashSet;
-use storage::NoopStore;
 
 pub struct BlockVerifier<'a> {
 	pub empty: BlockEmpty<'a>,

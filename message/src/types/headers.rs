@@ -1,7 +1,7 @@
+use crate::{MessageResult, Payload};
 use chain::BlockHeader;
 use ser::{CompactInteger, Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 pub const HEADERS_MAX_HEADERS_LEN: usize = 2000;
 

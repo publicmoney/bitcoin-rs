@@ -1,9 +1,9 @@
-use hash::H256;
+use crate::hash::H256;
+use crate::read_and_hash::ReadAndHash;
+use crate::transaction::{transaction_hash, Transaction};
 use heapsize::HeapSizeOf;
-use read_and_hash::ReadAndHash;
 use ser::{Deserializable, Error as ReaderError, Reader};
 use std::{cmp, fmt, io};
-use transaction::{transaction_hash, Transaction};
 
 #[derive(Default, Clone)]
 pub struct IndexedTransaction {

@@ -1,5 +1,5 @@
-use compact::Compact;
-use hash::H256;
+use crate::compact::Compact;
+use crate::hash::H256;
 use script::Error as SignatureError;
 use storage::Error as DBError;
 

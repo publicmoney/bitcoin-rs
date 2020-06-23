@@ -1,10 +1,10 @@
+use crate::v1::types::GetBlockResponse;
+use crate::v1::types::GetTxOutResponse;
+use crate::v1::types::GetTxOutSetInfoResponse;
+use crate::v1::types::H256;
+use crate::v1::types::{BlockchainInfo, ChainTxStats};
 use jsonrpc_core::Error;
 use jsonrpc_derive::rpc;
-use v1::types::GetBlockResponse;
-use v1::types::GetTxOutResponse;
-use v1::types::GetTxOutSetInfoResponse;
-use v1::types::H256;
-use v1::types::{BlockchainInfo, ChainTxStats};
 
 /// bitcoin-rs blockchain data interface.
 #[rpc(server)]

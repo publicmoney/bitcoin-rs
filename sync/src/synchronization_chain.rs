@@ -1,3 +1,5 @@
+use crate::types::{BlockHeight, MemoryPoolRef, StorageRef};
+use crate::utils::{BestHeadersChain, BestHeadersChainInformation, HashPosition, HashQueueChain};
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction, OutPoint, TransactionOutput};
 use linked_hash_map::LinkedHashMap;
 use miner::{FeeCalculator, MemoryPoolInformation, MemoryPoolOrderingStrategy};
@@ -6,8 +8,6 @@ use primitives::hash::H256;
 use std::collections::{HashSet, VecDeque};
 use std::fmt;
 use storage;
-use types::{BlockHeight, MemoryPoolRef, StorageRef};
-use utils::{BestHeadersChain, BestHeadersChainInformation, HashPosition, HashQueueChain};
 
 /// Index of 'verifying' queue
 const VERIFYING_QUEUE: usize = 0;
@@ -758,13 +758,13 @@ mod tests {
 	extern crate test_data;
 
 	use super::{BlockInsertionResult, BlockState, Chain, TransactionState};
+	use crate::utils::HashPosition;
 	use chain::{IndexedBlockHeader, Transaction};
 	use db::BlockChainDatabase;
 	use miner::MemoryPool;
 	use parking_lot::RwLock;
 	use primitives::hash::H256;
 	use std::sync::Arc;
-	use utils::HashPosition;
 
 	#[test]
 	fn chain_empty() {

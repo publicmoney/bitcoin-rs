@@ -1,6 +1,6 @@
+use crate::v1::types::{BlockTemplate, BlockTemplateRequest, MempoolInfo};
 use jsonrpc_core::Error;
 use jsonrpc_derive::rpc;
-use v1::types::{BlockTemplate, BlockTemplateRequest, MempoolInfo};
 
 /// bitcoin-rs miner data interface.
 #[rpc(server)]

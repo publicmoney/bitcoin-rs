@@ -1,10 +1,10 @@
-use chain::IndexedBlockHeader;
-use std::sync::Arc;
-use BlockHeight;
-use {
+use crate::BlockHeight;
+use crate::{
 	BlockChain, BlockHeaderProvider, BlockProvider, Error, Forkable, TransactionMetaProvider, TransactionOutputProvider,
 	TransactionProvider,
 };
+use chain::IndexedBlockHeader;
+use std::sync::Arc;
 
 pub trait CanonStore: Store + Forkable + ConfigStore {
 	fn as_store(&self) -> &dyn Store;

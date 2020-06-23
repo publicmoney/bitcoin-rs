@@ -1,7 +1,7 @@
-use common::NetAddress;
+use crate::common::NetAddress;
+use crate::{MessageResult, Payload};
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub enum Addr {
@@ -147,7 +147,7 @@ impl<'a> Serializable for V31402AsV0<'a> {
 #[cfg(test)]
 mod tests {
 	use super::{AddressEntry, V31402};
-	use bytes::Bytes;
+	use crate::bytes::Bytes;
 	use ser::{deserialize, serialize};
 
 	#[test]

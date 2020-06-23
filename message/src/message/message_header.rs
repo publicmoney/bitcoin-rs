@@ -1,9 +1,9 @@
-use common::Command;
+use crate::common::Command;
+use crate::hash::H32;
+use crate::Error;
 use crypto::checksum;
-use hash::H32;
 use network::Magic;
 use ser::{Reader, Serializable, Stream};
-use Error;
 
 #[derive(Debug, PartialEq)]
 pub struct MessageHeader {
@@ -61,7 +61,7 @@ impl Serializable for MessageHeader {
 #[cfg(test)]
 mod tests {
 	use super::MessageHeader;
-	use bytes::Bytes;
+	use crate::bytes::Bytes;
 	use network::Network;
 	use ser::serialize;
 

@@ -1,5 +1,5 @@
+use crate::hash::H32;
 use chain::IndexedBlock;
-use hash::H32;
 use ser::{Deserializable, Error as ReaderError, Reader};
 use std::io;
 

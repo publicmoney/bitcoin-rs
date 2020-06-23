@@ -1,10 +1,10 @@
-use hash::H256;
+use crate::hash::H256;
+use crate::timestamp::median_timestamp;
 use network::{ConsensusParams, Deployment};
 use parking_lot::Mutex;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use storage::{BlockAncestors, BlockHeaderProvider, BlockIterator, BlockRef};
-use timestamp::median_timestamp;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 enum ThresholdState {
@@ -305,8 +305,8 @@ impl<'a> Iterator for ThresholdIterator<'a> {
 #[cfg(test)]
 mod tests {
 	use super::{first_of_the_period, threshold_state, DeploymentStateCache, ThresholdState};
+	use crate::hash::H256;
 	use chain::{BlockHeader, IndexedBlockHeader};
-	use hash::H256;
 	use network::Deployment;
 	use primitives::bytes::Bytes;
 	use std::collections::HashMap;

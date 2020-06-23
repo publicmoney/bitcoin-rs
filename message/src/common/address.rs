@@ -1,5 +1,5 @@
-use bytes::Bytes;
-use common::{IpAddress, Port, Services};
+use crate::bytes::Bytes;
+use crate::common::{IpAddress, Port, Services};
 use ser::deserialize;
 
 #[derive(Debug, Default, PartialEq, Clone, Serializable, Deserializable)]
@@ -19,7 +19,7 @@ impl From<&'static str> for NetAddress {
 #[cfg(test)]
 mod tests {
 	use super::NetAddress;
-	use common::Services;
+	use crate::common::Services;
 	use ser::{deserialize, serialize};
 
 	#[test]

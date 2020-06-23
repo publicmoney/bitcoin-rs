@@ -1,9 +1,9 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::hash::H256;
+use crate::TransactionMeta;
 use chain::{IndexedTransaction, OutPoint, TransactionOutput};
-use hash::H256;
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use TransactionMeta;
 
 /// Should be used to obtain all transactions from canon chain and forks.
 pub trait TransactionProvider {

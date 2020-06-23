@@ -1,7 +1,7 @@
+use crate::{MessageResult, Payload};
 use chain::Transaction;
 use ser::{Reader, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct Tx {

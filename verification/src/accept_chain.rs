@@ -1,13 +1,13 @@
-use accept_block::BlockAcceptor;
-use accept_header::HeaderAcceptor;
-use accept_transaction::TransactionAcceptor;
-use canon::CanonBlock;
-use deployments::BlockDeployments;
-use error::Error;
-use network::ConsensusParams;
+use crate::accept_block::BlockAcceptor;
+use crate::accept_header::HeaderAcceptor;
+use crate::accept_transaction::TransactionAcceptor;
+use crate::canon::CanonBlock;
+use crate::deployments::BlockDeployments;
+use crate::error::Error;
+use crate::network::ConsensusParams;
+use crate::storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
+use crate::VerificationLevel;
 use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
-use VerificationLevel;
 
 pub struct ChainAcceptor<'a> {
 	pub block: BlockAcceptor<'a>,

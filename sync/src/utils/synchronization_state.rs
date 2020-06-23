@@ -1,7 +1,7 @@
 use super::super::types::{BlockHeight, StorageRef};
+use crate::types::AverageSpeedMeterRef;
 use p2p::InboundSyncConnectionState;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use types::AverageSpeedMeterRef;
 
 /// Shared synchronization client state.
 /// It can be slightly inaccurate, but that's ok for the uses.
@@ -68,10 +68,10 @@ impl InboundSyncConnectionState for SynchronizationState {
 
 #[cfg(test)]
 mod tests {
+	use crate::types::StorageRef;
+	use crate::utils::{AverageSpeedMeter, SynchronizationState};
 	use db::BlockChainDatabase;
 	use std::sync::Arc;
-	use types::StorageRef;
-	use utils::{AverageSpeedMeter, SynchronizationState};
 
 	#[test]
 	fn test_sync_progress() {

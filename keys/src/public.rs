@@ -1,11 +1,11 @@
+use crate::hash::{H264, H520};
+use crate::{AddressHash, CompactSignature, Error, Message, Signature, SECP256K1};
 use crypto::dhash160;
-use hash::{H264, H520};
 use hex::ToHex;
 use secp256k1::key;
 use secp256k1::recovery::{RecoverableSignature, RecoveryId};
 use secp256k1::{Error as SecpError, Message as SecpMessage, Signature as SecpSignature};
 use std::{fmt, ops};
-use {AddressHash, CompactSignature, Error, Message, Signature, SECP256K1};
 
 /// Secret public key
 pub enum Public {

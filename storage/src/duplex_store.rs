@@ -1,8 +1,8 @@
 //! Some transaction validation rules,
 //! require sophisticated (in more than one source) previous transaction lookups
 
+use crate::TransactionOutputProvider;
 use chain::{OutPoint, TransactionOutput};
-use TransactionOutputProvider;
 
 #[derive(Clone, Copy)]
 pub struct DuplexTransactionOutputProvider<'a> {

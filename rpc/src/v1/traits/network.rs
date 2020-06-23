@@ -1,6 +1,6 @@
+use crate::v1::types::{AddNodeOperation, NetworkInfo, NodeInfo, Peer};
 use jsonrpc_core::Error;
 use jsonrpc_derive::rpc;
-use v1::types::{AddNodeOperation, NetworkInfo, NodeInfo, Peer};
 
 /// bitcoin-rs network interface
 #[rpc(server)]

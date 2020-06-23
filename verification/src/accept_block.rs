@@ -1,14 +1,14 @@
-use canon::CanonBlock;
+use crate::canon::CanonBlock;
+use crate::deployments::BlockDeployments;
+use crate::error::{Error, TransactionError};
+use crate::network::ConsensusParams;
+use crate::sigops::{transaction_sigops, transaction_sigops_cost};
+use crate::storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionOutputProvider};
+use crate::timestamp::median_timestamp;
+use crate::work::block_reward_satoshi;
 use crypto::dhash256;
-use deployments::BlockDeployments;
-use error::{Error, TransactionError};
-use network::ConsensusParams;
 use script;
 use ser::Stream;
-use sigops::{transaction_sigops, transaction_sigops_cost};
-use storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionOutputProvider};
-use timestamp::median_timestamp;
-use work::block_reward_satoshi;
 
 /// Flexible verification of ordered block
 pub struct BlockAcceptor<'a> {
@@ -342,7 +342,7 @@ mod tests {
 	extern crate test_data;
 
 	use super::BlockCoinbaseScript;
-	use {CanonBlock, Error};
+	use crate::{CanonBlock, Error};
 
 	#[test]
 	fn test_block_coinbase_script() {

@@ -1,10 +1,10 @@
 //! Bitcoin key pair.
 
-use hash::{H264, H520};
-use network::Network;
+use crate::hash::{H264, H520};
+use crate::network::Network;
+use crate::{Address, Error, Private, Public, Secret, Type, SECP256K1};
 use secp256k1::key;
 use std::fmt;
-use {Address, Error, Private, Public, Secret, Type, SECP256K1};
 
 pub struct KeyPair {
 	private: Private,
@@ -85,8 +85,8 @@ impl KeyPair {
 #[cfg(test)]
 mod tests {
 	use super::KeyPair;
+	use crate::Public;
 	use crypto::dhash256;
-	use Public;
 
 	/// Tests from:
 	/// https://github.com/bitcoin/bitcoin/blob/a6a860796a44a2805a58391a009ba22752f64e32/src/test/key_tests.cpp

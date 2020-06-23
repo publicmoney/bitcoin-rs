@@ -1,7 +1,7 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
-use bytes::Bytes;
-use kv::{Key, KeyState, KeyValueDatabase, Location, RawKey, RawKeyValue, RawOperation, RawTransaction, Transaction, Value};
+use crate::bytes::Bytes;
+use crate::kv::{Key, KeyState, KeyValueDatabase, Location, RawKey, RawKeyValue, RawOperation, RawTransaction, Transaction, Value};
 use rocksdb::{BlockBasedOptions, DBCompactionStyle, DBIterator, IteratorMode, Options, ReadOptions, WriteBatch, WriteOptions, DB};
 use std::collections::HashMap;
 use std::path::Path;
@@ -292,7 +292,7 @@ mod tests {
 
 	use self::tempdir::TempDir;
 	use super::*;
-	use kv::{Location, RawTransaction};
+	use crate::kv::{Location, RawTransaction};
 
 	fn test_db(config: DatabaseConfig) {
 		let tempdir = TempDir::new("").unwrap();

@@ -1,13 +1,13 @@
-use canon::CanonTransaction;
-use constants::COINBASE_MATURITY;
-use deployments::BlockDeployments;
-use error::TransactionError;
-use network::ConsensusParams;
-use primitives::hash::H256;
-use script::{verify_script, Script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker, VerificationFlags};
-use sigops::transaction_sigops;
-use storage::{DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
-use VerificationLevel;
+use crate::canon::CanonTransaction;
+use crate::constants::COINBASE_MATURITY;
+use crate::deployments::BlockDeployments;
+use crate::error::TransactionError;
+use crate::network::ConsensusParams;
+use crate::primitives::hash::H256;
+use crate::script::{verify_script, Script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker, VerificationFlags};
+use crate::sigops::transaction_sigops;
+use crate::storage::{DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
+use crate::VerificationLevel;
 
 pub struct TransactionAcceptor<'a> {
 	pub premature_witness: TransactionPrematureWitness<'a>,

@@ -1,5 +1,5 @@
-use block::Block;
-use fs::read_blk_dir;
+use crate::block::Block;
+use crate::fs::read_blk_dir;
 use ser::{deserialize_iterator, Error as ReaderError, ReadIterator};
 use std::collections::BTreeSet;
 use std::{fs, io, path};

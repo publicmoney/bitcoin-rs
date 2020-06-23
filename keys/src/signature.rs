@@ -2,10 +2,10 @@
 //!
 //! http://bitcoin.stackexchange.com/q/12554/40688
 
-use hash::H520;
+use crate::hash::H520;
+use crate::Error;
 use hex::{FromHex, ToHex};
 use std::{fmt, ops, str};
-use Error;
 
 #[derive(PartialEq)]
 pub struct Signature(Vec<u8>);

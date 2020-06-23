@@ -1,7 +1,7 @@
-use hash::H256;
+use crate::hash::H256;
+use crate::{MessageResult, Payload};
 use ser::{Reader, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 pub const GETHEADERS_MAX_RESPONSE_HEADERS: usize = 2_000;
 

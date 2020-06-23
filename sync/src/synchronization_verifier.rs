@@ -1,3 +1,6 @@
+use crate::types::{BlockHeight, MemoryPoolRef, StorageRef};
+use crate::utils::MemoryPoolTransactionOutputProvider;
+use crate::VerificationParameters;
 use chain::{IndexedBlock, IndexedTransaction};
 use network::ConsensusParams;
 use parking_lot::Mutex;
@@ -8,12 +11,9 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use time::get_time;
-use types::{BlockHeight, MemoryPoolRef, StorageRef};
-use utils::MemoryPoolTransactionOutputProvider;
 use verification::{
 	BackwardsCompatibleChainVerifier as ChainVerifier, Error as VerificationError, VerificationLevel, Verify as VerificationVerify,
 };
-use VerificationParameters;
 
 /// Block verification events sink
 pub trait BlockVerificationSink: Send + Sync + 'static {
@@ -289,6 +289,10 @@ pub mod tests {
 	extern crate test_data;
 
 	use super::{AsyncVerifier, BlockVerificationSink, ChainVerifierWrapper, TransactionVerificationSink, VerificationTask, Verifier};
+	use crate::synchronization_client_core::CoreVerificationSink;
+	use crate::synchronization_executor::tests::DummyTaskExecutor;
+	use crate::types::{BlockHeight, MemoryPoolRef, StorageRef};
+	use crate::VerificationParameters;
 	use chain::{IndexedBlock, IndexedTransaction};
 	use db::BlockChainDatabase;
 	use network::{ConsensusParams, Network};
@@ -297,13 +301,9 @@ pub mod tests {
 	use std::collections::{HashMap, HashSet};
 	use std::sync::atomic::Ordering;
 	use std::sync::Arc;
-	use synchronization_client_core::CoreVerificationSink;
-	use synchronization_executor::tests::DummyTaskExecutor;
-	use types::{BlockHeight, MemoryPoolRef, StorageRef};
 	use verification::{
 		BackwardsCompatibleChainVerifier as ChainVerifier, Error as VerificationError, TransactionError, VerificationLevel,
 	};
-	use VerificationParameters;
 
 	#[derive(Default)]
 	pub struct DummyVerifier {

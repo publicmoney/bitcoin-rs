@@ -1,10 +1,10 @@
-use chain::IndexedTransaction;
-use constants::{MAX_COINBASE_SIZE, MIN_COINBASE_SIZE};
-use deployments::BlockDeployments;
-use error::TransactionError;
-use network::ConsensusParams;
-use ser::Serializable;
-use sigops::transaction_sigops;
+use crate::chain::IndexedTransaction;
+use crate::constants::{MAX_COINBASE_SIZE, MIN_COINBASE_SIZE};
+use crate::deployments::BlockDeployments;
+use crate::error::TransactionError;
+use crate::network::ConsensusParams;
+use crate::ser::Serializable;
+use crate::sigops::transaction_sigops;
 use std::ops;
 use storage::NoopStore;
 

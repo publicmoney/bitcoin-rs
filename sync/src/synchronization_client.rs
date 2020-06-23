@@ -1,11 +1,11 @@
+use crate::synchronization_client_core::{ClientCore, Information, SynchronizationClientCore};
+use crate::synchronization_executor::TaskExecutor;
+use crate::synchronization_verifier::{TransactionVerificationSink, Verifier};
+use crate::types::{ClientCoreRef, EmptyBoxFuture, PeerIndex, SyncListenerRef, SynchronizationStateRef};
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use message::types;
 use parking_lot::Mutex;
 use std::sync::Arc;
-use synchronization_client_core::{ClientCore, Information, SynchronizationClientCore};
-use synchronization_executor::TaskExecutor;
-use synchronization_verifier::{TransactionVerificationSink, Verifier};
-use types::{ClientCoreRef, EmptyBoxFuture, PeerIndex, SyncListenerRef, SynchronizationStateRef};
 
 #[cfg_attr(feature = "cargo-clippy", allow(doc_markdown))]
 ///! TODO: update with headers-first corrections

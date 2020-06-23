@@ -1,8 +1,8 @@
 //! Script builder
 
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::{Num, Opcode, Script};
 use keys::AddressHash;
-use {Num, Opcode, Script};
 
 /// Script builder
 #[derive(Default)]

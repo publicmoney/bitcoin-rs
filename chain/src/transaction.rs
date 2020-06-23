@@ -1,10 +1,10 @@
 //! Bitcoin trainsaction.
 //! https://en.bitcoin.it/wiki/Protocol_documentation#tx
 
-use bytes::Bytes;
-use constants::{LOCKTIME_THRESHOLD, SEQUENCE_FINAL};
+use crate::bytes::Bytes;
+use crate::constants::{LOCKTIME_THRESHOLD, SEQUENCE_FINAL};
+use crate::hash::H256;
 use crypto::dhash256;
-use hash::H256;
 use heapsize::HeapSizeOf;
 use hex::FromHex;
 use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
@@ -269,7 +269,7 @@ pub(crate) fn transaction_hash(transaction: &Transaction) -> H256 {
 #[cfg(test)]
 mod tests {
 	use super::{OutPoint, Transaction, TransactionInput, TransactionOutput};
-	use hash::H256;
+	use crate::hash::H256;
 	use ser::{serialize_with_flags, Serializable, SERIALIZE_TRANSACTION_WITNESS};
 
 	// real transaction from block 80000

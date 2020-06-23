@@ -1,11 +1,11 @@
+use crate::{BlockHeader, Transaction};
 use hex::FromHex;
 use ser::deserialize;
-use {BlockHeader, Transaction};
 
 #[cfg(any(test, feature = "test-helpers"))]
-use hash::H256;
+use crate::hash::H256;
 #[cfg(any(test, feature = "test-helpers"))]
-use merkle_root::merkle_root;
+use crate::merkle_root::merkle_root;
 
 #[derive(Debug, PartialEq, Clone, Serializable, Deserializable)]
 pub struct Block {
@@ -65,7 +65,7 @@ impl Block {
 #[cfg(test)]
 mod tests {
 	use super::Block;
-	use hash::H256;
+	use crate::hash::H256;
 
 	// Block 80000
 	// https://blockchain.info/rawblock/000000000043a8c0fd1d6f726790caa2a406010d19efd2780db27bdbbd93baf6

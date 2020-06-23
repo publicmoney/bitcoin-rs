@@ -1,5 +1,5 @@
+use crate::{Error, Payload};
 use ser::Reader;
-use {Error, Payload};
 
 pub fn deserialize_payload<T>(buffer: &[u8], version: u32) -> Result<T, Error>
 where

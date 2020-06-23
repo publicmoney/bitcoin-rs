@@ -2,6 +2,7 @@
 name = "test-data"
 version = "0.1.0"
 authors = ["Nikolay Volf <nikvolf@gmail.com>"]
+edition = "2018"
 
 [dependencies]
 time = "0.1"

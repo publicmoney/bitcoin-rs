@@ -1,7 +1,7 @@
-use common::InventoryVector;
+use crate::common::InventoryVector;
+use crate::{MessageResult, Payload};
 use ser::{Reader, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct NotFound {

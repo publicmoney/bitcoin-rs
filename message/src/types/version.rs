@@ -1,9 +1,9 @@
-use bytes::Bytes;
-use common::{NetAddress, Services};
+use crate::bytes::Bytes;
+use crate::common::{NetAddress, Services};
+use crate::serialization::deserialize_payload;
+use crate::{MessageResult, Payload};
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
-use serialization::deserialize_payload;
 use std::io;
-use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Version {
@@ -206,8 +206,8 @@ impl From<&'static str> for Version {
 #[cfg(test)]
 mod test {
 	use super::{Version, V0, V106};
-	use bytes::Bytes;
-	use serialization::{deserialize_payload, serialize_payload};
+	use crate::bytes::Bytes;
+	use crate::serialization::{deserialize_payload, serialize_payload};
 
 	#[test]
 	fn test_version_serialize() {

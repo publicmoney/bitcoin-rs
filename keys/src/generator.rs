@@ -1,6 +1,6 @@
-use network::Network;
+use crate::network::Network;
+use crate::{Error, KeyPair, SECP256K1};
 use rand::rngs::OsRng;
-use {Error, KeyPair, SECP256K1};
 
 pub trait Generator {
 	fn generate(&self) -> Result<KeyPair, Error>;

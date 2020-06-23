@@ -1,7 +1,7 @@
-use common::BlockTransactions;
+use crate::common::BlockTransactions;
+use crate::{MessageResult, Payload};
 use ser::{Reader, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 #[derive(Debug, PartialEq)]
 pub struct BlockTxn {

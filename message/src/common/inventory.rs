@@ -1,4 +1,4 @@
-use hash::H256;
+use crate::hash::H256;
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
 
@@ -112,7 +112,7 @@ impl Deserializable for InventoryVector {
 #[cfg(test)]
 mod tests {
 	use super::{InventoryType, InventoryVector};
-	use bytes::Bytes;
+	use crate::bytes::Bytes;
 	use ser::{deserialize, serialize};
 
 	#[test]

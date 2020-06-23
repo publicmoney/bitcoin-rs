@@ -1,3 +1,12 @@
+use crate::v1::helpers::errors::{
+	block_at_height_not_found, block_not_found, transaction_not_found, transaction_of_side_branch, transaction_output_not_found,
+};
+use crate::v1::traits::BlockChain;
+use crate::v1::types::U256;
+use crate::v1::types::{BlockchainInfo, GetTxOutSetInfoResponse};
+use crate::v1::types::{ChainTxStats, H256};
+use crate::v1::types::{GetBlockResponse, RawBlock, VerboseBlock};
+use crate::v1::types::{GetTxOutResponse, TransactionOutputScript};
 use chain::OutPoint;
 use global_script::Script;
 use jsonrpc_core::Error;
@@ -8,15 +17,6 @@ use ser::serialize;
 use std::collections::HashMap;
 use std::fs;
 use storage;
-use v1::helpers::errors::{
-	block_at_height_not_found, block_not_found, transaction_not_found, transaction_of_side_branch, transaction_output_not_found,
-};
-use v1::traits::BlockChain;
-use v1::types::U256;
-use v1::types::{BlockchainInfo, GetTxOutSetInfoResponse};
-use v1::types::{ChainTxStats, H256};
-use v1::types::{GetBlockResponse, RawBlock, VerboseBlock};
-use v1::types::{GetTxOutResponse, TransactionOutputScript};
 use verification;
 use verification::constants::TARGET_SPACING_SECONDS;
 
@@ -352,6 +352,13 @@ pub mod tests {
 	extern crate test_data;
 
 	use super::*;
+	use crate::v1::helpers::errors::block_not_found;
+	use crate::v1::traits::BlockChain;
+	use crate::v1::types::Bytes;
+	use crate::v1::types::ScriptType;
+	use crate::v1::types::H256;
+	use crate::v1::types::{GetTxOutResponse, TransactionOutputScript};
+	use crate::v1::types::{RawBlock, VerboseBlock};
 	use chain::OutPoint;
 	use db::BlockChainDatabase;
 	use jsonrpc_core::Error;
@@ -360,13 +367,6 @@ pub mod tests {
 	use primitives::bytes::Bytes as GlobalBytes;
 	use primitives::hash::H256 as GlobalH256;
 	use std::sync::Arc;
-	use v1::helpers::errors::block_not_found;
-	use v1::traits::BlockChain;
-	use v1::types::Bytes;
-	use v1::types::ScriptType;
-	use v1::types::H256;
-	use v1::types::{GetTxOutResponse, TransactionOutputScript};
-	use v1::types::{RawBlock, VerboseBlock};
 
 	#[derive(Default)]
 	struct SuccessBlockChainClientCore;
@@ -374,10 +374,6 @@ pub mod tests {
 	struct ErrorBlockChainClientCore;
 
 	impl BlockChainClientCoreApi for SuccessBlockChainClientCore {
-		fn header_count(&self) -> u32 {
-			1
-		}
-
 		fn is_synchronizing(&self) -> bool {
 			false
 		}
@@ -392,6 +388,10 @@ pub mod tests {
 
 		fn network(&self) -> String {
 			Network::Mainnet.to_string()
+		}
+
+		fn header_count(&self) -> u32 {
+			1
 		}
 
 		fn best_block_hash(&self) -> GlobalH256 {

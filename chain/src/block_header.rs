@@ -1,6 +1,6 @@
-use compact::Compact;
+use crate::compact::Compact;
+use crate::hash::H256;
 use crypto::dhash256;
-use hash::H256;
 use hex::FromHex;
 use ser::{deserialize, serialize};
 use std::fmt;

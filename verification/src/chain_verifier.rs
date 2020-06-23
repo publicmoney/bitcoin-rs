@@ -1,21 +1,21 @@
 //! Bitcoin chain verifier
 
-use accept_chain::ChainAcceptor;
-use accept_transaction::MemoryPoolTransactionAcceptor;
-use canon::{CanonBlock, CanonTransaction};
-use chain::{BlockHeader, IndexedBlock, IndexedBlockHeader, IndexedTransaction};
-use deployments::{BlockDeployments, Deployments};
-use error::{Error, TransactionError};
-use hash::H256;
-use network::ConsensusParams;
-use storage::{
+use crate::accept_chain::ChainAcceptor;
+use crate::accept_transaction::MemoryPoolTransactionAcceptor;
+use crate::canon::{CanonBlock, CanonTransaction};
+use crate::chain::{BlockHeader, IndexedBlock, IndexedBlockHeader, IndexedTransaction};
+use crate::deployments::{BlockDeployments, Deployments};
+use crate::error::{Error, TransactionError};
+use crate::hash::H256;
+use crate::network::ConsensusParams;
+use crate::storage::{
 	BlockHeaderProvider, BlockOrigin, CachedTransactionOutputProvider, DuplexTransactionOutputProvider, NoopStore, SharedStore,
 	TransactionOutputProvider,
 };
-use verify_chain::ChainVerifier;
-use verify_header::HeaderVerifier;
-use verify_transaction::MemoryPoolTransactionVerifier;
-use {VerificationLevel, Verify};
+use crate::verify_chain::ChainVerifier;
+use crate::verify_header::HeaderVerifier;
+use crate::verify_transaction::MemoryPoolTransactionVerifier;
+use crate::{VerificationLevel, Verify};
 
 pub struct BackwardsCompatibleChainVerifier {
 	store: SharedStore,
@@ -190,14 +190,14 @@ mod tests {
 	extern crate test_data;
 
 	use super::BackwardsCompatibleChainVerifier as ChainVerifier;
+	use crate::constants::DOUBLE_SPACING_SECONDS;
+	use crate::{Error, TransactionError, VerificationLevel, Verify};
 	use chain::{Block, IndexedBlock, Transaction};
-	use constants::DOUBLE_SPACING_SECONDS;
 	use db::BlockChainDatabase;
 	use network::{ConsensusParams, Network};
 	use script;
 	use std::sync::Arc;
 	use storage::Error as DBError;
-	use {Error, TransactionError, VerificationLevel, Verify};
 
 	#[test]
 	fn verify_orphan() {

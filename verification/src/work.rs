@@ -6,7 +6,7 @@ use primitives::hash::H256;
 use std::cmp;
 use storage::{BlockHeaderProvider, BlockRef};
 
-use constants::{DOUBLE_SPACING_SECONDS, MAX_TIMESPAN, MIN_TIMESPAN, RETARGETING_INTERVAL, TARGET_TIMESPAN_SECONDS};
+use crate::constants::{DOUBLE_SPACING_SECONDS, MAX_TIMESPAN, MIN_TIMESPAN, RETARGETING_INTERVAL, TARGET_TIMESPAN_SECONDS};
 
 pub fn is_retarget_height(height: u32) -> bool {
 	height % RETARGETING_INTERVAL == 0

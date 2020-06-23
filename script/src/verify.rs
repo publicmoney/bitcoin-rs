@@ -1,9 +1,9 @@
+use crate::sign::SignatureVersion;
+use crate::{Num, Script, TransactionInputSigner};
 use chain::constants::{
 	LOCKTIME_THRESHOLD, SEQUENCE_FINAL, SEQUENCE_LOCKTIME_DISABLE_FLAG, SEQUENCE_LOCKTIME_MASK, SEQUENCE_LOCKTIME_TYPE_FLAG,
 };
 use keys::{Message, Public, Signature};
-use sign::SignatureVersion;
-use {Num, Script, TransactionInputSigner};
 
 /// Checks transaction signature
 pub trait SignatureChecker {

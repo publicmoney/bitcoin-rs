@@ -1,3 +1,10 @@
+use crate::v1::helpers::errors::{execution, invalid_params, transaction_not_found, transaction_of_side_branch};
+use crate::v1::traits::Raw;
+use crate::v1::types::H256;
+use crate::v1::types::{
+	GetRawTransactionResponse, RawTransaction, SignedTransactionInput, SignedTransactionOutput, Transaction, TransactionInput,
+	TransactionInputScript, TransactionOutput, TransactionOutputScript, TransactionOutputs,
+};
 use chain::{IndexedTransaction as GlobalIndexedTransaction, Transaction as GlobalTransaction};
 use global_script::Script;
 use jsonrpc_core::Error;
@@ -8,13 +15,6 @@ use primitives::hash::H256 as GlobalH256;
 use ser::{deserialize, serialize, Reader, Serializable, SERIALIZE_TRANSACTION_WITNESS};
 use storage;
 use sync;
-use v1::helpers::errors::{execution, invalid_params, transaction_not_found, transaction_of_side_branch};
-use v1::traits::Raw;
-use v1::types::H256;
-use v1::types::{
-	GetRawTransactionResponse, RawTransaction, SignedTransactionInput, SignedTransactionOutput, Transaction, TransactionInput,
-	TransactionInputScript, TransactionOutput, TransactionOutputScript, TransactionOutputs,
-};
 
 pub struct RawClient<T: RawClientCoreApi> {
 	core: T,
@@ -319,12 +319,14 @@ where
 #[cfg(test)]
 pub mod tests {
 	use super::*;
+	use crate::v1::traits::Raw;
+	use crate::v1::types::{
+		Bytes, ScriptType, SignedTransactionInput, Transaction, TransactionInput, TransactionInputScript, TransactionOutputs,
+	};
 	use chain::Transaction as GlobalTransaction;
 	use jsonrpc_core::IoHandler;
 	use keys::Address;
 	use primitives::hash::H256 as GlobalH256;
-	use v1::traits::Raw;
-	use v1::types::{Bytes, ScriptType, SignedTransactionInput, Transaction, TransactionInput, TransactionInputScript, TransactionOutputs};
 
 	#[derive(Default)]
 	struct SuccessRawClientCore;

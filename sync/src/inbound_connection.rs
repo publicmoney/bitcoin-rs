@@ -1,8 +1,8 @@
-use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
-use message::types;
-use p2p::{InboundSyncConnection, InboundSyncConnectionRef, InboundSyncConnectionStateRef};
-use types::{LocalNodeRef, PeerIndex, PeersRef, RequestId};
-use utils::KnownHashType;
+use crate::chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
+use crate::message::types;
+use crate::p2p::{InboundSyncConnection, InboundSyncConnectionRef, InboundSyncConnectionStateRef};
+use crate::types::{LocalNodeRef, PeerIndex, PeersRef, RequestId};
+use crate::utils::KnownHashType;
 
 /// Inbound synchronization connection
 pub struct InboundConnection {
@@ -190,12 +190,12 @@ impl InboundSyncConnection for InboundConnection {
 
 #[cfg(test)]
 pub mod tests {
+	use crate::types::RequestId;
 	use message::types;
 	use p2p::OutboundSyncConnection;
 	use parking_lot::Mutex;
 	use std::collections::HashMap;
 	use std::sync::Arc;
-	use types::RequestId;
 
 	pub struct DummyOutboundSyncConnection {
 		pub messages: Mutex<HashMap<String, usize>>,

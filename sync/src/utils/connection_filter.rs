@@ -1,10 +1,10 @@
+use crate::synchronization_peers::MerkleBlockArtefacts;
+use crate::utils::{build_compact_block, build_partial_merkle_tree, BloomFilter, FeeRateFilter, KnownHashFilter, KnownHashType};
 use bit_vec::BitVec;
 use chain::{IndexedBlock, IndexedTransaction};
 use message::types;
 use primitives::bytes::Bytes;
 use primitives::hash::H256;
-use synchronization_peers::MerkleBlockArtefacts;
-use utils::{build_compact_block, build_partial_merkle_tree, BloomFilter, FeeRateFilter, KnownHashFilter, KnownHashType};
 
 /// Filter, which controls data relayed over connection.
 #[derive(Debug, Default)]
@@ -137,11 +137,11 @@ pub mod tests {
 	extern crate test_data;
 
 	use super::ConnectionFilter;
+	use crate::utils::KnownHashType;
 	use chain::IndexedTransaction;
 	use message::types;
 	use primitives::bytes::Bytes;
 	use std::iter::repeat;
-	use utils::KnownHashType;
 
 	#[test]
 	fn filter_default_accepts_block() {

@@ -1,6 +1,6 @@
-use block_header::{block_header_hash, BlockHeader};
-use hash::H256;
-use read_and_hash::ReadAndHash;
+use crate::block_header::{block_header_hash, BlockHeader};
+use crate::hash::H256;
+use crate::read_and_hash::ReadAndHash;
 use ser::{Deserializable, Error as ReaderError, Reader};
 use std::{cmp, fmt, io};
 

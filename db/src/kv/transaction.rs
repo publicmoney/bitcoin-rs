@@ -1,6 +1,6 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::hash::H256;
 use chain::{BlockHeader, Transaction as ChainTransaction};
-use hash::H256;
 use ser::{deserialize, serialize, List};
 use storage::{BlockMeta, TransactionMeta};
 

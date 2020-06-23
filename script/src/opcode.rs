@@ -1,5 +1,5 @@
 //! Script opcodes.
-use flags::VerificationFlags;
+use crate::flags::VerificationFlags;
 use std::fmt;
 
 /// Script opcodes.

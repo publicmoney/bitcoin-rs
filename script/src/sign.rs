@@ -1,12 +1,12 @@
 //! Transaction signer
 
-use bytes::Bytes;
-use chain::{OutPoint, Transaction, TransactionInput, TransactionOutput};
+use crate::bytes::Bytes;
+use crate::chain::{OutPoint, Transaction, TransactionInput, TransactionOutput};
+use crate::hash::H256;
+use crate::keys::KeyPair;
+use crate::{Builder, Script};
 use crypto::dhash256;
-use hash::H256;
-use keys::KeyPair;
 use ser::Stream;
-use {Builder, Script};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum SignatureVersion {
@@ -304,11 +304,11 @@ fn compute_hash_outputs(sighash: Sighash, input_index: usize, outputs: &[Transac
 #[cfg(test)]
 mod tests {
 	use super::{Sighash, SighashBase, SignatureVersion, TransactionInputSigner, UnsignedTransactionInput};
-	use bytes::Bytes;
+	use crate::bytes::Bytes;
+	use crate::hash::H256;
+	use crate::script::Script;
 	use chain::{OutPoint, Transaction, TransactionOutput};
-	use hash::H256;
 	use keys::{Address, KeyPair, Private};
-	use script::Script;
 
 	// http://www.righto.com/2014/02/bitcoins-hard-way-using-raw-bitcoin.html
 	// https://blockchain.info/rawtx/81b4c832d70cb56ff957589752eb4125a4cab78a25a8fc52d6a09e5bd4404d48

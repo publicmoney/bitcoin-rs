@@ -1,7 +1,7 @@
-use bytes::Bytes;
+use crate::bytes::Bytes;
+use crate::{MessageResult, Payload};
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
-use {MessageResult, Payload};
 
 pub const FILTERLOAD_MAX_FILTER_LEN: usize = 36_000;
 pub const FILTERLOAD_MAX_HASH_FUNCS: usize = 50;

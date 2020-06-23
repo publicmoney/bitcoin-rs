@@ -1,5 +1,5 @@
+use crate::{BlockHeaderProvider, BlockRef};
 use chain::IndexedBlockHeader;
-use {BlockHeaderProvider, BlockRef};
 
 pub struct BlockIterator<'a> {
 	block: u32,

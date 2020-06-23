@@ -1,10 +1,10 @@
-use chain::IndexedBlock;
-use error::Error;
-use network::Network;
+use crate::chain::IndexedBlock;
+use crate::error::Error;
+use crate::network::Network;
+use crate::verify_block::BlockVerifier;
+use crate::verify_header::HeaderVerifier;
+use crate::verify_transaction::TransactionVerifier;
 use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use verify_block::BlockVerifier;
-use verify_header::HeaderVerifier;
-use verify_transaction::TransactionVerifier;
 
 pub struct ChainVerifier<'a> {
 	pub block: BlockVerifier<'a>,

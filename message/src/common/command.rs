@@ -1,6 +1,6 @@
-use hash::H96;
+use crate::hash::H96;
+use crate::Error;
 use std::{fmt, str};
-use Error;
 
 #[derive(Debug, PartialEq, Clone, Hash, Eq, Serializable, Deserializable)]
 pub struct Command(H96);
@@ -61,7 +61,7 @@ impl<'a> PartialEq<&'a str> for Command {
 #[cfg(test)]
 mod tests {
 	use super::Command;
-	use bytes::Bytes;
+	use crate::bytes::Bytes;
 	use ser::{deserialize, serialize};
 
 	#[test]

@@ -1,5 +1,5 @@
+use crate::{Deserializable, Error, Reader, Serializable, Stream};
 use std::io;
-use {Deserializable, Error, Reader, Serializable, Stream};
 
 #[derive(Debug, Clone)]
 pub struct List<T>(Vec<T>);

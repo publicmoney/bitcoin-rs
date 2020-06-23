@@ -1,9 +1,9 @@
-use chain::IndexedBlockHeader;
-use constants::BLOCK_MAX_FUTURE;
-use error::Error;
-use network::Network;
-use primitives::compact::Compact;
-use work::is_valid_proof_of_work;
+use crate::chain::IndexedBlockHeader;
+use crate::constants::BLOCK_MAX_FUTURE;
+use crate::error::Error;
+use crate::network::Network;
+use crate::primitives::compact::Compact;
+use crate::work::is_valid_proof_of_work;
 
 pub struct HeaderVerifier<'a> {
 	pub proof_of_work: HeaderProofOfWork<'a>,

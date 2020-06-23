@@ -1,5 +1,5 @@
+use crate::v1::types::H256;
 use std::collections::HashMap;
-use v1::types::H256;
 
 /// Verbose block information
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
