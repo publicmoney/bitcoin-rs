@@ -1,24 +1,28 @@
+extern crate byteorder;
+extern crate chain;
+extern crate criterion;
+extern crate db;
+extern crate network;
+extern crate test_data;
+extern crate verification;
+
 use byteorder::{ByteOrder, LittleEndian};
 use chain::IndexedBlock;
+use criterion::{criterion_group, criterion_main, Criterion};
 use db::BlockChainDatabase;
 use network::{ConsensusParams, Network};
 use std::sync::Arc;
-use test_data;
 use verification::{BackwardsCompatibleChainVerifier as ChainVerifier, VerificationLevel, Verify};
-
-use super::Benchmark;
 
 // 1. write BLOCKS_INITIAL blocks with 1 transaction each
 // 2. verify <BLOCKS> blocks that has <TRANSACTIONS> transaction each with <OUTPUTS> output each,
 //    spending outputs from last <BLOCKS*TRANSACTIONS*OUTPUTS> blocks
-pub fn main(benchmark: &mut Benchmark) {
+pub fn verifier(c: &mut Criterion) {
 	// params
-	const BLOCKS_INITIAL: usize = 200200;
-	const BLOCKS: usize = 10;
-	const TRANSACTIONS: usize = 2000;
+	const BLOCKS_INITIAL: usize = 5200;
+	const BLOCKS: usize = 20;
+	const TRANSACTIONS: usize = 20;
 	const OUTPUTS: usize = 10;
-
-	benchmark.samples(BLOCKS);
 
 	assert!(
 		BLOCKS_INITIAL - 100 > BLOCKS * OUTPUTS * TRANSACTIONS,
@@ -98,9 +102,14 @@ pub fn main(benchmark: &mut Benchmark) {
 	let chain_verifier = ChainVerifier::new(store.clone(), ConsensusParams::new(Network::Unitest));
 
 	// bench
-	benchmark.start();
-	for block in verification_blocks.iter() {
-		chain_verifier.verify(VerificationLevel::Full, block).unwrap();
-	}
-	benchmark.stop();
+	c.bench_function("verifier", |b| {
+		b.iter(|| {
+			for block in verification_blocks.iter() {
+				chain_verifier.verify(VerificationLevel::Full, block).unwrap();
+			}
+		})
+	});
 }
+
+criterion_group!(benches, verifier);
+criterion_main!(benches);

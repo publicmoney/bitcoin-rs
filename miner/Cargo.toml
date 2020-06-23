@@ -7,7 +7,7 @@ edition = "2018"
 byteorder = "1.0"
 heapsize = "0.4"
 bitcrypto = { path = "../crypto" }
-chain = { path = "../chain" }
+chain = { path = "../chain", features = ["test-helpers"] }
 storage = { path = "../storage" }
 db = { path = "../db" }
 network = { path = "../network" }
@@ -19,6 +19,11 @@ script = { path = "../script" }
 
 [dev-dependencies]
 test-data = { path = "../test-data" }
+criterion = "0.3"
+
+[[bench]]
+name = "memory_pool"
+harness = false
 
 [features]
 test-helpers = []

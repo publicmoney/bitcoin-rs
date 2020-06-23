@@ -1,33 +1,35 @@
+extern crate chain;
+extern crate criterion;
+extern crate db;
+extern crate storage;
+extern crate test_data;
+
 use chain::IndexedBlock;
+use criterion::{criterion_group, criterion_main, Criterion};
 use db::BlockChainDatabase;
 use storage::{BlockOrigin, BlockProvider, BlockRef, ForkChain};
-use test_data;
 
-use super::Benchmark;
-
-pub fn fetch(benchmark: &mut Benchmark) {
+pub fn fetch(c: &mut Criterion) {
 	// params
 	const BLOCKS: usize = 1000;
-
-	benchmark.samples(BLOCKS);
 
 	// test setup
 	let genesis: IndexedBlock = test_data::genesis().into();
 	let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
+	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
 
-	let mut rolling_hash = genesis.hash().clone();
 	let mut blocks = Vec::new();
 	let mut hashes = Vec::new();
 
-	for x in 0..BLOCKS {
+	for i in 0..BLOCKS {
 		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.coinbase()
-				.lock_time(x as u32)
+				.lock_time(i as u32)
 				.output().value(5000000000).build()
 				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32).build()
+			.merkled_header().parent(rolling_hash).nonce(i as u32).build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
@@ -36,67 +38,69 @@ pub fn fetch(benchmark: &mut Benchmark) {
 
 	for block in blocks.into_iter() {
 		let block: IndexedBlock = block.into();
-		let hash = block.hash().clone();
-		store.insert(block).unwrap();
-		store.canonize(&hash).unwrap();
+		store.insert(block.clone()).unwrap();
+		store.canonize(block.hash()).unwrap();
 	}
 
-	// bench
-	benchmark.start();
-	for _ in 0..BLOCKS {
-		let block = store.block(BlockRef::Hash(hashes[0].clone())).unwrap();
-		assert_eq!(block.hash(), &hashes[0]);
-	}
-	benchmark.stop();
+	c.bench_function("fetch", |b| {
+		b.iter(|| {
+			for i in 0..BLOCKS {
+				let block = store.block(BlockRef::Hash(hashes[i])).unwrap();
+				assert_eq!(block.hash(), &hashes[i]);
+			}
+		})
+	});
 }
 
-pub fn write(benchmark: &mut Benchmark) {
+pub fn write(c: &mut Criterion) {
 	// params
 	const BLOCKS: usize = 1000;
-	benchmark.samples(BLOCKS);
 
 	// setup
 	let genesis: IndexedBlock = test_data::genesis().into();
-	let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
-
-	let mut rolling_hash = genesis.hash().clone();
+	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
 
 	let mut blocks: Vec<IndexedBlock> = Vec::new();
 
-	for x in 0..BLOCKS {
+	for i in 0..BLOCKS {
 		#[rustfmt::skip]
 		let next_block = test_data::block_builder()
 			.transaction()
 				.coinbase()
-				.lock_time(x as u32)
-				.output().value(5000000000).build()
+				.lock_time(i as u32)
+					.output()
+					.value(5000000000)
+					.build()
 				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32).build()
+			.merkled_header()
+				.parent(rolling_hash)
+				.nonce(i as u32)
+				.build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block.into());
 	}
 
 	// bench
-	benchmark.start();
-	for block in blocks {
-		let hash = block.hash().clone();
-		store.insert(block).unwrap();
-		store.canonize(&hash).unwrap();
-	}
-	benchmark.stop();
+	c.bench_function("write", |b| {
+		b.iter(|| {
+			let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
+			for block in &blocks {
+				let hash = block.hash().clone();
+				store.insert(block.clone()).unwrap();
+				store.canonize(&hash).unwrap();
+			}
+		})
+	});
 }
 
-pub fn reorg_short(benchmark: &mut Benchmark) {
+pub fn reorg_short(c: &mut Criterion) {
 	// params
 	const BLOCKS: usize = 1000;
-	benchmark.samples(BLOCKS);
 
 	// setup
 	let genesis: IndexedBlock = test_data::genesis().into();
-	let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
-
-	let mut rolling_hash = genesis.hash().clone();
+	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
 
 	let mut blocks = Vec::new();
 
@@ -109,7 +113,7 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 				.lock_time(x as u32)
 				.output().value(5000000000).build()
 				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32 * 4).build()
+			.merkled_header().parent(rolling_hash).nonce(x as u32 * 4).build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
@@ -141,7 +145,7 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 				.lock_time(x as u32)
 				.output().value(5000000000).build()
 				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32 * 4 + 1).build()
+			.merkled_header().parent(rolling_hash).nonce(x as u32 * 4 + 1).build()
 			.build();
 		rolling_hash = next_block_continue.hash();
 		blocks.push(next_block_continue);
@@ -151,56 +155,54 @@ pub fn reorg_short(benchmark: &mut Benchmark) {
 	let mut reorgs: usize = 0;
 
 	// bench
-	benchmark.start();
-	for idx in 0..BLOCKS {
-		total += 1;
-		let block: IndexedBlock = blocks[idx].clone().into();
-		let hash = block.hash().clone();
+	c.bench_function("reorg_short", |b| {
+		b.iter(|| {
+			let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
+			for idx in 0..BLOCKS {
+				total += 1;
+				let block: IndexedBlock = blocks[idx].clone().into();
+				let hash = block.hash().clone();
 
-		match store.block_origin(&block.header).unwrap() {
-			BlockOrigin::KnownBlock => {
-				unreachable!();
+				match store.block_origin(&block.header).unwrap() {
+					BlockOrigin::KnownBlock => {
+						unreachable!();
+					}
+					BlockOrigin::CanonChain { .. } => {
+						store.insert(block).unwrap();
+						store.canonize(&hash).unwrap();
+					}
+					BlockOrigin::SideChain(_origin) => {
+						store.insert(block).unwrap();
+					}
+					BlockOrigin::SideChainBecomingCanonChain(origin) => {
+						reorgs += 1;
+						let fork = store.fork(origin).unwrap();
+						fork.store().insert(block).unwrap();
+						fork.store().canonize(&hash).unwrap();
+						store.switch_to_fork(fork).unwrap();
+					}
+				}
 			}
-			BlockOrigin::CanonChain { .. } => {
-				store.insert(block).unwrap();
-				store.canonize(&hash).unwrap();
-			}
-			BlockOrigin::SideChain(_origin) => {
-				store.insert(block).unwrap();
-			}
-			BlockOrigin::SideChainBecomingCanonChain(origin) => {
-				reorgs += 1;
-				let fork = store.fork(origin).unwrap();
-				fork.store().insert(block).unwrap();
-				fork.store().canonize(&hash).unwrap();
-				store.switch_to_fork(fork).unwrap();
-			}
-		}
-	}
-	benchmark.stop();
+		})
+	});
 
 	// reorgs occur twice per iteration except last one where there only one, blocks are inserted with rate 4/iteration
 	// so reorgs = total/2 - 1
-	assert_eq!(1000, total);
-	assert_eq!(499, reorgs);
+	assert_eq!(total % 1000, 0);
+	assert_eq!(reorgs % 499, 0);
 }
 
 // 1. write 12000 blocks
 // 2. write 100 blocks that has 100 transaction each spending outputs from first 1000 blocks
-#[rustfmt::skip]
-pub fn write_heavy(benchmark: &mut Benchmark) {
+pub fn write_heavy(c: &mut Criterion) {
 	// params
-	const BLOCKS_INITIAL: usize = 12000;
-	const BLOCKS: usize = 100;
-	const TRANSACTIONS: usize = 100;
-
-	benchmark.samples(BLOCKS);
-
+	const BLOCKS_INITIAL: usize = 1200;
+	const BLOCKS: usize = 10;
+	const TRANSACTIONS: usize = 10;
 	// test setup
 	let genesis: IndexedBlock = test_data::genesis().into();
-	let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
 
-	let mut rolling_hash = genesis.hash().clone();
+	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
 	let mut blocks = Vec::new();
 	let mut hashes = Vec::new();
 
@@ -210,9 +212,14 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 			.transaction()
 				.coinbase()
 				.lock_time(x as u32)
-				.output().value(5000000000).build()
+				.output()
+					.value(5000000000)
+					.build()
 				.build()
-			.merkled_header().parent(rolling_hash.clone()).nonce(x as u32).build()
+			.merkled_header()
+				.parent(rolling_hash)
+				.nonce(x as u32)
+				.build()
 			.build();
 		rolling_hash = next_block.hash();
 		blocks.push(next_block);
@@ -241,20 +248,19 @@ pub fn write_heavy(benchmark: &mut Benchmark) {
 		hashes.push(rolling_hash.clone());
 	}
 
-	for block in blocks[..BLOCKS_INITIAL].iter() {
-		let block: IndexedBlock = block.clone().into();
-		let hash = block.hash().clone();
-		store.insert(block).expect("cannot insert initial block");
-		store.canonize(&hash).unwrap();
-	}
-
 	// bench
-	benchmark.start();
-	for block in blocks[BLOCKS_INITIAL..].iter() {
-		let block: IndexedBlock = block.clone().into();
-		let hash = block.hash().clone();
-		store.insert(block).expect("cannot insert bench block");
-		store.canonize(&hash).unwrap();
-	}
-	benchmark.stop();
+	c.bench_function("write_heavy", |b| {
+		b.iter(|| {
+			let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
+			for block in &blocks {
+				let block: IndexedBlock = block.clone().into();
+				let hash = block.hash().clone();
+				store.insert(block).expect("cannot insert bench block");
+				store.canonize(&hash).unwrap();
+			}
+		})
+	});
 }
+
+criterion_group!(benches, fetch, write, reorg_short, write_heavy);
+criterion_main!(benches);

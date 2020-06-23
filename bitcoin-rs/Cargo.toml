@@ -3,7 +3,7 @@ name = "bitcoin-rs"
 version = "0.1.0"
 license = "GPL-3.0"
 description = "Bitcoin Rust"
-build = "build.rs"
+build = "src/build.rs"
 edition = "2018"
 
 [dependencies]
@@ -31,4 +31,4 @@ built = "0.3"
 
 [[bin]]
 name = "bitcoin-rs"
-path = "main.rs"
+path = "src/main.rs"

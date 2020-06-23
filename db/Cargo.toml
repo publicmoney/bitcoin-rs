@@ -15,5 +15,11 @@ chain = { path = "../chain" }
 storage = { path = "../storage" }
 
 [dev-dependencies]
+criterion = "0.3"
+chain = { path = "../chain", features = ["test-helpers"] }
 tempdir = "0.3"
 test-data = { path = "../test-data" }
+
+[[bench]]
+name = "database"
+harness = false

@@ -3,6 +3,7 @@ extern crate built;
 use std::path::PathBuf;
 use std::process::Command;
 
+// TODO put this somewhere better. own crate?
 fn main() {
 	// Setting up git hooks
 	let git_hooks = format!("git config core.hooksPath {}", PathBuf::from("./.hooks").to_str().unwrap());
