@@ -108,7 +108,7 @@ impl Context {
 	/// Every 10 seconds check if we have reached maximum number of outbound connections.
 	/// If not, connect to best peers.
 	pub fn autoconnect(context: Arc<Context>) {
-		let mut interval = interval(time::Duration::new(10, 0));
+		let mut interval = interval(time::Duration::new(60, 0));
 		let inner_context = context.clone();
 		let interval_loop = async move {
 			loop {
