@@ -37,13 +37,13 @@ mod tests {
 		let expected_err = MessageError::InvalidChecksum;
 
 		assert_eq!(
-			expected_err.description(),
+			expected_err.to_string(),
 			read_payload::<Ping>(&stream, 0, 8, "83c00c75".into())
 				.await
 				.unwrap_err()
 				.source()
 				.unwrap()
-				.description()
+				.to_string()
 		);
 	}
 

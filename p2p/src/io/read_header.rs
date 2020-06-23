@@ -35,13 +35,13 @@ mod tests {
 		let expected_error = MessageError::InvalidMagic;
 
 		assert_eq!(
-			expected_error.description(),
+			expected_error.to_string(),
 			read_header(&stream, Network::Testnet.magic())
 				.await
 				.unwrap_err()
 				.source()
 				.unwrap()
-				.description()
+				.to_string()
 		);
 	}
 

@@ -37,13 +37,13 @@ mod tests {
 		let expected_error = MessageError::InvalidMagic;
 
 		assert_eq!(
-			expected_error.description(),
+			expected_error.to_string(),
 			read_message::<Ping>(&stream, Network::Testnet.magic(), 0)
 				.await
 				.unwrap_err()
 				.source()
 				.unwrap()
-				.description()
+				.to_string()
 		);
 	}
 
@@ -53,13 +53,13 @@ mod tests {
 		let expected_error = MessageError::InvalidCommand;
 
 		assert_eq!(
-			expected_error.description(),
+			expected_error.to_string(),
 			read_message::<Pong>(&stream, Network::Mainnet.magic(), 0)
 				.await
 				.unwrap_err()
 				.source()
 				.unwrap()
-				.description()
+				.to_string()
 		);
 	}
 
@@ -76,13 +76,13 @@ mod tests {
 		let expected_error = MessageError::InvalidChecksum;
 
 		assert_eq!(
-			expected_error.description(),
+			expected_error.to_string(),
 			read_message::<Ping>(&stream, Network::Mainnet.magic(), 0)
 				.await
 				.unwrap_err()
 				.source()
 				.unwrap()
-				.description()
+				.to_string()
 		);
 	}
 }

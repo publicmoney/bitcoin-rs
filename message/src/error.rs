@@ -25,18 +25,15 @@ impl From<ReaderError> for Error {
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(error::Error::description(self))
-	}
-}
-
-impl error::Error for Error {
-	fn description(&self) -> &str {
-		match *self {
+		let message = match *self {
 			Error::Deserialize => "Message Deserialization Error",
 			Error::InvalidCommand => "Invalid Message Command",
 			Error::InvalidMagic => "Invalid Network Magic",
 			Error::InvalidChecksum => "Invalid message checksum",
 			Error::InvalidVersion => "Unsupported protocol version",
-		}
+		};
+		f.write_str(message)
 	}
 }
+
+impl error::Error for Error {}

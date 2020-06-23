@@ -373,7 +373,7 @@ impl Context {
 		if let Some(channel) = self.connections.remove(id) {
 			let info = channel.peer_info();
 			channel.session().on_close();
-			trace!("Disconnecting from {} caused by {}", info.address, error.description());
+			trace!("Disconnecting from {} caused by {}", info.address, error);
 			tokio::spawn(async move { channel.shutdown().await });
 			self.node_table.write().note_failure(&info.address);
 			match info.direction {
