@@ -33,4 +33,12 @@ else
   done
 fi
 
+# Run all unit tests
+cargo test --all-targets
+
+if [ $? != 0 ]; then
+	printf "Tests failed - aborting commit"
+	exit 1
+fi
+
 exit 0

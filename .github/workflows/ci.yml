@@ -10,8 +10,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --verbose
+      run: cargo build
     - name: Run tests
-      run: cargo test --all --verbose
+      run: cargo test --all-targets
     - name: Run benches
-      run: cargo bench --all
+      run: cargo bench --all-targets

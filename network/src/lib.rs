@@ -10,6 +10,6 @@ mod network;
 
 pub use primitives::{compact, hash};
 
+pub use crate::network::{Magic, Network};
 pub use consensus::ConsensusParams;
 pub use deployments::Deployment;
-pub use network::{Magic, Network};
