@@ -148,8 +148,6 @@ pub async fn start_async(
 	};
 	let _rpc_server = rpc::new_http(cfg.rpc_config, rpc_deps)?;
 
-	let _portal = portal::start();
-
 	p2p.run().await;
 
 	Ok(())
