@@ -7,7 +7,6 @@ use clap;
 use message::Services;
 use network::{ConsensusParams, Network};
 use p2p::InternetProtocol;
-use primitives::hash::H256;
 use std::net;
 use storage;
 use sync::VerificationParameters;
@@ -125,10 +124,7 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 	};
 
 	let verification_edge = match matches.value_of("verification-edge") {
-		Some(s) if verification_level != VerificationLevel::Full => {
-			let edge: H256 = s.parse().map_err(|_| "Invalid verification edge".to_owned())?;
-			edge.reversed()
-		}
+		Some(s) if verification_level != VerificationLevel::Full => s.parse().map_err(|_| "Invalid verification edge".to_owned())?,
 		_ => network.default_verification_edge(),
 	};
 

@@ -1,11 +1,11 @@
-use crate::hash::H32;
 use chain::IndexedBlock;
+use primitives::checksum::Checksum;
 use ser::{Deserializable, Error as ReaderError, Reader};
 use std::io;
 
 #[derive(Debug, PartialEq)]
 pub struct Block {
-	pub magic: H32,
+	pub magic: Checksum,
 	pub block_size: u32,
 	pub block: IndexedBlock,
 }

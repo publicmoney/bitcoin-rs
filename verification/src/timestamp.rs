@@ -1,5 +1,5 @@
+use bitcrypto::SHA256D;
 use chain::BlockHeader;
-use primitives::hash::H256;
 use storage::{BlockAncestors, BlockHeaderProvider};
 
 /// Returns median timestamp, of given header ancestors.
@@ -12,7 +12,7 @@ pub fn median_timestamp(header: &BlockHeader, store: &dyn BlockHeaderProvider) -
 /// Returns median timestamp, of given header + its ancestors.
 /// The header should be later expected to have higher timestamp
 /// than this median timestamp
-pub fn median_timestamp_inclusive(previous_header_hash: H256, store: &dyn BlockHeaderProvider) -> u32 {
+pub fn median_timestamp_inclusive(previous_header_hash: SHA256D, store: &dyn BlockHeaderProvider) -> u32 {
 	let mut timestamps: Vec<_> = BlockAncestors::new(previous_header_hash.clone().into(), store)
 		.take(11)
 		.map(|header| header.raw.time)

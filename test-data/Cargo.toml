@@ -11,3 +11,4 @@ chain = { path = "../chain"  }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }
 script = { path = "../script" }
+bitcrypto = { path = "../crypto" }

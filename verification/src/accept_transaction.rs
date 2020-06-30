@@ -3,11 +3,11 @@ use crate::constants::COINBASE_MATURITY;
 use crate::deployments::BlockDeployments;
 use crate::error::TransactionError;
 use crate::network::ConsensusParams;
-use crate::primitives::hash::H256;
 use crate::script::{verify_script, Script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker, VerificationFlags};
 use crate::sigops::transaction_sigops;
 use crate::storage::{DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
 use crate::VerificationLevel;
+use bitcrypto::SHA256D;
 
 pub struct TransactionAcceptor<'a> {
 	pub premature_witness: TransactionPrematureWitness<'a>,
@@ -29,13 +29,13 @@ impl<'a> TransactionAcceptor<'a> {
 		consensus: &'a ConsensusParams,
 		transaction: CanonTransaction<'a>,
 		verification_level: VerificationLevel,
-		block_hash: &'a H256,
+		block_hash: &'a SHA256D,
 		height: u32,
 		time: u32,
 		transaction_index: usize,
 		deployments: &'a BlockDeployments<'a>,
 	) -> Self {
-		trace!(target: "verification", "Tx verification {}", transaction.hash.to_reversed_str());
+		trace!(target: "verification", "Tx verification {}", transaction.hash);
 		TransactionAcceptor {
 			premature_witness: TransactionPrematureWitness::new(transaction, deployments),
 			bip30: TransactionBip30::new_for_sync(transaction, meta_store, consensus, block_hash, height),
@@ -80,7 +80,7 @@ impl<'a> MemoryPoolTransactionAcceptor<'a> {
 		time: u32,
 		deployments: &'a BlockDeployments<'a>,
 	) -> Self {
-		trace!(target: "verification", "Mempool-Tx verification {}", transaction.hash.to_reversed_str());
+		trace!(target: "verification", "Mempool-Tx verification {}", transaction.hash);
 		let transaction_index = 0;
 		MemoryPoolTransactionAcceptor {
 			missing_inputs: TransactionMissingInputs::new(transaction, output_store, transaction_index),
@@ -133,7 +133,7 @@ impl<'a> TransactionBip30<'a> {
 		transaction: CanonTransaction<'a>,
 		store: &'a dyn TransactionMetaProvider,
 		consensus_params: &'a ConsensusParams,
-		block_hash: &'a H256,
+		block_hash: &'a SHA256D,
 		height: u32,
 	) -> Self {
 		let exception = consensus_params.is_bip30_exception(block_hash, height);

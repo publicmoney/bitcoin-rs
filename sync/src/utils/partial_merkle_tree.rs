@@ -1,6 +1,6 @@
 use bit_vec::BitVec;
+use bitcrypto::SHA256D;
 use chain::merkle_node_hash;
-use primitives::hash::H256;
 use std::cmp::min;
 
 /// Partial merkle tree
@@ -8,7 +8,7 @@ pub struct PartialMerkleTree {
 	/// Total number of transactions
 	pub tx_count: usize,
 	/// Nodes hashes
-	pub hashes: Vec<H256>,
+	pub hashes: Vec<SHA256D>,
 	/// Match flags
 	pub flags: BitVec,
 }
@@ -17,15 +17,15 @@ pub struct PartialMerkleTree {
 #[cfg(test)]
 pub struct ParsedPartialMerkleTree {
 	/// Merkle root
-	pub root: H256,
+	pub root: SHA256D,
 	/// Matched hashes
-	pub hashes: Vec<H256>,
+	pub hashes: Vec<SHA256D>,
 	/// Match flags
 	pub flags: BitVec,
 }
 
 /// Build partial merkle tree
-pub fn build_partial_merkle_tree(tx_hashes: Vec<H256>, tx_matches: BitVec) -> PartialMerkleTree {
+pub fn build_partial_merkle_tree(tx_hashes: Vec<SHA256D>, tx_matches: BitVec) -> PartialMerkleTree {
 	PartialMerkleTreeBuilder::build(tx_hashes, tx_matches)
 }
 
@@ -40,25 +40,25 @@ struct PartialMerkleTreeBuilder {
 	/// All transactions length.
 	all_len: usize,
 	/// All transactions hashes.
-	all_hashes: Vec<H256>,
+	all_hashes: Vec<SHA256D>,
 	/// Match flags for all transactions.
 	all_matches: BitVec,
 	/// Partial hashes.
-	hashes: Vec<H256>,
+	hashes: Vec<SHA256D>,
 	/// Partial match flags.
 	matches: BitVec,
 }
 
 impl PartialMerkleTree {
 	/// Create new merkle tree with given data
-	pub fn new(tx_count: usize, hashes: Vec<H256>, flags: BitVec) -> Self {
+	pub fn new(tx_count: usize, hashes: Vec<SHA256D>, flags: BitVec) -> Self {
 		PartialMerkleTree { tx_count, hashes, flags }
 	}
 }
 
 #[cfg(test)]
 impl ParsedPartialMerkleTree {
-	pub fn new(root: H256, hashes: Vec<H256>, flags: BitVec) -> Self {
+	pub fn new(root: SHA256D, hashes: Vec<SHA256D>, flags: BitVec) -> Self {
 		ParsedPartialMerkleTree { root, hashes, flags }
 	}
 }
@@ -66,7 +66,7 @@ impl ParsedPartialMerkleTree {
 impl PartialMerkleTreeBuilder {
 	/// Build partial merkle tree as described here:
 	/// https://bitcoin.org/en/developer-reference#creating-a-merkleblock-message
-	pub fn build(all_hashes: Vec<H256>, all_matches: BitVec) -> PartialMerkleTree {
+	pub fn build(all_hashes: Vec<SHA256D>, all_matches: BitVec) -> PartialMerkleTree {
 		let mut partial_merkle_tree = PartialMerkleTreeBuilder {
 			all_len: all_hashes.len(),
 			all_hashes,
@@ -104,7 +104,7 @@ impl PartialMerkleTreeBuilder {
 	}
 
 	#[cfg(test)]
-	fn parse_tree(&mut self) -> Result<H256, String> {
+	fn parse_tree(&mut self) -> Result<SHA256D, String> {
 		if self.all_len == 0 {
 			return Err("no transactions".into());
 		}
@@ -154,7 +154,7 @@ impl PartialMerkleTreeBuilder {
 	}
 
 	#[cfg(test)]
-	fn parse_branch(&mut self, height: usize, pos: usize, matches_used: &mut usize, hashes_used: &mut usize) -> Result<H256, String> {
+	fn parse_branch(&mut self, height: usize, pos: usize, matches_used: &mut usize, hashes_used: &mut usize) -> Result<SHA256D, String> {
 		if *matches_used >= self.matches.len() {
 			return Err("all matches used".into());
 		}
@@ -210,7 +210,7 @@ impl PartialMerkleTreeBuilder {
 		(self.all_len + (1 << height) - 1) >> height
 	}
 
-	fn branch_hash(&self, height: usize, pos: usize) -> H256 {
+	fn branch_hash(&self, height: usize, pos: usize) -> SHA256D {
 		if height == 0 {
 			self.all_hashes[pos].clone()
 		} else {
@@ -231,8 +231,8 @@ mod tests {
 	extern crate test_data;
 
 	use super::{build_partial_merkle_tree, parse_partial_merkle_tree};
+	use bitcrypto::SHA256D;
 	use chain::{merkle_root, Transaction};
-	use primitives::hash::H256;
 
 	#[test]
 	// test from core implementation (slow)
@@ -257,7 +257,7 @@ mod tests {
 			// mark different transactions as matched
 			for seed_tweak in 1..15 {
 				let mut matches: BitVec = BitVec::with_capacity(tx_count);
-				let mut matched_hashes: Vec<H256> = Vec::with_capacity(tx_count);
+				let mut matched_hashes: Vec<SHA256D> = Vec::with_capacity(tx_count);
 				for i in 0usize..tx_count {
 					let is_match = (rng.gen::<u32>() & ((1 << (seed_tweak / 2)) - 1)) == 0;
 					matches.push(is_match);

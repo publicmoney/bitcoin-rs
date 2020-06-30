@@ -1,7 +1,9 @@
 extern crate bitcrypto as crypto;
 extern crate byteorder;
 extern crate chain;
+#[macro_use]
 extern crate primitives;
+#[macro_use]
 extern crate serialization as ser;
 #[macro_use]
 extern crate serialization_derive;

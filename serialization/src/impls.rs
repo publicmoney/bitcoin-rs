@@ -1,10 +1,15 @@
 use crate::bytes::Bytes;
 use crate::compact::Compact;
 use crate::compact_integer::CompactInteger;
-use crate::hash::{H160, H256, H264, H32, H48, H512, H520, H96};
+use crate::{impl_ser_for_array, impl_ser_for_hash};
 use crate::{Deserializable, Error, Reader, Serializable, Stream};
+use bitcrypto::SHA256D;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use primitives::checksum::Checksum;
 use std::io;
+
+impl_ser_for_array!(Checksum, 4);
+impl_ser_for_hash!(SHA256D, 32);
 
 impl Serializable for bool {
 	#[inline]
@@ -200,41 +205,6 @@ impl Deserializable for String {
 		Ok(String::from_utf8_lossy(&bytes).into_owned())
 	}
 }
-
-macro_rules! impl_ser_for_hash {
-	($name: ident, $size: expr) => {
-		impl Serializable for $name {
-			fn serialize(&self, stream: &mut Stream) {
-				stream.append_slice(&**self);
-			}
-
-			#[inline]
-			fn serialized_size(&self) -> usize {
-				$size
-			}
-		}
-
-		impl Deserializable for $name {
-			fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
-			where
-				T: io::Read,
-			{
-				let mut result = Self::default();
-				reader.read_slice(&mut *result)?;
-				Ok(result)
-			}
-		}
-	};
-}
-
-impl_ser_for_hash!(H32, 4);
-impl_ser_for_hash!(H48, 6);
-impl_ser_for_hash!(H96, 12);
-impl_ser_for_hash!(H160, 20);
-impl_ser_for_hash!(H256, 32);
-impl_ser_for_hash!(H264, 33);
-impl_ser_for_hash!(H512, 64);
-impl_ser_for_hash!(H520, 65);
 
 impl Serializable for Bytes {
 	fn serialize(&self, stream: &mut Stream) {

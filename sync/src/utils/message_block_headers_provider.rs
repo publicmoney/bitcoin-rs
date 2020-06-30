@@ -1,6 +1,6 @@
+use bitcrypto::SHA256D;
 use chain::IndexedBlockHeader;
 use primitives::bytes::Bytes;
-use primitives::hash::H256;
 use std::collections::HashMap;
 use storage::{BlockHeaderProvider, BlockRef};
 
@@ -11,9 +11,9 @@ pub struct MessageBlockHeadersProvider<'a> {
 	/// headers offset
 	first_header_number: u32,
 	/// headers by hash
-	headers: HashMap<H256, IndexedBlockHeader>,
+	headers: HashMap<SHA256D, IndexedBlockHeader>,
 	/// headers by order
-	headers_order: Vec<H256>,
+	headers_order: Vec<SHA256D>,
 }
 
 impl<'a> MessageBlockHeadersProvider<'a> {
@@ -26,7 +26,7 @@ impl<'a> MessageBlockHeadersProvider<'a> {
 		}
 	}
 
-	pub fn append_header(&mut self, hash: H256, header: IndexedBlockHeader) {
+	pub fn append_header(&mut self, hash: SHA256D, header: IndexedBlockHeader) {
 		self.headers.insert(hash.clone(), header);
 		self.headers_order.push(hash);
 	}
@@ -60,8 +60,8 @@ mod tests {
 	extern crate test_data;
 
 	use super::MessageBlockHeadersProvider;
+	use bitcrypto::{FromStr, SHA256D};
 	use db::BlockChainDatabase;
-	use primitives::hash::H256;
 	use storage::{AsSubstore, BlockHeaderProvider, BlockRef};
 
 	#[test]
@@ -78,7 +78,12 @@ mod tests {
 			headers_provider.block_header(BlockRef::Number(0)),
 			Some(test_data::genesis().block_header.into())
 		);
-		assert_eq!(headers_provider.block_header(BlockRef::Hash(H256::from(1))), None);
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Hash(
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()
+			)),
+			None
+		);
 		assert_eq!(headers_provider.block_header(BlockRef::Number(1)), None);
 
 		headers_provider.append_header(test_data::block_h1().hash(), test_data::block_h1().block_header.into());
@@ -99,7 +104,12 @@ mod tests {
 			headers_provider.block_header(BlockRef::Number(1)),
 			Some(test_data::block_h1().block_header.into())
 		);
-		assert_eq!(headers_provider.block_header(BlockRef::Hash(H256::from(1))), None);
+		assert_eq!(
+			headers_provider.block_header(BlockRef::Hash(
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()
+			)),
+			None
+		);
 		assert_eq!(headers_provider.block_header(BlockRef::Number(2)), None);
 	}
 }

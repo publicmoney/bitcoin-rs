@@ -1,17 +1,16 @@
 use crate::v1::helpers::errors::{execution, invalid_params, transaction_not_found, transaction_of_side_branch};
 use crate::v1::traits::Raw;
-use crate::v1::types::H256;
 use crate::v1::types::{
 	GetRawTransactionResponse, RawTransaction, SignedTransactionInput, SignedTransactionOutput, Transaction, TransactionInput,
 	TransactionInputScript, TransactionOutput, TransactionOutputScript, TransactionOutputs,
 };
+use bitcrypto::SHA256D;
 use chain::{IndexedTransaction as GlobalIndexedTransaction, Transaction as GlobalTransaction};
 use global_script::Script;
 use jsonrpc_core::Error;
 use keys::Address;
 use network::{ConsensusParams, Network};
 use primitives::bytes::Bytes as GlobalBytes;
-use primitives::hash::H256 as GlobalH256;
 use ser::{deserialize, serialize, Reader, Serializable, SERIALIZE_TRANSACTION_WITNESS};
 use storage;
 use sync;
@@ -21,14 +20,14 @@ pub struct RawClient<T: RawClientCoreApi> {
 }
 
 pub trait RawClientCoreApi: Send + Sync + 'static {
-	fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<GlobalH256, String>;
+	fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<SHA256D, String>;
 	fn create_raw_transaction(
 		&self,
 		inputs: Vec<TransactionInput>,
 		outputs: TransactionOutputs,
 		lock_time: Option<u32>,
 	) -> Result<GlobalTransaction, String>;
-	fn get_raw_transaction(&self, hash: GlobalH256, verbose: bool) -> Result<GetRawTransactionResponse, Error>;
+	fn get_raw_transaction(&self, hash: SHA256D, verbose: bool) -> Result<GetRawTransactionResponse, Error>;
 	fn transaction_to_verbose_transaction(&self, transaction: GlobalIndexedTransaction) -> Transaction;
 }
 
@@ -67,7 +66,7 @@ impl RawClientCore {
 			.into_iter()
 			.map(|input| chain::TransactionInput {
 				previous_output: chain::OutPoint {
-					hash: Into::<GlobalH256>::into(input.txid).reversed(),
+					hash: Into::<SHA256D>::into(input.txid),
 					index: input.vout,
 				},
 				script_sig: GlobalBytes::new(), // default script
@@ -117,7 +116,7 @@ impl RawClientCore {
 }
 
 impl RawClientCoreApi for RawClientCore {
-	fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<GlobalH256, String> {
+	fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<SHA256D, String> {
 		self.local_sync_node
 			.accept_transaction(GlobalIndexedTransaction::from_raw(transaction))
 	}
@@ -131,7 +130,7 @@ impl RawClientCoreApi for RawClientCore {
 		RawClientCore::do_create_raw_transaction(inputs, outputs, lock_time)
 	}
 
-	fn get_raw_transaction(&self, hash: GlobalH256, verbose: bool) -> Result<GetRawTransactionResponse, Error> {
+	fn get_raw_transaction(&self, hash: SHA256D, verbose: bool) -> Result<GetRawTransactionResponse, Error> {
 		let transaction = match self.storage.transaction(&hash) {
 			Some(transaction) => transaction,
 			None => return Err(transaction_not_found(hash)),
@@ -156,11 +155,11 @@ impl RawClientCoreApi for RawClientCore {
 				return Err(transaction_not_found(hash));
 			}
 
-			let blockhash: H256 = block_header.hash.into();
+			let blockhash: SHA256D = block_header.hash.into();
 
 			let mut verbose_transaction = self.transaction_to_verbose_transaction(transaction);
 			verbose_transaction.hex = Some(raw_transaction);
-			verbose_transaction.blockhash = Some(blockhash.reversed());
+			verbose_transaction.blockhash = Some(blockhash);
 			verbose_transaction.confirmations = Some(best_block.number - meta.height() + 1);
 			verbose_transaction.time = Some(block_header.raw.time);
 			verbose_transaction.blocktime = Some(block_header.raw.time);
@@ -172,8 +171,8 @@ impl RawClientCoreApi for RawClientCore {
 	}
 
 	fn transaction_to_verbose_transaction(&self, transaction: GlobalIndexedTransaction) -> Transaction {
-		let txid: H256 = transaction.hash.into();
-		let hash: H256 = transaction.raw.witness_hash().into();
+		let txid: SHA256D = transaction.hash.into();
+		let hash: SHA256D = transaction.raw.witness_hash().into();
 
 		let inputs = transaction
 			.raw
@@ -181,12 +180,12 @@ impl RawClientCoreApi for RawClientCore {
 			.clone()
 			.into_iter()
 			.map(|input| {
-				let txid: H256 = input.previous_output.hash.into();
+				let txid: SHA256D = input.previous_output.hash.into();
 				let script_sig_bytes = input.script_sig;
 				let script_sig: Script = script_sig_bytes.clone().into();
 				let script_sig_asm = format!("{}", script_sig);
 				SignedTransactionInput {
-					txid: txid.reversed(),
+					txid,
 					vout: input.previous_output.index,
 					script_sig: TransactionInputScript {
 						asm: script_sig_asm,
@@ -243,8 +242,8 @@ impl RawClientCoreApi for RawClientCore {
 
 		Transaction {
 			hex: None,
-			txid: txid.reversed(),
-			hash: hash.reversed(),
+			txid,
+			hash,
 			size: tx_size,
 			vsize: tx_vsize,
 			version: transaction.raw.version,
@@ -272,12 +271,12 @@ impl<T> Raw for RawClient<T>
 where
 	T: RawClientCoreApi,
 {
-	fn send_raw_transaction(&self, raw_transaction: RawTransaction) -> Result<H256, Error> {
+	fn send_raw_transaction(&self, raw_transaction: RawTransaction) -> Result<SHA256D, Error> {
 		let raw_transaction_data: Vec<u8> = raw_transaction.into();
 		let transaction = deserialize(Reader::new(&raw_transaction_data)).map_err(|e| invalid_params("tx", e))?;
 		self.core
 			.accept_transaction(transaction)
-			.map(|h| h.reversed().into())
+			.map(|h| h.into())
 			.map_err(|e| execution(e))
 	}
 
@@ -291,7 +290,7 @@ where
 		let inputs: Vec<_> = inputs
 			.into_iter()
 			.map(|mut input| {
-				input.txid = input.txid.reversed();
+				input.txid = input.txid;
 				input
 			})
 			.collect();
@@ -310,9 +309,9 @@ where
 		Ok(self.core.transaction_to_verbose_transaction(transaction))
 	}
 
-	fn get_raw_transaction(&self, hash: H256, verbose: Option<bool>) -> Result<GetRawTransactionResponse, Error> {
-		let global_hash: GlobalH256 = hash.clone().into();
-		self.core.get_raw_transaction(global_hash.reversed(), verbose.unwrap_or_default())
+	fn get_raw_transaction(&self, hash: SHA256D, verbose: Option<bool>) -> Result<GetRawTransactionResponse, Error> {
+		let global_hash: SHA256D = hash.clone().into();
+		self.core.get_raw_transaction(global_hash, verbose.unwrap_or_default())
 	}
 }
 
@@ -323,10 +322,10 @@ pub mod tests {
 	use crate::v1::types::{
 		Bytes, ScriptType, SignedTransactionInput, Transaction, TransactionInput, TransactionInputScript, TransactionOutputs,
 	};
+	use bitcrypto::{FromStr, SHA256D};
 	use chain::Transaction as GlobalTransaction;
 	use jsonrpc_core::IoHandler;
 	use keys::Address;
-	use primitives::hash::H256 as GlobalH256;
 
 	#[derive(Default)]
 	struct SuccessRawClientCore;
@@ -335,7 +334,7 @@ pub mod tests {
 	struct ErrorRawClientCore;
 
 	impl RawClientCoreApi for SuccessRawClientCore {
-		fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<GlobalH256, String> {
+		fn accept_transaction(&self, transaction: GlobalTransaction) -> Result<SHA256D, String> {
 			Ok(transaction.hash())
 		}
 
@@ -348,22 +347,22 @@ pub mod tests {
 			Ok("0100000001ad9d38823d95f31dc6c0cb0724c11a3cf5a466ca4147254a10cd94aade6eb5b3230000006b483045022100b7683165c3ecd57b0c44bf6a0fb258dc08c328458321c8fadc2b9348d4e66bd502204fd164c58d1a949a4d39bb380f8f05c9f6b3e9417f06bf72e5c068428ca3578601210391c35ac5ee7cf82c5015229dcff89507f83f9b8c952b8fecfa469066c1cb44ccffffffff0170f30500000000001976a914801da3cb2ed9e44540f4b982bde07cd3fbae264288ac00000000".into())
 		}
 
-		fn get_raw_transaction(&self, _hash: GlobalH256, verbose: bool) -> Result<GetRawTransactionResponse, Error> {
+		fn get_raw_transaction(&self, _hash: SHA256D, verbose: bool) -> Result<GetRawTransactionResponse, Error> {
 			if !verbose {
 				Ok(GetRawTransactionResponse::Raw(Bytes::from("0100000001273d7b971b6788f911038f917dfa9ba85980b018a80b2e8caa4fca85475afdaf010000008b48304502205eb82fbb78f3467269c64ebb48c66567b11b1ebfa9cf4dd793d1482e46d3851c022100d18e2091becaea279f6f896825e7ca669ee0607b30007ca88b43d1de91359ba9014104a208236447f5c93972a739105abb8292613eef741cab36a1b98fa4fcc2989add0e5dc6cda9127a2bf0b18357210ba0119ad700e1fa495143262720067f4fbf83ffffffff02003b5808000000001976a9147793078b2ebc6ab7b7fd213789912f1deb03a97088ac404b4c00000000001976a914ffc2838f7aeed00857dbbfc70d9830c6968aca5688ac00000000")))
 			} else {
 				Ok(GetRawTransactionResponse::Verbose(
 					Transaction {
 						hex: Some(Bytes::from("0100000001273d7b971b6788f911038f917dfa9ba85980b018a80b2e8caa4fca85475afdaf010000008b48304502205eb82fbb78f3467269c64ebb48c66567b11b1ebfa9cf4dd793d1482e46d3851c022100d18e2091becaea279f6f896825e7ca669ee0607b30007ca88b43d1de91359ba9014104a208236447f5c93972a739105abb8292613eef741cab36a1b98fa4fcc2989add0e5dc6cda9127a2bf0b18357210ba0119ad700e1fa495143262720067f4fbf83ffffffff02003b5808000000001976a9147793078b2ebc6ab7b7fd213789912f1deb03a97088ac404b4c00000000001976a914ffc2838f7aeed00857dbbfc70d9830c6968aca5688ac00000000")),
-						txid: "635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb".into(),
-						hash: "635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb".into(),
+						txid: SHA256D::from_str("635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb").unwrap(),
+						hash: SHA256D::from_str("635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb").unwrap(),
 						size: 258,
 						vsize: 258,
 						version: 1,
 						locktime: 0,
 						vin: vec![
 							SignedTransactionInput {
-								txid: "affd5a4785ca4faa8c2e0ba818b08059a89bfa7d918f0311f988671b977b3d27".into(),
+								txid: SHA256D::from_str("affd5a4785ca4faa8c2e0ba818b08059a89bfa7d918f0311f988671b977b3d27").unwrap(),
 								vout: 1,
 								script_sig: TransactionInputScript {
 									asm: "OP_PUSHBYTES_72 0x304502205eb82fbb78f3467269c64ebb48c66567b11b1ebfa9cf4dd793d1482e46d3851c022100d18e2091becaea279f6f896825e7ca669ee0607b30007ca88b43d1de91359ba901\nOP_PUSHBYTES_65 0x04a208236447f5c93972a739105abb8292613eef741cab36a1b98fa4fcc2989add0e5dc6cda9127a2bf0b18357210ba0119ad700e1fa495143262720067f4fbf83\n".to_string(),
@@ -401,7 +400,7 @@ pub mod tests {
 								},
 							},
 						],
-						blockhash: Some("00000000000a948a5e6cbe8abde649c6fc353cb2ee592cbf47f3850180ef0c0e".into()),
+						blockhash: Some(SHA256D::from_str("00000000000a948a5e6cbe8abde649c6fc353cb2ee592cbf47f3850180ef0c0e").unwrap()),
 						confirmations: Some(197043),
 						time: Some(1289842148),
 						blocktime: Some(1289842148),
@@ -413,15 +412,15 @@ pub mod tests {
 		fn transaction_to_verbose_transaction(&self, _transaction: GlobalIndexedTransaction) -> Transaction {
 			Transaction {
 				hex: None,
-				txid: "c586389e5e4b3acb9d6c8be1c19ae8ab2795397633176f5a6442a261bbdefc3a".into(),
-				hash: "b759d39a8596b70b3a46700b83e1edb247e17ba58df305421864fe7a9ac142ea".into(),
+				txid: SHA256D::from_str("c586389e5e4b3acb9d6c8be1c19ae8ab2795397633176f5a6442a261bbdefc3a").unwrap(),
+				hash: SHA256D::from_str("b759d39a8596b70b3a46700b83e1edb247e17ba58df305421864fe7a9ac142ea").unwrap(),
 				size: 216,
 				vsize: 134,
 				version: 2,
 				locktime: 0,
 				vin: vec![
 					SignedTransactionInput {
-						txid: "42f7d0545ef45bd3b9cfee6b170cf6314a3bd8b3f09b610eeb436d92993ad440".into(),
+						txid: SHA256D::from_str("42f7d0545ef45bd3b9cfee6b170cf6314a3bd8b3f09b610eeb436d92993ad440").unwrap(),
 						vout: 1,
 						script_sig: TransactionInputScript {
 							asm: "0014a4b4ca48de0b3fffc15404a1acdc8dbaae226955".to_string(),
@@ -458,7 +457,7 @@ pub mod tests {
 	}
 
 	impl RawClientCoreApi for ErrorRawClientCore {
-		fn accept_transaction(&self, _transaction: GlobalTransaction) -> Result<GlobalH256, String> {
+		fn accept_transaction(&self, _transaction: GlobalTransaction) -> Result<SHA256D, String> {
 			Err("error".to_owned())
 		}
 
@@ -471,22 +470,22 @@ pub mod tests {
 			Err("error".to_owned())
 		}
 
-		fn get_raw_transaction(&self, hash: GlobalH256, _verbose: bool) -> Result<GetRawTransactionResponse, Error> {
+		fn get_raw_transaction(&self, hash: SHA256D, _verbose: bool) -> Result<GetRawTransactionResponse, Error> {
 			Err(transaction_not_found(hash))
 		}
 
 		fn transaction_to_verbose_transaction(&self, _transaction: GlobalIndexedTransaction) -> Transaction {
 			Transaction {
 				hex: None,
-				txid: "635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb".into(),
-				hash: "635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb".into(),
+				txid: SHA256D::from_str("635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb").unwrap(),
+				hash: SHA256D::from_str("635f07dc4acdfb9bc305261169f82836949df462876fab9017bb9faf4d5fdadb").unwrap(),
 				size: 258,
 				vsize: 258,
 				version: 1,
 				locktime: 0,
 				vin: vec![
 					SignedTransactionInput {
-						txid: "affd5a4785ca4faa8c2e0ba818b08059a89bfa7d918f0311f988671b977b3d27".into(),
+						txid: SHA256D::from_str("affd5a4785ca4faa8c2e0ba818b08059a89bfa7d918f0311f988671b977b3d27").unwrap(),
 						vout: 1,
 						script_sig: TransactionInputScript {
 							asm: "OP_PUSHBYTES_72 0x304502205eb82fbb78f3467269c64ebb48c66567b11b1ebfa9cf4dd793d1482e46d3851c022100d18e2091becaea279f6f896825e7ca669ee0607b30007ca88b43d1de91359ba901\nOP_PUSHBYTES_65 0x04a208236447f5c93972a739105abb8292613eef741cab36a1b98fa4fcc2989add0e5dc6cda9127a2bf0b18357210ba0119ad700e1fa495143262720067f4fbf83\n".to_string(),
@@ -690,7 +689,7 @@ pub mod tests {
 			{
 				"jsonrpc": "2.0",
 				"method": "getrawtransaction",
-				"params": ["4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"],
+				"params": ["3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a"],
 				"id": 1
 			}"#),
 			)

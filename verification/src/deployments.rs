@@ -1,5 +1,5 @@
-use crate::hash::H256;
 use crate::timestamp::median_timestamp;
+use bitcrypto::SHA256D;
 use network::{ConsensusParams, Deployment};
 use parking_lot::Mutex;
 use std::collections::hash_map::Entry;
@@ -43,7 +43,7 @@ struct DeploymentState {
 	/// Block number
 	block_number: u32,
 	/// Block hash
-	block_hash: H256,
+	block_hash: SHA256D,
 	/// Threshold state for given block
 	state: ThresholdState,
 }
@@ -305,7 +305,7 @@ impl<'a> Iterator for ThresholdIterator<'a> {
 #[cfg(test)]
 mod tests {
 	use super::{first_of_the_period, threshold_state, DeploymentStateCache, ThresholdState};
-	use crate::hash::H256;
+	use bitcrypto::SHA256D;
 	use chain::{BlockHeader, IndexedBlockHeader};
 	use network::Deployment;
 	use primitives::bytes::Bytes;
@@ -320,7 +320,7 @@ mod tests {
 	struct DeploymentHeaderProvider {
 		pub request_count: AtomicUsize,
 		pub by_height: Vec<BlockHeader>,
-		pub by_hash: HashMap<H256, usize>,
+		pub by_hash: HashMap<SHA256D, usize>,
 	}
 
 	impl DeploymentHeaderProvider {
@@ -329,7 +329,7 @@ mod tests {
 				.by_height
 				.last()
 				.map(|h| h.previous_header_hash.clone())
-				.unwrap_or(H256::default());
+				.unwrap_or(SHA256D::default());
 			while self.by_height.len() < height as usize {
 				let header = BlockHeader {
 					version,

@@ -1,14 +1,15 @@
 extern crate chain;
 extern crate criterion;
 
-use chain::{hash::H256, merkle_root};
+use bitcrypto::{FromStr, SHA256D};
+use chain::merkle_root;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-fn prepare_hashes(num: u32) -> Vec<H256> {
+fn prepare_hashes(num: u32) -> Vec<SHA256D> {
 	let mut vec = Vec::new();
-	let h1 = H256::from_reversed_str("1da63abbc8cc611334a753c4c31de14d19839c65b2b284202eaf3165861fb58d");
-	let h2 = H256::from_reversed_str("26c6a6f18d13d2f0787c1c0f3c5e23cf5bc8b3de685dd1923ae99f44c5341c0c");
-	let h3 = H256::from_reversed_str("d1bc8d3ba4afc7e109612cb73acbdddac052c93025aa1f82942edabb7deb82a1");
+	let h1 = SHA256D::from_str("1da63abbc8cc611334a753c4c31de14d19839c65b2b284202eaf3165861fb58d").unwrap();
+	let h2 = SHA256D::from_str("26c6a6f18d13d2f0787c1c0f3c5e23cf5bc8b3de685dd1923ae99f44c5341c0c").unwrap();
+	let h3 = SHA256D::from_str("d1bc8d3ba4afc7e109612cb73acbdddac052c93025aa1f82942edabb7deb82a1").unwrap();
 	for v in 0..num {
 		match v % 3 {
 			0 => vec.push(h1.clone()),

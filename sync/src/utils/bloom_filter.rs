@@ -196,10 +196,10 @@ mod tests {
 	extern crate test_data;
 
 	use super::{BloomFilter, BloomFilterData};
+	use bitcrypto::SHA256D;
 	use chain::IndexedTransaction;
 	use message::types;
 	use primitives::bytes::Bytes;
-	use primitives::hash::H256;
 	use ser::serialize;
 	use std::iter::repeat;
 
@@ -220,10 +220,10 @@ mod tests {
 	fn bloom_insert_data() {
 		let mut bloom = BloomFilterData::with_filter_load(default_filterload());
 
-		assert!(!bloom.contains(&*H256::default()));
+		assert!(!bloom.contains(&*SHA256D::default()));
 
-		bloom.insert(&*H256::default());
-		assert!(bloom.contains(&*H256::default()));
+		bloom.insert(&*SHA256D::default());
+		assert!(bloom.contains(&*SHA256D::default()));
 	}
 
 	#[test]

@@ -1,6 +1,5 @@
-use crate::hash::{H264, H520};
 use crate::{AddressHash, CompactSignature, Error, Message, Signature, SECP256K1};
-use crypto::dhash160;
+use bitcrypto::dhash160;
 use hex::ToHex;
 use secp256k1::key;
 use secp256k1::recovery::{RecoverableSignature, RecoveryId};
@@ -9,24 +8,24 @@ use std::{fmt, ops};
 
 /// Secret public key
 pub enum Public {
-	/// Normal version of public key
-	Normal(H520),
-	/// Compressed version of public key
-	Compressed(H264),
+	/// Normal version of public key (0x04 byte + X and Y coordinate on curve)
+	Normal([u8; 65]),
+	/// Compressed version of public key (0x02 byte for even value of Y, 0x03 byte for odd value of Y + X coordinate)
+	Compressed([u8; 33]),
 }
 
 impl Public {
 	pub fn from_slice(data: &[u8]) -> Result<Self, Error> {
 		match data.len() {
 			33 => {
-				let mut public = H264::default();
-				public.copy_from_slice(data);
-				Ok(Public::Compressed(public))
+				let mut pk = [0; 33];
+				pk.copy_from_slice(data);
+				Ok(Public::Compressed(pk))
 			}
 			65 => {
-				let mut public = H520::default();
-				public.copy_from_slice(data);
-				Ok(Public::Normal(public))
+				let mut pk = [0; 65];
+				pk.copy_from_slice(data);
+				Ok(Public::Normal(pk))
 			}
 			_ => Err(Error::InvalidPublic),
 		}
@@ -41,7 +40,7 @@ impl Public {
 		let public = key::PublicKey::from_slice(self)?;
 		let mut signature = SecpSignature::from_der_lax(signature)?;
 		signature.normalize_s();
-		let message = SecpMessage::from_slice(&**message)?;
+		let message = SecpMessage::from_slice(message)?;
 		match context.verify(&message, &signature, &public) {
 			Ok(_) => Ok(true),
 			Err(SecpError::IncorrectSignature) => Ok(false),
@@ -55,19 +54,15 @@ impl Public {
 		let compressed = (signature[0] - 27) & 4 != 0;
 		let recovery_id = RecoveryId::from_i32(recovery_id as i32)?;
 		let signature = RecoverableSignature::from_compact(&signature[1..65], recovery_id)?;
-		let message = SecpMessage::from_slice(&**message)?;
+		let message = SecpMessage::from_slice(message)?;
 		let pubkey = context.recover(&message, &signature)?;
 
 		let public = if compressed {
 			let serialized = pubkey.serialize();
-			let mut public = H264::default();
-			public.copy_from_slice(&serialized);
-			Public::Compressed(public)
+			Public::Compressed(serialized)
 		} else {
 			let serialized = pubkey.serialize_uncompressed();
-			let mut public = H520::default();
-			public.copy_from_slice(&serialized);
-			Public::Normal(public)
+			Public::Normal(serialized)
 		};
 		Ok(public)
 	}
@@ -78,8 +73,8 @@ impl ops::Deref for Public {
 
 	fn deref(&self) -> &Self::Target {
 		match *self {
-			Public::Normal(ref hash) => &**hash,
-			Public::Compressed(ref hash) => &**hash,
+			Public::Normal(ref bytes) => bytes,
+			Public::Compressed(ref bytes) => bytes,
 		}
 	}
 }
@@ -95,8 +90,8 @@ impl PartialEq for Public {
 impl fmt::Debug for Public {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Public::Normal(ref hash) => writeln!(f, "normal: {}", hash.to_hex::<String>()),
-			Public::Compressed(ref hash) => writeln!(f, "compressed: {}", hash.to_hex::<String>()),
+			Public::Normal(ref bytes) => writeln!(f, "normal: {}", bytes.to_hex::<String>()),
+			Public::Compressed(ref bytes) => writeln!(f, "compressed: {}", bytes.to_hex::<String>()),
 		}
 	}
 }

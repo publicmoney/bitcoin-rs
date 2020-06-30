@@ -1,20 +1,20 @@
-use crate::hash::H256;
 use crate::read_and_hash::ReadAndHash;
 use crate::transaction::{transaction_hash, Transaction};
+use bitcrypto::SHA256D;
 use heapsize::HeapSizeOf;
 use ser::{Deserializable, Error as ReaderError, Reader};
 use std::{cmp, fmt, io};
 
 #[derive(Default, Clone)]
 pub struct IndexedTransaction {
-	pub hash: H256,
+	pub hash: SHA256D,
 	pub raw: Transaction,
 }
 
 impl fmt::Debug for IndexedTransaction {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("IndexedTransaction")
-			.field("hash", &self.hash.reversed())
+			.field("hash", &self.hash)
 			.field("raw", &self.raw)
 			.finish()
 	}
@@ -37,7 +37,7 @@ impl HeapSizeOf for IndexedTransaction {
 }
 
 impl IndexedTransaction {
-	pub fn new(hash: H256, transaction: Transaction) -> Self {
+	pub fn new(hash: SHA256D, transaction: Transaction) -> Self {
 		IndexedTransaction { hash, raw: transaction }
 	}
 

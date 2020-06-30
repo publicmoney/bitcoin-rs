@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 bitcrypto = { path = "../crypto" }
-chain = { path = "../chain" }
+chain = { path = "../chain", features = ["test-helpers"] }
 keys = { path = "../keys" }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }

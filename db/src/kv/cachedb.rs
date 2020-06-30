@@ -1,5 +1,5 @@
-use crate::hash::H256;
 use crate::kv::{Key, KeyState, KeyValue, KeyValueDatabase, Operation, Transaction, Value};
+use bitcrypto::SHA256D;
 use chain::BlockHeader;
 use lru_cache::LruCache;
 use parking_lot::Mutex;
@@ -9,7 +9,7 @@ where
 	T: KeyValueDatabase,
 {
 	db: T,
-	header: Mutex<LruCache<H256, KeyState<BlockHeader>>>,
+	header: Mutex<LruCache<SHA256D, KeyState<BlockHeader>>>,
 }
 
 impl<T> CacheDatabase<T>

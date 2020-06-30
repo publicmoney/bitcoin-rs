@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 byteorder = "1.0"
 primitives = { path = "../primitives" }
+bitcrypto = { path = "../crypto" }

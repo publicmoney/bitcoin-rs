@@ -1,10 +1,10 @@
-use crate::hash::H256;
+use bitcrypto::SHA256D;
 use ser::{CompactInteger, Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
 
 #[derive(Debug, PartialEq)]
 pub struct BlockTransactionsRequest {
-	pub blockhash: H256,
+	pub blockhash: SHA256D,
 	pub indexes: Vec<usize>,
 }
 

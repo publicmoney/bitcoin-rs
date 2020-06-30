@@ -1,7 +1,7 @@
 use super::bytes::Bytes;
-use super::hash::H256;
 use super::script::ScriptType;
 use crate::v1::types;
+use bitcrypto::SHA256D;
 use keys::Address;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -14,7 +14,7 @@ pub type RawTransaction = Bytes;
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct TransactionInput {
 	/// Previous transaction id
-	pub txid: H256,
+	pub txid: SHA256D,
 	/// Previous transaction output index
 	pub vout: u32,
 	/// Sequence number
@@ -84,7 +84,7 @@ pub struct TransactionOutputScript {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedTransactionInput {
 	/// Previous transaction id
-	pub txid: H256,
+	pub txid: SHA256D,
 	/// Previous transaction output index
 	pub vout: u32,
 	/// Input script
@@ -115,9 +115,9 @@ pub struct Transaction {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub hex: Option<RawTransaction>,
 	/// The transaction id (same as provided)
-	pub txid: H256,
+	pub txid: SHA256D,
 	/// The transaction hash (differs from txid for witness transactions)
-	pub hash: H256,
+	pub hash: SHA256D,
 	/// The serialized transaction size
 	pub size: usize,
 	/// The virtual transaction size (differs from size for witness transactions)
@@ -132,7 +132,7 @@ pub struct Transaction {
 	pub vout: Vec<SignedTransactionOutput>,
 	/// Hash of the block this transaction is included in
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub blockhash: Option<H256>,
+	pub blockhash: Option<SHA256D>,
 	/// Number of confirmations of this transaction
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub confirmations: Option<u32>,
@@ -237,15 +237,15 @@ impl<'a> Deserialize<'a> for TransactionOutputs {
 #[cfg(test)]
 mod tests {
 	use super::super::bytes::Bytes;
-	use super::super::hash::H256;
 	use super::super::script::ScriptType;
 	use super::*;
+	use bitcrypto::{FromStr, SHA256D};
 	use serde_json;
 
 	#[test]
 	fn transaction_input_serialize() {
 		let txinput = TransactionInput {
-			txid: H256::from(7),
+			txid: SHA256D::from_str("0700000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			vout: 33,
 			sequence: Some(88),
 		};
@@ -258,7 +258,7 @@ mod tests {
 	#[test]
 	fn transaction_input_deserialize() {
 		let txinput = TransactionInput {
-			txid: H256::from(7),
+			txid: SHA256D::from_str("0700000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			vout: 33,
 			sequence: Some(88),
 		};
@@ -390,7 +390,7 @@ mod tests {
 	#[test]
 	fn signed_transaction_input_serialize() {
 		let txin = SignedTransactionInput {
-			txid: H256::from(77),
+			txid: SHA256D::from_str("4d00000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			vout: 13,
 			script_sig: TransactionInputScript {
 				asm: "Hello, world!!!".to_owned(),
@@ -408,7 +408,7 @@ mod tests {
 	#[test]
 	fn signed_transaction_input_deserialize() {
 		let txin = SignedTransactionInput {
-			txid: H256::from(77),
+			txid: SHA256D::from_str("4d00000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			vout: 13,
 			script_sig: TransactionInputScript {
 				asm: "Hello, world!!!".to_owned(),
@@ -469,15 +469,15 @@ mod tests {
 	fn transaction_serialize() {
 		let tx = Transaction {
 			hex: Some("DEADBEEF".into()),
-			txid: H256::from(4),
-			hash: H256::from(5),
+			txid: SHA256D::from_str("0400000000000000000000000000000000000000000000000000000000000000").unwrap(),
+			hash: SHA256D::from_str("0500000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			size: 33,
 			vsize: 44,
 			version: 55,
 			locktime: 66,
 			vin: vec![],
 			vout: vec![],
-			blockhash: Some(H256::from(6)),
+			blockhash: Some(SHA256D::from_str("0600000000000000000000000000000000000000000000000000000000000000").unwrap()),
 			confirmations: Some(77),
 			time: Some(88),
 			blocktime: Some(99),
@@ -492,15 +492,15 @@ mod tests {
 	fn transaction_deserialize() {
 		let tx = Transaction {
 			hex: Some("DEADBEEF".into()),
-			txid: H256::from(4),
-			hash: H256::from(5),
+			txid: SHA256D::from_str("0400000000000000000000000000000000000000000000000000000000000000").unwrap(),
+			hash: SHA256D::from_str("0500000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			size: 33,
 			vsize: 44,
 			version: 55,
 			locktime: 66,
 			vin: vec![],
 			vout: vec![],
-			blockhash: Some(H256::from(6)),
+			blockhash: Some(SHA256D::from_str("0600000000000000000000000000000000000000000000000000000000000000").unwrap()),
 			confirmations: Some(77),
 			time: Some(88),
 			blocktime: Some(99),

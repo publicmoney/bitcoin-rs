@@ -1,6 +1,6 @@
 use crate::bytes::Bytes;
-use crate::hash::H256;
 use crate::{MessageResult, Payload};
+use bitcrypto::SHA256D;
 use chain::BlockHeader;
 use ser::{Reader, Stream};
 use std::io;
@@ -9,7 +9,7 @@ use std::io;
 pub struct MerkleBlock {
 	pub block_header: BlockHeader,
 	pub total_transactions: u32,
-	pub hashes: Vec<H256>,
+	pub hashes: Vec<SHA256D>,
 	pub flags: Bytes,
 }
 
@@ -40,7 +40,7 @@ impl Payload for MerkleBlock {
 		stream
 			.append(&self.block_header)
 			.append(&self.total_transactions)
-			.append_list(&self.hashes)
+			.append_list::<SHA256D, SHA256D>(&self.hashes)
 			.append(&self.flags);
 		Ok(())
 	}

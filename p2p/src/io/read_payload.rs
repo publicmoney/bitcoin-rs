@@ -1,15 +1,15 @@
 use crate::bytes::Bytes;
-use crate::hash::H32;
 use crate::io::{Error, SharedTcpStream};
 use message::{deserialize_payload, Error as MessageError, Payload};
+use primitives::checksum::Checksum;
 
-pub async fn read_payload<M>(a: &SharedTcpStream, version: u32, len: usize, checksum: H32) -> Result<M, Error>
+pub async fn read_payload<M>(a: &SharedTcpStream, version: u32, len: usize, checksum: Checksum) -> Result<M, Error>
 where
 	M: Payload,
 {
 	let mut buf = Bytes::new_with_len(len);
 	a.read_exact(buf.as_mut()).await?;
-	if crypto::checksum(&buf) != checksum {
+	if Checksum::generate(&buf) != checksum {
 		return Err(MessageError::InvalidChecksum.into());
 	}
 	deserialize_payload(&buf, version).map_err(|e| e.into())

@@ -9,6 +9,7 @@ pub struct BlockMeta {
 	pub n_tx: u32,
 	/// Number of transactions in the chain up to and including this block
 	pub n_chain_tx: u32,
+	// TODO chainwork?
 }
 
 impl fmt::Debug for BlockMeta {

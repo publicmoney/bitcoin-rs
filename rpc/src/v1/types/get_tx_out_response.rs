@@ -1,12 +1,12 @@
-use super::hash::H256;
 use super::transaction::TransactionOutputScript;
+use bitcrypto::SHA256D;
 
 /// gettxout response
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GetTxOutResponse {
 	/// Hash of the block this transaction output is included into.
 	/// Why it's called 'best'? Who knows
-	pub bestblock: H256,
+	pub bestblock: SHA256D,
 	/// Number of confirmations of this transaction
 	pub confirmations: u32,
 	/// Transaction value in BTC
@@ -23,16 +23,16 @@ pub struct GetTxOutResponse {
 #[cfg(test)]
 mod tests {
 	use super::super::bytes::Bytes;
-	use super::super::hash::H256;
 	use super::super::script::ScriptType;
 	use super::super::transaction::TransactionOutputScript;
 	use super::*;
+	use bitcrypto::{FromStr, SHA256D};
 	use serde_json;
 
 	#[test]
 	fn tx_out_response_serialize() {
 		let txout = GetTxOutResponse {
-			bestblock: H256::from(0x56),
+			bestblock: SHA256D::from_str("5600000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			confirmations: 777,
 			value: 100000.56,
 			script: TransactionOutputScript {
@@ -57,7 +57,7 @@ mod tests {
 	#[test]
 	fn tx_out_response_deserialize() {
 		let txout = GetTxOutResponse {
-			bestblock: H256::from(0x56),
+			bestblock: SHA256D::from_str("5600000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			confirmations: 777,
 			value: 100000.56,
 			script: TransactionOutputScript {

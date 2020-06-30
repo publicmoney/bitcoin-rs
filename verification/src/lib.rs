@@ -57,7 +57,7 @@ extern crate log;
 extern crate parking_lot;
 extern crate rayon;
 
-extern crate bitcrypto as crypto;
+extern crate bitcrypto;
 extern crate chain;
 #[cfg(test)]
 extern crate db;

@@ -1,8 +1,8 @@
 use crate::memory_pool::{Entry, MemoryPool, OrderingStrategy};
+use bitcrypto::SHA256D;
 use chain::{IndexedTransaction, OutPoint, TransactionOutput};
 use network::ConsensusParams;
 use primitives::compact::Compact;
-use primitives::hash::H256;
 use std::collections::HashSet;
 use storage::{SharedStore, TransactionOutputProvider};
 use verification::{block_reward_satoshi, transaction_sigops, work_required};
@@ -15,7 +15,7 @@ pub struct BlockTemplate {
 	/// Version
 	pub version: u32,
 	/// The hash of previous block
-	pub previous_header_hash: H256,
+	pub previous_header_hash: SHA256D,
 	/// The current time as seen by the server
 	pub time: u32,
 	/// The compressed difficulty
@@ -137,7 +137,7 @@ struct FittingTransactionsIterator<'a, T> {
 	/// Previous entries are needed to get previous transaction outputs
 	previous_entries: Vec<&'a Entry>,
 	/// Hashes of ignored entries
-	ignored: HashSet<H256>,
+	ignored: HashSet<SHA256D>,
 	/// True if block is already full
 	finished: bool,
 }
@@ -311,10 +311,10 @@ mod tests {
 	use super::{BlockAssembler, BlockTemplate, NextStep, SizePolicy};
 	use crate::fee::{FeeCalculator, NonZeroFeeCalculator};
 	use crate::memory_pool::MemoryPool;
+	use bitcrypto::SHA256D;
 	use chain::IndexedTransaction;
 	use db::BlockChainDatabase;
 	use network::{ConsensusParams, Network};
-	use primitives::hash::H256;
 	use std::sync::Arc;
 	use storage::SharedStore;
 	use verification::block_reward_satoshi;
@@ -371,7 +371,7 @@ mod tests {
 
 	#[test]
 	fn block_assembler_transaction_order() {
-		fn construct_block(consensus: ConsensusParams) -> (BlockTemplate, H256, H256) {
+		fn construct_block(consensus: ConsensusParams) -> (BlockTemplate, SHA256D, SHA256D) {
 			let chain = &mut ChainBuilder::new();
 			TransactionBuilder::with_default_input(0)
 				.set_output(30)

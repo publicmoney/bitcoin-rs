@@ -1,7 +1,6 @@
 use crate::common::Command;
-use crate::hash::H32;
+use crate::primitives::checksum::Checksum;
 use crate::Error;
-use crypto::checksum;
 use network::Magic;
 use ser::{Reader, Serializable, Stream};
 
@@ -10,7 +9,7 @@ pub struct MessageHeader {
 	pub magic: Magic,
 	pub command: Command,
 	pub len: u32,
-	pub checksum: H32,
+	pub checksum: Checksum,
 }
 
 impl MessageHeader {
@@ -19,7 +18,7 @@ impl MessageHeader {
 			magic,
 			command,
 			len: data.len() as u32,
-			checksum: checksum(data),
+			checksum: Checksum::generate(data),
 		}
 	}
 }

@@ -1,5 +1,5 @@
 use crate::bytes::Bytes;
-use crate::hash::H256;
+use bitcrypto::SHA256D;
 use chain::{BlockHeader, Transaction as ChainTransaction};
 use ser::{deserialize, serialize, List};
 use storage::{BlockMeta, TransactionMeta};
@@ -23,12 +23,12 @@ pub enum Operation {
 #[derive(Debug)]
 pub enum KeyValue {
 	Meta(&'static str, Bytes),
-	BlockHash(u32, H256),
-	BlockMeta(H256, BlockMeta),
-	BlockHeader(H256, BlockHeader),
-	BlockTransactions(H256, List<H256>),
-	Transaction(H256, ChainTransaction),
-	TransactionMeta(H256, TransactionMeta),
+	BlockHash(u32, SHA256D),
+	BlockMeta(SHA256D, BlockMeta),
+	BlockHeader(SHA256D, BlockHeader),
+	BlockTransactions(SHA256D, List<SHA256D>),
+	Transaction(SHA256D, ChainTransaction),
+	TransactionMeta(SHA256D, TransactionMeta),
 	Configuration(&'static str, Bytes),
 }
 
@@ -36,21 +36,21 @@ pub enum KeyValue {
 pub enum Key {
 	Meta(&'static str),
 	BlockHash(u32),
-	BlockMeta(H256),
-	BlockHeader(H256),
-	BlockTransactions(H256),
-	Transaction(H256),
-	TransactionMeta(H256),
+	BlockMeta(SHA256D),
+	BlockHeader(SHA256D),
+	BlockTransactions(SHA256D),
+	Transaction(SHA256D),
+	TransactionMeta(SHA256D),
 	Configuration(&'static str),
 }
 
 #[derive(Debug, Clone)]
 pub enum Value {
 	Meta(Bytes),
-	BlockHash(H256),
+	BlockHash(SHA256D),
 	BlockMeta(BlockMeta),
 	BlockHeader(BlockHeader),
-	BlockTransactions(List<H256>),
+	BlockTransactions(List<SHA256D>),
 	Transaction(ChainTransaction),
 	TransactionMeta(TransactionMeta),
 	Configuration(Bytes),
@@ -78,7 +78,7 @@ impl Value {
 		}
 	}
 
-	pub fn as_block_hash(self) -> Option<H256> {
+	pub fn as_block_hash(self) -> Option<SHA256D> {
 		match self {
 			Value::BlockHash(block_hash) => Some(block_hash),
 			_ => None,
@@ -92,7 +92,7 @@ impl Value {
 		}
 	}
 
-	pub fn as_block_transactions(self) -> Option<List<H256>> {
+	pub fn as_block_transactions(self) -> Option<List<SHA256D>> {
 		match self {
 			Value::BlockTransactions(list) => Some(list),
 			_ => None,

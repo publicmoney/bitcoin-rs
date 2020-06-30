@@ -1,10 +1,10 @@
 use crate::bytes::Bytes;
-use crate::hash::H256;
 use crate::kv::{
 	AutoFlushingOverlayDatabase, CacheDatabase, DatabaseConfig, DiskDatabase, Key, KeyState, KeyValue, KeyValueDatabase, MemoryDatabase,
 	OverlayDatabase, Transaction as DBTransaction, Value, COL_BLOCK_META,
 };
 use crate::kv::{COL_BLOCK_HASHES, COL_BLOCK_HEADERS, COL_BLOCK_TRANSACTIONS, COL_COUNT, COL_TRANSACTIONS, COL_TRANSACTIONS_META};
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction, OutPoint, TransactionOutput};
 use parking_lot::RwLock;
 use ser::{deserialize, serialize, List};
@@ -223,7 +223,7 @@ where
 		}
 
 		let parent_hash = block.header.raw.previous_header_hash.clone();
-		if !self.contains_block(parent_hash.clone().into()) && !parent_hash.is_zero() {
+		if parent_hash != SHA256D::default() && !self.contains_block(parent_hash.clone().into()) {
 			return Err(Error::UnknownParent);
 		}
 
@@ -240,7 +240,7 @@ where
 	}
 
 	/// Rollbacks single best block
-	fn rollback_best(&self) -> Result<H256, Error> {
+	fn rollback_best(&self) -> Result<SHA256D, Error> {
 		let best_block = self.best_block.read().clone();
 		let tx_to_decanonize = self.block_transaction_hashes(best_block.hash.into());
 		let decanonized_hash = self.decanonize()?;
@@ -264,12 +264,12 @@ where
 	/// Marks block as a new best block.
 	/// Block must be already inserted into db, and it's parent must be current best block.
 	/// Updates meta data.
-	pub fn canonize(&self, hash: &H256) -> Result<(), Error> {
+	pub fn canonize(&self, hash: &SHA256D) -> Result<(), Error> {
 		let mut best_block = self.best_block.write();
 		let block = match self.block(hash.clone().into()) {
 			Some(block) => block,
 			None => {
-				error!(target: "db", "Block is not found during canonization: {}", hash.reversed());
+				error!(target: "db", "Block is not found during canonization: {}", hash);
 				return Err(Error::CannotCanonize);
 			}
 		};
@@ -278,13 +278,13 @@ where
 			error!(
 				target: "db",
 				"Wrong best block during canonization. Best {}, parent: {}",
-				best_block.hash.reversed(),
-				block.header.raw.previous_header_hash.reversed(),
+				best_block.hash,
+				block.header.raw.previous_header_hash,
 			);
 			return Err(Error::CannotCanonize);
 		}
 
-		let new_meta = if block.header.raw.previous_header_hash.is_zero() {
+		let new_meta = if block.header.raw.previous_header_hash == SHA256D::default() {
 			assert_eq!(best_block.number, 0);
 			BlockMeta {
 				number: 0,
@@ -313,7 +313,7 @@ where
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_HASH, serialize(&new_best_block.hash)));
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_NUMBER, serialize(&new_best_block.number)));
 
-		let mut modified_meta: HashMap<H256, TransactionMeta> = HashMap::new();
+		let mut modified_meta: HashMap<SHA256D, TransactionMeta> = HashMap::new();
 		if let Some(tx) = block.transactions.first() {
 			let meta = TransactionMeta::new_coinbase(new_best_block.number, tx.raw.outputs.len());
 			modified_meta.insert(tx.hash.clone(), meta);
@@ -335,8 +335,8 @@ where
 							error!(
 								target: "db",
 								"Cannot find tx meta during canonization of tx {}: {}/{}",
-								tx.hash.reversed(),
-								input.previous_output.hash.reversed(),
+								tx.hash,
+								input.previous_output.hash,
 								input.previous_output.index,
 							);
 							Error::CannotCanonize
@@ -357,12 +357,12 @@ where
 		Ok(())
 	}
 
-	pub fn decanonize(&self) -> Result<H256, Error> {
+	pub fn decanonize(&self) -> Result<SHA256D, Error> {
 		let mut best_block = self.best_block.write();
 		let block = match self.block(best_block.hash.clone().into()) {
 			Some(block) => block,
 			None => {
-				error!(target: "db", "Block is not found during decanonization: {}", best_block.hash.reversed());
+				error!(target: "db", "Block is not found during decanonization: {}", best_block.hash);
 				return Err(Error::CannotDecanonize);
 			}
 		};
@@ -374,7 +374,7 @@ where
 			number: if best_block.number > 0 {
 				best_block.number - 1
 			} else {
-				assert!(block.header.raw.previous_header_hash.is_zero());
+				assert!(block.header.raw.previous_header_hash == SHA256D::default());
 				0
 			},
 		};
@@ -387,7 +387,7 @@ where
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_HASH, serialize(&new_best_block.hash)));
 		update.insert(KeyValue::Meta(KEY_BEST_BLOCK_NUMBER, serialize(&new_best_block.number)));
 
-		let mut modified_meta: HashMap<H256, TransactionMeta> = HashMap::new();
+		let mut modified_meta: HashMap<SHA256D, TransactionMeta> = HashMap::new();
 		for tx in block.transactions.iter().skip(1) {
 			for input in &tx.raw.inputs {
 				use std::collections::hash_map::Entry;
@@ -402,8 +402,8 @@ where
 							error!(
 								target: "db",
 								"Cannot find tx meta during decanonization of tx {}: {}/{}",
-								tx.hash.reversed(),
-								input.previous_output.hash.reversed(),
+								tx.hash,
+								input.previous_output.hash,
 								input.previous_output.index,
 							);
 							Error::CannotDecanonize
@@ -432,7 +432,7 @@ where
 		self.db.get(&key).expect("db value to be fine").into_option()
 	}
 
-	fn resolve_hash(&self, block_ref: BlockRef) -> Option<H256> {
+	fn resolve_hash(&self, block_ref: BlockRef) -> Option<SHA256D> {
 		match block_ref {
 			BlockRef::Number(n) => self.block_hash(n),
 			BlockRef::Hash(h) => Some(h),
@@ -469,11 +469,11 @@ where
 		self.get(Key::BlockMeta(hash)).and_then(Value::as_block_meta)
 	}
 
-	fn block_hash(&self, number: u32) -> Option<H256> {
+	fn block_hash(&self, number: u32) -> Option<SHA256D> {
 		self.get(Key::BlockHash(number)).and_then(Value::as_block_hash)
 	}
 
-	fn block_number(&self, hash: &H256) -> Option<u32> {
+	fn block_number(&self, hash: &SHA256D) -> Option<u32> {
 		self.block_meta(BlockRef::Hash(*hash)).map(|b| b.number)
 	}
 
@@ -492,7 +492,7 @@ where
 			.is_some()
 	}
 
-	fn block_transaction_hashes(&self, block_ref: BlockRef) -> Vec<H256> {
+	fn block_transaction_hashes(&self, block_ref: BlockRef) -> Vec<SHA256D> {
 		self.resolve_hash(block_ref)
 			.and_then(|hash| self.get(Key::BlockTransactions(hash)))
 			.and_then(Value::as_block_transactions)
@@ -516,7 +516,7 @@ impl<T> TransactionMetaProvider for BlockChainDatabase<T>
 where
 	T: KeyValueDatabase,
 {
-	fn transaction_meta(&self, hash: &H256) -> Option<TransactionMeta> {
+	fn transaction_meta(&self, hash: &SHA256D) -> Option<TransactionMeta> {
 		self.get(Key::TransactionMeta(*hash)).and_then(Value::as_transaction_meta)
 	}
 }
@@ -525,11 +525,11 @@ impl<T> TransactionProvider for BlockChainDatabase<T>
 where
 	T: KeyValueDatabase,
 {
-	fn transaction_bytes(&self, hash: &H256) -> Option<Bytes> {
+	fn transaction_bytes(&self, hash: &SHA256D) -> Option<Bytes> {
 		self.transaction(hash).map(|tx| serialize(&tx.raw))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<IndexedTransaction> {
+	fn transaction(&self, hash: &SHA256D) -> Option<IndexedTransaction> {
 		self.get(Key::Transaction(*hash))
 			.and_then(Value::as_transaction)
 			.map(|tx| IndexedTransaction::new(*hash, tx))
@@ -562,15 +562,15 @@ where
 		BlockChainDatabase::insert(self, block)
 	}
 
-	fn rollback_best(&self) -> Result<H256, Error> {
+	fn rollback_best(&self) -> Result<SHA256D, Error> {
 		BlockChainDatabase::rollback_best(self)
 	}
 
-	fn canonize(&self, block_hash: &H256) -> Result<(), Error> {
+	fn canonize(&self, block_hash: &SHA256D) -> Result<(), Error> {
 		BlockChainDatabase::canonize(self, block_hash)
 	}
 
-	fn decanonize(&self) -> Result<H256, Error> {
+	fn decanonize(&self) -> Result<SHA256D, Error> {
 		BlockChainDatabase::decanonize(self)
 	}
 

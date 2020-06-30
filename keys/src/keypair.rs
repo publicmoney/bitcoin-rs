@@ -1,9 +1,9 @@
 //! Bitcoin key pair.
 
-use crate::hash::{H264, H520};
 use crate::network::Network;
-use crate::{Address, Error, Private, Public, Secret, Type, SECP256K1};
+use crate::{Address, Error, Private, Public, Type, SECP256K1};
 use secp256k1::key;
+use std::convert::TryInto;
 use std::fmt;
 
 pub struct KeyPair {
@@ -36,19 +36,15 @@ impl KeyPair {
 
 	pub fn from_private(private: Private) -> Result<KeyPair, Error> {
 		let context = &SECP256K1;
-		let s: key::SecretKey = key::SecretKey::from_slice(&*private.secret)?;
+		let s: key::SecretKey = key::SecretKey::from_slice(&private.secret)?;
 		let pub_key = key::PublicKey::from_secret_key(context, &s);
 
 		let public = if private.compressed {
 			let serialized = pub_key.serialize();
-			let mut public = H264::default();
-			public.copy_from_slice(&serialized);
-			Public::Compressed(public)
+			Public::Compressed(serialized)
 		} else {
 			let serialized = pub_key.serialize_uncompressed();
-			let mut public = H520::default();
-			public.copy_from_slice(&serialized);
-			Public::Normal(public)
+			Public::Normal(serialized)
 		};
 
 		let keypair = KeyPair { private, public };
@@ -58,18 +54,14 @@ impl KeyPair {
 
 	pub fn from_keypair(sec: key::SecretKey, public: key::PublicKey, network: Network) -> Self {
 		let serialized = public.serialize_uncompressed();
-		let mut secret = Secret::default();
-		secret.copy_from_slice(&sec[0..32]);
-		let mut public = H520::default();
-		public.copy_from_slice(&serialized);
 
 		KeyPair {
 			private: Private {
 				network,
-				secret,
+				secret: sec[0..32].try_into().unwrap(),
 				compressed: false,
 			},
-			public: Public::Normal(public),
+			public: Public::Normal(serialized),
 		}
 	}
 
@@ -85,8 +77,8 @@ impl KeyPair {
 #[cfg(test)]
 mod tests {
 	use super::KeyPair;
-	use crate::Public;
-	use crypto::dhash256;
+	use crate::{Message, Public};
+	use bitcrypto::dhash256;
 
 	/// Tests from:
 	/// https://github.com/bitcoin/bitcoin/blob/a6a860796a44a2805a58391a009ba22752f64e32/src/test/key_tests.cpp
@@ -111,9 +103,9 @@ mod tests {
 	const SIGN_COMPACT_2C: &'static str =
 		"2052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d";
 
-	fn check_addresses(secret: &'static str, address: &'static str) -> bool {
+	fn check_addresses(secret: &'static str, address: &'static str) {
 		let kp = KeyPair::from_private(secret.into()).unwrap();
-		kp.address() == address.into()
+		assert_eq!(kp.address(), address.into())
 	}
 
 	fn check_compressed(secret: &'static str, compressed: bool) -> bool {
@@ -122,25 +114,25 @@ mod tests {
 	}
 
 	fn check_sign(secret: &'static str, raw_message: &[u8], signature: &'static str) -> bool {
-		let message = dhash256(raw_message);
+		let message: Message = dhash256(raw_message);
 		let kp = KeyPair::from_private(secret.into()).unwrap();
 		kp.private().sign(&message).unwrap() == signature.into()
 	}
 
 	fn check_verify(secret: &'static str, raw_message: &[u8], signature: &'static str) -> bool {
-		let message = dhash256(raw_message);
+		let message: Message = dhash256(raw_message);
 		let kp = KeyPair::from_private(secret.into()).unwrap();
 		kp.public().verify(&message, &signature.into()).unwrap()
 	}
 
 	fn check_sign_compact(secret: &'static str, raw_message: &[u8], signature: &'static str) -> bool {
-		let message = dhash256(raw_message);
+		let message: Message = dhash256(raw_message);
 		let kp = KeyPair::from_private(secret.into()).unwrap();
 		kp.private().sign_compact(&message).unwrap() == signature.into()
 	}
 
 	fn check_recover_compact(secret: &'static str, raw_message: &[u8]) -> bool {
-		let message = dhash256(raw_message);
+		let message: Message = dhash256(raw_message);
 		let kp = KeyPair::from_private(secret.into()).unwrap();
 		let signature = kp.private().sign_compact(&message).unwrap();
 		let recovered = Public::recover_compact(&message, &signature).unwrap();
@@ -149,11 +141,11 @@ mod tests {
 
 	#[test]
 	fn test_keypair_address() {
-		assert!(check_addresses(SECRET_0, ADDRESS_0));
-		assert!(check_addresses(SECRET_1, ADDRESS_1));
-		assert!(check_addresses(SECRET_2, ADDRESS_2));
-		assert!(check_addresses(SECRET_1C, ADDRESS_1C));
-		assert!(check_addresses(SECRET_2C, ADDRESS_2C));
+		check_addresses(SECRET_0, ADDRESS_0);
+		check_addresses(SECRET_1, ADDRESS_1);
+		check_addresses(SECRET_2, ADDRESS_2);
+		check_addresses(SECRET_1C, ADDRESS_1C);
+		check_addresses(SECRET_2C, ADDRESS_2C);
 	}
 
 	#[test]

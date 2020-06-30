@@ -1,14 +1,12 @@
-//! Fixed-size hashes
-
-use hex::{FromHex, FromHexError, ToHex};
-use std::hash::{Hash, Hasher};
-use std::{cmp, fmt, ops, str};
-
-macro_rules! impl_hash {
+#[macro_export]
+macro_rules! impl_array_wrapper {
 	($name: ident, $size: expr) => {
+		use std::hash::{Hash, Hasher};
+		use std::{cmp, ops};
+
 		#[repr(C)]
-		#[derive(Copy)]
-		pub struct $name([u8; $size]);
+		#[derive(Copy, Debug)]
+		pub struct $name(pub [u8; $size]);
 
 		impl Default for $name {
 			fn default() -> Self {
@@ -47,48 +45,6 @@ macro_rules! impl_hash {
 				let mut inner = [0u8; $size];
 				inner[..].clone_from_slice(&slc[0..$size]);
 				$name(inner)
-			}
-		}
-
-		impl From<&'static str> for $name {
-			fn from(s: &'static str) -> Self {
-				s.parse().unwrap()
-			}
-		}
-
-		impl From<u8> for $name {
-			fn from(v: u8) -> Self {
-				let mut result = Self::default();
-				result.0[0] = v;
-				result
-			}
-		}
-
-		impl str::FromStr for $name {
-			type Err = FromHexError;
-
-			fn from_str(s: &str) -> Result<Self, Self::Err> {
-				let vec: Vec<u8> = s.from_hex()?;
-				match vec.len() {
-					$size => {
-						let mut result = [0u8; $size];
-						result.copy_from_slice(&vec);
-						Ok($name(result))
-					}
-					_ => Err(FromHexError::InvalidHexLength),
-				}
-			}
-		}
-
-		impl fmt::Debug for $name {
-			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				f.write_str(&self.0.to_hex::<String>())
-			}
-		}
-
-		impl fmt::Display for $name {
-			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				f.write_str(&self.0.to_hex::<String>())
 			}
 		}
 
@@ -133,48 +89,5 @@ macro_rules! impl_hash {
 		}
 
 		impl Eq for $name {}
-
-		impl $name {
-			pub fn take(self) -> [u8; $size] {
-				self.0
-			}
-
-			pub fn reversed(&self) -> Self {
-				let mut result = self.clone();
-				result.reverse();
-				result
-			}
-
-			pub fn size() -> usize {
-				$size
-			}
-
-			pub fn is_zero(&self) -> bool {
-				self.0.iter().all(|b| *b == 0)
-			}
-		}
 	};
-}
-
-impl_hash!(H32, 4);
-impl_hash!(H48, 6);
-impl_hash!(H96, 12);
-impl_hash!(H160, 20);
-impl_hash!(H256, 32);
-impl_hash!(H264, 33);
-impl_hash!(H512, 64);
-impl_hash!(H520, 65);
-
-known_heap_size!(0, H32, H48, H96, H160, H256, H264, H512, H520);
-
-impl H256 {
-	#[inline]
-	pub fn from_reversed_str(s: &'static str) -> Self {
-		H256::from(s).reversed()
-	}
-
-	#[inline]
-	pub fn to_reversed_str(&self) -> String {
-		self.reversed().to_string()
-	}
 }

@@ -1,10 +1,10 @@
 use crate::synchronization_executor::{Task, TaskExecutor};
 use crate::types::{BlockHeight, ExecutorRef, MemoryPoolRef, PeerIndex, PeersRef, RequestId, StorageRef};
 use crate::utils::KnownHashType;
+use bitcrypto::SHA256D;
 use chain::IndexedTransaction;
 use message::{common, types};
 use parking_lot::{Condvar, Mutex};
-use primitives::hash::H256;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -283,7 +283,7 @@ where
 			common::InventoryType::MessageTx => {
 				// only transaction from memory pool can be requested
 				if let Some(transaction) = self.memory_pool.read().read_by_hash(&next_item.hash) {
-					trace!(target: "sync", "'getblocks' response to peer#{} is ready with tx {}", peer_index, next_item.hash.to_reversed_str());
+					trace!(target: "sync", "'getblocks' response to peer#{} is ready with tx {}", peer_index, next_item.hash);
 					let transaction = IndexedTransaction::new(next_item.hash, transaction.clone());
 					self.executor.execute(Task::Transaction(peer_index, transaction));
 				} else {
@@ -293,7 +293,7 @@ where
 			common::InventoryType::MessageWitnessTx => {
 				// only transaction from memory pool can be requested
 				if let Some(transaction) = self.memory_pool.read().read_by_hash(&next_item.hash) {
-					trace!(target: "sync", "'getblocks' response to peer#{} is ready with witness-tx {}", peer_index, next_item.hash.to_reversed_str());
+					trace!(target: "sync", "'getblocks' response to peer#{} is ready with witness-tx {}", peer_index, next_item.hash);
 					let transaction = IndexedTransaction::new(next_item.hash, transaction.clone());
 					self.executor.execute(Task::WitnessTransaction(peer_index, transaction));
 				} else {
@@ -302,7 +302,7 @@ where
 			}
 			common::InventoryType::MessageBlock => {
 				if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
-					trace!(target: "sync", "'getblocks' response to peer#{} is ready with block {}", peer_index, next_item.hash.to_reversed_str());
+					trace!(target: "sync", "'getblocks' response to peer#{} is ready with block {}", peer_index, next_item.hash);
 					self.executor.execute(Task::Block(peer_index, block));
 				} else {
 					notfound.inventory.push(next_item);
@@ -313,13 +313,13 @@ where
 					let message_artefacts = self.peers.build_merkle_block(peer_index, &block);
 					if let Some(message_artefacts) = message_artefacts {
 						// send merkleblock first
-						trace!(target: "sync", "'getblocks' response to peer#{} is ready with merkleblock {}", peer_index, next_item.hash.to_reversed_str());
+						trace!(target: "sync", "'getblocks' response to peer#{} is ready with merkleblock {}", peer_index, next_item.hash);
 						self.executor
 							.execute(Task::MerkleBlock(peer_index, *block.hash(), message_artefacts.merkleblock));
 
 						// also send all matched transactions
 						for matched_transaction in message_artefacts.matching_transactions {
-							trace!(target: "sync", "'getblocks' response to peer#{} is ready with merkletx {}", peer_index, matched_transaction.hash.to_reversed_str());
+							trace!(target: "sync", "'getblocks' response to peer#{} is ready with merkletx {}", peer_index, matched_transaction.hash);
 							self.executor.execute(Task::Transaction(peer_index, matched_transaction));
 						}
 					} else {
@@ -333,7 +333,7 @@ where
 				if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
 					let message = self.peers.build_compact_block(peer_index, &block);
 					if let Some(message) = message {
-						trace!(target: "sync", "'getblocks' response to peer#{} is ready with compactblock {}", peer_index, next_item.hash.to_reversed_str());
+						trace!(target: "sync", "'getblocks' response to peer#{} is ready with compactblock {}", peer_index, next_item.hash);
 						self.executor.execute(Task::CompactBlock(peer_index, *block.hash(), message));
 					}
 				} else {
@@ -342,7 +342,7 @@ where
 			}
 			common::InventoryType::MessageWitnessBlock => {
 				if let Some(block) = self.storage.block(next_item.hash.clone().into()) {
-					trace!(target: "sync", "'getblocks' response to peer#{} is ready with witness-block {}", peer_index, next_item.hash.to_reversed_str());
+					trace!(target: "sync", "'getblocks' response to peer#{} is ready with witness-block {}", peer_index, next_item.hash);
 					self.executor.execute(Task::WitnessBlock(peer_index, block.into()));
 				} else {
 					notfound.inventory.push(next_item);
@@ -426,10 +426,7 @@ where
 		{
 			self.peers.misbehaving(
 				peer_index,
-				&format!(
-					"Got 'getblocktxn' message for non-sent block: {}",
-					message.request.blockhash.to_reversed_str()
-				),
+				&format!("Got 'getblocktxn' message for non-sent block: {}", message.request.blockhash),
 			);
 			return;
 		}
@@ -483,7 +480,7 @@ where
 				// => this is either some db error, or db has been pruned
 				// => we can not skip transactions, according to protocol description
 				// => ignore
-				warn!(target: "sync", "'getblocktxn' request from peer#{} is ignored as we have failed to find transaction {} in storage", peer_index, block_transactions[transaction_index].to_reversed_str());
+				warn!(target: "sync", "'getblocktxn' request from peer#{} is ignored as we have failed to find transaction {} in storage", peer_index, block_transactions[transaction_index]);
 				return;
 			}
 		}
@@ -500,7 +497,7 @@ where
 		));
 	}
 
-	fn locate_best_common_block(&self, hash_stop: &H256, locator: &[H256]) -> Option<BlockHeight> {
+	fn locate_best_common_block(&self, hash_stop: &SHA256D, locator: &[SHA256D]) -> Option<BlockHeight> {
 		for block_hash in locator.iter().chain(&[hash_stop.clone()]) {
 			if let Some(block_number) = self.storage.block_number(block_hash) {
 				return Some(block_number);
@@ -520,7 +517,7 @@ where
 					return Some(block_number);
 				}
 
-				block_hash = *block_header.raw.previous_header_hash.as_ref();
+				block_hash = block_header.raw.previous_header_hash;
 			}
 		}
 
@@ -540,13 +537,13 @@ pub mod tests {
 	use crate::synchronization_peers::{PeersContainer, PeersFilters, PeersImpl};
 	use crate::types::{ExecutorRef, MemoryPoolRef, PeerIndex, PeersRef, StorageRef};
 	use crate::utils::KnownHashType;
+	use bitcrypto::SHA256D;
 	use chain::Transaction;
 	use db::BlockChainDatabase;
 	use message::common::{self, InventoryType, InventoryVector, Services};
 	use message::types;
 	use miner::{MemoryPool, NonZeroFeeCalculator};
 	use parking_lot::{Mutex, RwLock};
-	use primitives::hash::H256;
 	use std::mem::replace;
 	use std::sync::Arc;
 
@@ -589,7 +586,7 @@ pub mod tests {
 		// when asking for unknown block
 		let inventory = vec![InventoryVector {
 			inv_type: InventoryType::MessageBlock,
-			hash: H256::default(),
+			hash: SHA256D::default(),
 		}];
 		server.execute(ServerTask::GetData(0, types::GetData::with_inventory(inventory.clone())));
 		// => respond with notfound
@@ -621,7 +618,7 @@ pub mod tests {
 			types::GetBlocks {
 				version: 0,
 				block_locator_hashes: vec![genesis_block_hash.clone()],
-				hash_stop: H256::default(),
+				hash_stop: SHA256D::default(),
 			},
 		));
 		// => empty response
@@ -640,7 +637,7 @@ pub mod tests {
 			types::GetBlocks {
 				version: 0,
 				block_locator_hashes: vec![test_data::genesis().hash()],
-				hash_stop: H256::default(),
+				hash_stop: SHA256D::default(),
 			},
 		));
 		// => responds with inventory
@@ -663,7 +660,7 @@ pub mod tests {
 			types::GetHeaders {
 				version: 0,
 				block_locator_hashes: vec![genesis_block_hash.clone()],
-				hash_stop: H256::default(),
+				hash_stop: SHA256D::default(),
 			},
 			dummy_id,
 		));
@@ -684,7 +681,7 @@ pub mod tests {
 			types::GetHeaders {
 				version: 0,
 				block_locator_hashes: vec![test_data::genesis().hash()],
-				hash_stop: H256::default(),
+				hash_stop: SHA256D::default(),
 			},
 			dummy_id,
 		));
@@ -788,7 +785,7 @@ pub mod tests {
 		let inventory = vec![
 			InventoryVector {
 				inv_type: InventoryType::MessageTx,
-				hash: H256::default(),
+				hash: SHA256D::default(),
 			},
 			InventoryVector {
 				inv_type: InventoryType::MessageTx,

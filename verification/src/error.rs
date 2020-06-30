@@ -1,5 +1,5 @@
 use crate::compact::Compact;
-use crate::hash::H256;
+use bitcrypto::SHA256D;
 use script::Error as SignatureError;
 use storage::Error as DBError;
 
@@ -93,7 +93,7 @@ pub enum TransactionError {
 	/// Signature invalid for given input
 	Signature(usize, SignatureError),
 	/// Unknown previous transaction referenced
-	UnknownReference(H256),
+	UnknownReference(SHA256D),
 	/// Spends more than claims
 	Overspend,
 	/// Signature script can't be properly parsed
@@ -107,7 +107,7 @@ pub enum TransactionError {
 	/// Not fully spent transaction with the same hash already exists, bip30.
 	UnspentTransactionWithTheSameHash,
 	/// Using output that is surely spent
-	UsingSpentOutput(H256, u32),
+	UsingSpentOutput(SHA256D, u32),
 	/// Transaction, protected using BitcoinCash OP_RETURN replay protection (REQ-6-1).
 	ReturnReplayProtection,
 	/// Transaction with witness is received before SegWit is activated.

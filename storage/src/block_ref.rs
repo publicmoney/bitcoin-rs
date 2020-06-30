@@ -1,9 +1,9 @@
-use crate::hash::H256;
+use bitcrypto::SHA256D;
 
 #[derive(Debug, Clone)]
 pub enum BlockRef {
 	Number(u32),
-	Hash(H256),
+	Hash(SHA256D),
 }
 
 impl From<u32> for BlockRef {
@@ -12,8 +12,8 @@ impl From<u32> for BlockRef {
 	}
 }
 
-impl From<H256> for BlockRef {
-	fn from(hash: H256) -> Self {
+impl From<SHA256D> for BlockRef {
+	fn from(hash: SHA256D) -> Self {
 		BlockRef::Hash(hash)
 	}
 }

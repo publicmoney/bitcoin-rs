@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::util::init_db;
+use bitcrypto::SHA256D;
 use clap::ArgMatches;
-use primitives::hash::H256;
 use storage::BlockRef;
 
 pub fn rollback(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
@@ -9,10 +9,7 @@ pub fn rollback(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 
 	let block_ref = matches.value_of("BLOCK").expect("BLOCK is required in cli.yml; qed");
 	let block_ref = if block_ref.len() == 64 {
-		BlockRef::Hash({
-			let hash: H256 = block_ref.parse().map_err(|e| format!("Invalid block number: {}", e))?;
-			hash.reversed()
-		})
+		BlockRef::Hash({ block_ref.parse().map_err(|e| format!("Invalid block number: {}", e))? })
 	} else {
 		BlockRef::Number(block_ref.parse().map_err(|e| format!("Invalid block hash: {}", e))?)
 	};
@@ -25,7 +22,7 @@ pub fn rollback(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 	let genesis_hash = *cfg.network.genesis_block().hash();
 
 	let mut best_block_hash = cfg.db.best_block().hash;
-	debug_assert!(best_block_hash != H256::default()); // genesis inserted in init_db
+	debug_assert!(best_block_hash != SHA256D::default()); // genesis inserted in init_db
 
 	loop {
 		if best_block_hash == required_block_hash {

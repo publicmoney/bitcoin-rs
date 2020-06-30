@@ -6,7 +6,6 @@ use crate::canon::{CanonBlock, CanonTransaction};
 use crate::chain::{BlockHeader, IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use crate::deployments::{BlockDeployments, Deployments};
 use crate::error::{Error, TransactionError};
-use crate::hash::H256;
 use crate::network::ConsensusParams;
 use crate::storage::{
 	BlockHeaderProvider, BlockOrigin, CachedTransactionOutputProvider, DuplexTransactionOutputProvider, NoopStore, SharedStore,
@@ -16,6 +15,7 @@ use crate::verify_chain::ChainVerifier;
 use crate::verify_header::HeaderVerifier;
 use crate::verify_transaction::MemoryPoolTransactionVerifier;
 use crate::{VerificationLevel, Verify};
+use bitcrypto::SHA256D;
 
 pub struct BackwardsCompatibleChainVerifier {
 	store: SharedStore,
@@ -50,7 +50,7 @@ impl BackwardsCompatibleChainVerifier {
 		trace!(
 			target: "verification",
 			"verify_block: {:?} best_block: {:?} block_origin: {:?}",
-			block.hash().reversed(),
+			block.hash(),
 			self.store.best_block(),
 			block_origin,
 		);
@@ -128,7 +128,7 @@ impl BackwardsCompatibleChainVerifier {
 	pub fn verify_block_header(
 		&self,
 		_block_header_provider: &dyn BlockHeaderProvider,
-		hash: &H256,
+		hash: &SHA256D,
 		header: &BlockHeader,
 	) -> Result<(), Error> {
 		// let's do only preverifcation
@@ -177,7 +177,7 @@ impl Verify for BackwardsCompatibleChainVerifier {
 		let result = self.verify_block(level, block);
 		trace!(
 			target: "verification", "Block {} (transactions: {}) verification finished. Result {:?}",
-			block.hash().to_reversed_str(),
+			block.hash(),
 			block.transactions.len(),
 			result,
 		);

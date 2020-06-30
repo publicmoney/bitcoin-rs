@@ -1,8 +1,8 @@
 use crate::bytes::Bytes;
 use crate::io::{read_header, Error, SharedTcpStream};
-use crypto::checksum;
 use message::{Command, Error as MessageError};
 use network::Magic;
+use primitives::checksum::Checksum;
 
 pub async fn read_any_message(a: &SharedTcpStream, magic: Magic) -> Result<(Command, Bytes), Error> {
 	let header = read_header(&a, magic).await?;
@@ -10,7 +10,8 @@ pub async fn read_any_message(a: &SharedTcpStream, magic: Magic) -> Result<(Comm
 	let mut buf = Bytes::new_with_len(header.len as usize);
 	a.read_exact(buf.as_mut()).await?;
 
-	if checksum(&buf) != header.checksum {
+	let checksum = Checksum::generate(&buf);
+	if checksum != header.checksum {
 		return Err(MessageError::InvalidChecksum.into());
 	}
 	Ok((header.command.clone(), buf.into()))

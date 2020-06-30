@@ -8,3 +8,4 @@ edition = "2018"
 lazy_static = "1.4.0"
 chain = { path = "../chain" }
 primitives = { path = "../primitives" }
+bitcrypto = { path = "../crypto" }

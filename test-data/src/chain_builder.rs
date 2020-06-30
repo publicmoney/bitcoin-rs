@@ -1,6 +1,6 @@
+use bitcrypto::SHA256D;
 use chain::{IndexedTransaction, OutPoint, Transaction, TransactionInput, TransactionOutput};
 use primitives::bytes::Bytes;
-use primitives::hash::H256;
 use ser::Serializable;
 
 #[derive(Debug, Default, Clone)]
@@ -22,7 +22,7 @@ impl ChainBuilder {
 		self.transactions[transaction_index].clone()
 	}
 
-	pub fn hash(&self, transaction_index: usize) -> H256 {
+	pub fn hash(&self, transaction_index: usize) -> SHA256D {
 		self.transactions[transaction_index].hash()
 	}
 
@@ -142,7 +142,7 @@ impl TransactionBuilder {
 		self
 	}
 
-	pub fn hash(self) -> H256 {
+	pub fn hash(self) -> SHA256D {
 		self.transaction.hash()
 	}
 }

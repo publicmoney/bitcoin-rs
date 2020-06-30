@@ -1,19 +1,19 @@
 use crate::block_header::{block_header_hash, BlockHeader};
-use crate::hash::H256;
 use crate::read_and_hash::ReadAndHash;
+use bitcrypto::SHA256D;
 use ser::{Deserializable, Error as ReaderError, Reader};
 use std::{cmp, fmt, io};
 
 #[derive(Clone)]
 pub struct IndexedBlockHeader {
-	pub hash: H256,
+	pub hash: SHA256D,
 	pub raw: BlockHeader,
 }
 
 impl fmt::Debug for IndexedBlockHeader {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("IndexedBlockHeader")
-			.field("hash", &self.hash.reversed())
+			.field("hash", &self.hash)
 			.field("raw", &self.raw)
 			.finish()
 	}
@@ -26,7 +26,7 @@ impl From<BlockHeader> for IndexedBlockHeader {
 	}
 }
 impl IndexedBlockHeader {
-	pub fn new(hash: H256, header: BlockHeader) -> Self {
+	pub fn new(hash: SHA256D, header: BlockHeader) -> Self {
 		IndexedBlockHeader { hash, raw: header }
 	}
 

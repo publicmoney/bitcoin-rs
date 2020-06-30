@@ -3,6 +3,7 @@ extern crate db;
 extern crate storage;
 extern crate test_data;
 
+use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use db::kv::{MemoryDatabase, SharedMemoryDatabase};
 use db::BlockChainDatabase;
@@ -20,7 +21,7 @@ fn insert_block() {
 	store.insert(b2.clone()).unwrap();
 
 	assert_eq!(0, store.best_block().number);
-	assert!(store.best_block().hash.is_zero());
+	assert_eq!(SHA256D::default(), store.best_block().hash);
 
 	store.canonize(b0.hash()).unwrap();
 	assert_eq!(0, store.best_block().number);

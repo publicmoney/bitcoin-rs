@@ -1,10 +1,10 @@
 use crate::synchronization_peers::{BlockAnnouncementType, TransactionAnnouncementType};
 use crate::types::{PeerIndex, PeersRef, RequestId};
 use crate::utils::KnownHashType;
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedTransaction};
 use message::common::InventoryVector;
 use message::types;
-use primitives::hash::H256;
 use std::sync::Arc;
 
 /// Synchronization task executor
@@ -26,9 +26,9 @@ pub enum Task {
 	/// Send block
 	Block(PeerIndex, IndexedBlock),
 	/// Send merkleblock
-	MerkleBlock(PeerIndex, H256, types::MerkleBlock),
+	MerkleBlock(PeerIndex, SHA256D, types::MerkleBlock),
 	/// Send cmpcmblock
-	CompactBlock(PeerIndex, H256, types::CompactBlock),
+	CompactBlock(PeerIndex, SHA256D, types::CompactBlock),
 	/// Send block with witness data
 	WitnessBlock(PeerIndex, IndexedBlock),
 	/// Send transaction
@@ -77,7 +77,7 @@ impl LocalSynchronizationTaskExecutor {
 	fn execute_getheaders(&self, peer_index: PeerIndex, getheaders: types::GetHeaders) {
 		if let Some(connection) = self.peers.connection(peer_index) {
 			if !getheaders.block_locator_hashes.is_empty() {
-				trace!(target: "sync", "Querying headers starting with {} unknown items from peer#{}", getheaders.block_locator_hashes[0].to_reversed_str(), peer_index);
+				trace!(target: "sync", "Querying headers starting with {} unknown items from peer#{}", getheaders.block_locator_hashes[0], peer_index);
 			}
 			connection.send_getheaders(getheaders);
 		}
@@ -93,7 +93,7 @@ impl LocalSynchronizationTaskExecutor {
 
 	fn execute_block(&self, peer_index: PeerIndex, block: IndexedBlock) {
 		if let Some(connection) = self.peers.connection(peer_index) {
-			trace!(target: "sync", "Sending block {} to peer#{}", block.hash().to_reversed_str(), peer_index);
+			trace!(target: "sync", "Sending block {} to peer#{}", block.hash(), peer_index);
 			self.peers.hash_known_as(peer_index, *block.hash(), KnownHashType::Block);
 			let block = types::Block {
 				block: block.to_raw_block(),
@@ -102,17 +102,17 @@ impl LocalSynchronizationTaskExecutor {
 		}
 	}
 
-	fn execute_merkleblock(&self, peer_index: PeerIndex, hash: H256, block: types::MerkleBlock) {
+	fn execute_merkleblock(&self, peer_index: PeerIndex, hash: SHA256D, block: types::MerkleBlock) {
 		if let Some(connection) = self.peers.connection(peer_index) {
-			trace!(target: "sync", "Sending merkle block {} to peer#{}", hash.to_reversed_str(), peer_index);
+			trace!(target: "sync", "Sending merkle block {} to peer#{}", hash, peer_index);
 			self.peers.hash_known_as(peer_index, hash, KnownHashType::Block);
 			connection.send_merkleblock(block);
 		}
 	}
 
-	fn execute_compact_block(&self, peer_index: PeerIndex, hash: H256, block: types::CompactBlock) {
+	fn execute_compact_block(&self, peer_index: PeerIndex, hash: SHA256D, block: types::CompactBlock) {
 		if let Some(connection) = self.peers.connection(peer_index) {
-			trace!(target: "sync", "Sending compact block {} to peer#{}", hash.to_reversed_str(), peer_index);
+			trace!(target: "sync", "Sending compact block {} to peer#{}", hash, peer_index);
 			self.peers.hash_known_as(peer_index, hash, KnownHashType::CompactBlock);
 			connection.send_compact_block(block);
 		}
@@ -120,7 +120,7 @@ impl LocalSynchronizationTaskExecutor {
 
 	fn execute_witness_block(&self, peer_index: PeerIndex, block: IndexedBlock) {
 		if let Some(connection) = self.peers.connection(peer_index) {
-			trace!(target: "sync", "Sending witness block {} to peer#{}", block.hash().to_reversed_str(), peer_index);
+			trace!(target: "sync", "Sending witness block {} to peer#{}", block.hash(), peer_index);
 			self.peers.hash_known_as(peer_index, *block.hash(), KnownHashType::Block);
 			let block = types::Block {
 				block: block.to_raw_block(),
@@ -131,7 +131,7 @@ impl LocalSynchronizationTaskExecutor {
 
 	fn execute_transaction(&self, peer_index: PeerIndex, transaction: IndexedTransaction) {
 		if let Some(connection) = self.peers.connection(peer_index) {
-			trace!(target: "sync", "Sending transaction {} to peer#{}", transaction.hash.to_reversed_str(), peer_index);
+			trace!(target: "sync", "Sending transaction {} to peer#{}", transaction.hash, peer_index);
 			self.peers.hash_known_as(peer_index, transaction.hash, KnownHashType::Transaction);
 			let transaction = types::Tx {
 				transaction: transaction.raw,
@@ -142,7 +142,7 @@ impl LocalSynchronizationTaskExecutor {
 
 	fn execute_witness_transaction(&self, peer_index: PeerIndex, transaction: IndexedTransaction) {
 		if let Some(connection) = self.peers.connection(peer_index) {
-			trace!(target: "sync", "Sending witness transaction {} to peer#{}", transaction.hash.to_reversed_str(), peer_index);
+			trace!(target: "sync", "Sending witness transaction {} to peer#{}", transaction.hash, peer_index);
 			self.peers.hash_known_as(peer_index, transaction.hash, KnownHashType::Transaction);
 			let transaction = types::Tx {
 				transaction: transaction.raw,

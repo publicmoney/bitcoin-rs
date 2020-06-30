@@ -10,13 +10,13 @@ use crate::types::{
 };
 use crate::utils::{AverageSpeedMeter, HashPosition, MessageBlockHeadersProvider, OrphanBlocksPool, OrphanTransactionsPool};
 use crate::verification::BackwardsCompatibleChainVerifier as ChainVerifier;
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use futures::Future;
 use message::common::{InventoryType, InventoryVector};
 use message::types;
 use miner::transaction_fee_rate;
 use parking_lot::Mutex;
-use primitives::hash::H256;
 use std::cmp::{max, min};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -77,7 +77,7 @@ pub trait ClientCore {
 		sink: Box<dyn TransactionVerificationSink>,
 	) -> Result<VecDeque<IndexedTransaction>, String>;
 	fn install_sync_listener(&mut self, listener: SyncListenerRef);
-	fn execute_synchronization_tasks(&mut self, forced_blocks_requests: Option<Vec<H256>>, final_blocks_requests: Option<Vec<H256>>);
+	fn execute_synchronization_tasks(&mut self, forced_blocks_requests: Option<Vec<SHA256D>>, final_blocks_requests: Option<Vec<SHA256D>>);
 	fn try_switch_to_saturated_state(&mut self) -> bool;
 }
 
@@ -113,13 +113,13 @@ pub struct SynchronizationClientCore<T: TaskExecutor> {
 	/// Verify block headers?
 	verify_headers: bool,
 	/// Verifying blocks by peer
-	verifying_blocks_by_peer: HashMap<H256, PeerIndex>,
+	verifying_blocks_by_peer: HashMap<SHA256D, PeerIndex>,
 	/// Verifying blocks futures
-	verifying_blocks_futures: HashMap<PeerIndex, (HashSet<H256>, Vec<EmptyBoxFuture>)>,
+	verifying_blocks_futures: HashMap<PeerIndex, (HashSet<SHA256D>, Vec<EmptyBoxFuture>)>,
 	/// Verifying transactions futures
-	verifying_transactions_sinks: HashMap<H256, Box<dyn TransactionVerificationSink>>,
+	verifying_transactions_sinks: HashMap<SHA256D, Box<dyn TransactionVerificationSink>>,
 	/// Hashes of items we do not want to relay after verification is completed
-	do_not_relay: HashSet<H256>,
+	do_not_relay: HashSet<SHA256D>,
 	/// Block processing speed meter
 	block_speed_meter: AverageSpeedMeterRef,
 	/// Block synchronization speed meter
@@ -166,7 +166,7 @@ pub struct BlocksRequestLimits {
 /// Transaction append error
 enum AppendTransactionError {
 	Synchronizing,
-	Orphan(HashSet<H256>),
+	Orphan(HashSet<SHA256D>),
 }
 
 /// Blocks headers verification result
@@ -243,7 +243,7 @@ where
 						BlockState::DeadEnd if !self.config.close_connection_on_bad_block => true,
 						BlockState::DeadEnd if self.config.close_connection_on_bad_block => {
 							self.peers
-								.misbehaving(peer_index, &format!("Provided dead-end block {:?}", item.hash.to_reversed_str()));
+								.misbehaving(peer_index, &format!("Provided dead-end block {:?}", item.hash));
 							false
 						}
 						_ => false,
@@ -254,10 +254,8 @@ where
 					| InventoryType::MessageWitnessFilteredBlock => false,
 					// unknown inventory type
 					InventoryType::Error => {
-						self.peers.misbehaving(
-							peer_index,
-							&format!("Provided unknown inventory type {:?}", item.hash.to_reversed_str()),
-						);
+						self.peers
+							.misbehaving(peer_index, &format!("Provided unknown inventory type {:?}", item.hash));
 						false
 					}
 				}
@@ -303,8 +301,8 @@ where
 				target: "sync",
 				"Previous header of the first header from peer#{} `headers` message is unknown. First: {}. Previous: {}",
 				peer_index,
-				header0.hash.to_reversed_str(),
-				header0.raw.previous_header_hash.to_reversed_str(),
+				header0.hash,
+				header0.raw.previous_header_hash,
 			);
 
 			// there could be competing chains that are running the network with the same magic (like Zcash vs ZelCash)
@@ -350,10 +348,8 @@ where
 			header0.raw.previous_header_hash.clone()
 		};
 		if self.config.close_connection_on_bad_block && self.chain.block_state(&last_known_hash) == BlockState::DeadEnd {
-			self.peers.misbehaving(
-				peer_index,
-				&format!("Provided after dead-end block {}", last_known_hash.to_reversed_str()),
-			);
+			self.peers
+				.misbehaving(peer_index, &format!("Provided after dead-end block {}", last_known_hash));
 			return;
 		}
 		match self.verify_headers(peer_index, last_known_hash, &headers[first_unknown_index..num_headers]) {
@@ -367,8 +363,8 @@ where
 				trace!(target: "sync", "New {} headers from peer#{}. First {:?}, last: {:?}",
 					num_new_headers,
 					peer_index,
-					headers[first_unknown_index].hash.to_reversed_str(),
-					headers[num_headers - 1].hash.to_reversed_str()
+					headers[first_unknown_index].hash,
+					headers[num_headers - 1].hash
 				);
 
 				// prepare new headers array
@@ -410,13 +406,11 @@ where
 			BlockState::Unknown | BlockState::Scheduled | BlockState::Requested | BlockState::DeadEnd => {
 				if block_state == BlockState::DeadEnd {
 					if self.config.close_connection_on_bad_block {
-						self.peers.misbehaving(
-							peer_index,
-							&format!("Provided dead-end block {}", block.header.hash.to_reversed_str()),
-						);
+						self.peers
+							.misbehaving(peer_index, &format!("Provided dead-end block {}", block.header.hash));
 						return None;
 					}
-					warn!(target: "sync", "Peer#{} has provided dead-end block {}", peer_index, block.header.hash.to_reversed_str());
+					warn!(target: "sync", "Peer#{} has provided dead-end block {}", peer_index, block.header.hash);
 				}
 
 				// check parent block state
@@ -425,13 +419,11 @@ where
 					BlockState::Unknown | BlockState::DeadEnd => {
 						if parent_block_state == BlockState::DeadEnd {
 							if self.config.close_connection_on_bad_block {
-								self.peers.misbehaving(
-									peer_index,
-									&format!("Provided dead-end block {}", block.header.hash.to_reversed_str()),
-								);
+								self.peers
+									.misbehaving(peer_index, &format!("Provided dead-end block {}", block.header.hash));
 								return None;
 							}
-							warn!(target: "sync", "Peer#{} has provided dead-end block {}", peer_index, block.header.hash.to_reversed_str());
+							warn!(target: "sync", "Peer#{} has provided dead-end block {}", peer_index, block.header.hash);
 						}
 
 						if self.state.is_synchronizing() {
@@ -439,7 +431,7 @@ where
 							trace!(
 								target: "sync",
 								"Ignoring block {} from peer#{}, because its parent is unknown and we are synchronizing",
-								block.header.hash.to_reversed_str(),
+								block.header.hash,
 								peer_index
 							);
 							// remove block from current queue
@@ -593,7 +585,7 @@ where
 	}
 
 	/// Schedule new synchronization tasks, if any.
-	fn execute_synchronization_tasks(&mut self, forced_blocks_requests: Option<Vec<H256>>, final_blocks_requests: Option<Vec<H256>>) {
+	fn execute_synchronization_tasks(&mut self, forced_blocks_requests: Option<Vec<SHA256D>>, final_blocks_requests: Option<Vec<SHA256D>>) {
 		let mut tasks: Vec<Task> = Vec::new();
 
 		// display information if processed many blocks || enough time has passed since sync start
@@ -631,7 +623,7 @@ where
 			}
 		}
 
-		let mut blocks_requests: Option<Vec<H256>> = None;
+		let mut blocks_requests: Option<Vec<SHA256D>> = None;
 		let blocks_idle_peers: Vec<_> = self.peers_tasks.idle_peers_for_blocks().iter().cloned().collect();
 		{
 			// check if we can query some blocks headers
@@ -798,7 +790,7 @@ where
 	}
 
 	/// Process failed block verification
-	fn on_block_verification_error(&self, err: &str, hash: &H256) {
+	fn on_block_verification_error(&self, err: &str, hash: &SHA256D) {
 		self.core.lock().on_block_verification_error(err, hash)
 	}
 }
@@ -813,7 +805,7 @@ where
 	}
 
 	/// Process failed transaction verification
-	fn on_transaction_verification_error(&self, err: &str, hash: &H256) {
+	fn on_transaction_verification_error(&self, err: &str, hash: &SHA256D) {
 		self.core.lock().on_transaction_verification_error(err, hash)
 	}
 }
@@ -936,7 +928,7 @@ where
 	}
 
 	/// Forget blocks, which have been requested several times, but no one has responded
-	pub fn forget_failed_blocks(&mut self, blocks_to_forget: &[H256]) {
+	pub fn forget_failed_blocks(&mut self, blocks_to_forget: &[SHA256D]) {
 		if blocks_to_forget.is_empty() {
 			return;
 		}
@@ -950,7 +942,7 @@ where
 	fn verify_headers(
 		&mut self,
 		peer_index: PeerIndex,
-		last_known_hash: H256,
+		last_known_hash: SHA256D,
 		headers: &[IndexedBlockHeader],
 	) -> BlocksHeadersVerificationResult {
 		// validate blocks headers before scheduling
@@ -963,9 +955,7 @@ where
 					peer_index,
 					&format!(
 						"Neighbour headers in `headers` message are unlinked: Prev: {}, PrevLink: {}, Curr: {}",
-						last_known_hash.to_reversed_str(),
-						header.raw.previous_header_hash.to_reversed_str(),
-						header.hash.to_reversed_str()
+						last_known_hash, header.raw.previous_header_hash, header.hash
 					),
 				);
 				return BlocksHeadersVerificationResult::Skip;
@@ -978,13 +968,13 @@ where
 				BlockState::Unknown => (),
 				BlockState::DeadEnd if self.config.close_connection_on_bad_block => {
 					self.peers
-						.misbehaving(peer_index, &format!("Provided dead-end block {:?}", header.hash.to_reversed_str()));
+						.misbehaving(peer_index, &format!("Provided dead-end block {:?}", header.hash));
 					return BlocksHeadersVerificationResult::Skip;
 				}
 				block_state => {
 					trace!(target: "sync", "Ignoring {} headers from peer#{} - known ({:?}) header {} at the {}/{} ({}...{})",
-						headers.len(), peer_index, block_state, header.hash.to_reversed_str(), header_index, headers.len(),
-						headers[0].hash.to_reversed_str(), headers[headers.len() - 1].hash.to_reversed_str());
+						headers.len(), peer_index, block_state, header.hash, header_index, headers.len(),
+						headers[0].hash, headers[headers.len() - 1].hash);
 					self.peers_tasks.useful_peer(peer_index);
 					return BlocksHeadersVerificationResult::Skip;
 				}
@@ -999,14 +989,10 @@ where
 					if self.config.close_connection_on_bad_block {
 						self.peers.misbehaving(
 							peer_index,
-							&format!(
-								"Error verifying header {} from `headers`: {:?}",
-								header.hash.to_reversed_str(),
-								error
-							),
+							&format!("Error verifying header {} from `headers`: {:?}", header.hash, error),
 						);
 					} else {
-						warn!(target: "sync", "Error verifying header {} from `headers` message: {:?}", header.hash.to_reversed_str(), error);
+						warn!(target: "sync", "Error verifying header {} from `headers` message: {:?}", header.hash, error);
 					}
 					return BlocksHeadersVerificationResult::Error(header_index);
 				}
@@ -1048,7 +1034,7 @@ where
 
 		// else => verify transaction + it's orphans and then add to the memory pool
 		// if any parent transaction is unknown => we have orphan transaction => remember in orphan pool
-		let unknown_parents: HashSet<H256> = transaction
+		let unknown_parents: HashSet<SHA256D> = transaction
 			.raw
 			.inputs
 			.iter()
@@ -1077,7 +1063,7 @@ where
 		&mut self,
 		limits: &BlocksRequestLimits,
 		mut peers: Vec<PeerIndex>,
-		mut hashes: Vec<H256>,
+		mut hashes: Vec<SHA256D>,
 	) -> Vec<Task> {
 		use std::mem::swap;
 
@@ -1183,7 +1169,7 @@ where
 		// has lead us to the fork
 		// + ask all peers for their memory pool
 		{
-			let block_locator_hashes: Vec<H256> = self.chain.block_locator_hashes();
+			let block_locator_hashes: Vec<SHA256D> = self.chain.block_locator_hashes();
 			for peer in self.peers_tasks.all_peers() {
 				self.executor.execute(Task::GetHeaders(
 					*peer,
@@ -1258,13 +1244,13 @@ where
 			}
 			Err(e) => {
 				// process as irrecoverable failure
-				panic!("Block {} insertion failed with error {:?}", block_hash.to_reversed_str(), e);
+				panic!("Block {} insertion failed with error {:?}", block_hash, e);
 			}
 		}
 	}
 
-	fn on_block_verification_error(&mut self, err: &str, hash: &H256) {
-		warn!(target: "sync", "Block {:?} verification failed with error {:?}", hash.to_reversed_str(), err);
+	fn on_block_verification_error(&mut self, err: &str, hash: &SHA256D) {
+		warn!(target: "sync", "Block {:?} verification failed with error {:?}", hash, err);
 
 		// remove flags
 		self.do_not_relay.remove(hash);
@@ -1272,10 +1258,9 @@ where
 		// close connection with this peer
 		if let Some(peer_index) = self.verifying_blocks_by_peer.get(hash) {
 			if self.config.close_connection_on_bad_block {
-				self.peers
-					.dos(*peer_index, &format!("Provided wrong block {}", hash.to_reversed_str()))
+				self.peers.dos(*peer_index, &format!("Provided wrong block {}", hash))
 			} else {
-				warn!(target: "sync", "Peer#{} has provided wrong block {:?}", peer_index, hash.to_reversed_str());
+				warn!(target: "sync", "Peer#{} has provided wrong block {:?}", peer_index, hash);
 			}
 		}
 
@@ -1322,8 +1307,8 @@ where
 		}
 	}
 
-	fn on_transaction_verification_error(&mut self, err: &str, hash: &H256) {
-		warn!(target: "sync", "Transaction {} verification failed with error {:?}", hash.to_reversed_str(), err);
+	fn on_transaction_verification_error(&mut self, err: &str, hash: &SHA256D) {
+		warn!(target: "sync", "Transaction {} verification failed with error {:?}", hash, err);
 
 		// remove flags
 		self.do_not_relay.remove(hash);
@@ -1338,7 +1323,7 @@ where
 	}
 
 	/// Execute futures, which were waiting for this block verification
-	fn awake_waiting_threads(&mut self, hash: &H256) {
+	fn awake_waiting_threads(&mut self, hash: &SHA256D) {
 		// find a peer, which has supplied us with this block
 		if let Entry::Occupied(block_entry) = self.verifying_blocks_by_peer.entry(*hash) {
 			let peer_index = *block_entry.get();
@@ -1394,6 +1379,7 @@ pub mod tests {
 	use crate::types::{ClientCoreRef, PeerIndex, StorageRef, SynchronizationStateRef};
 	use crate::utils::{AverageSpeedMeter, SynchronizationState};
 	use crate::BLOCKS_SPEED_BLOCKS_TO_INSPECT;
+	use bitcrypto::{FromStr, SHA256D};
 	use chain::{Block, Transaction};
 	use db::BlockChainDatabase;
 	use message::common::InventoryVector;
@@ -1401,14 +1387,13 @@ pub mod tests {
 	use miner::MemoryPool;
 	use network::{ConsensusParams, Network};
 	use parking_lot::{Mutex, RwLock};
-	use primitives::hash::H256;
 	use std::sync::Arc;
 	use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 
 	#[derive(Default)]
 	struct DummySyncListenerData {
 		pub is_synchronizing: bool,
-		pub best_blocks: Vec<H256>,
+		pub best_blocks: Vec<SHA256D>,
 	}
 
 	struct DummySyncListener {
@@ -1426,7 +1411,7 @@ pub mod tests {
 			self.data.lock().is_synchronizing = is_synchronizing;
 		}
 
-		fn best_storage_block_inserted(&self, block_hash: &H256) {
+		fn best_storage_block_inserted(&self, block_hash: &SHA256D) {
 			self.data.lock().best_blocks.push(*block_hash);
 		}
 	}
@@ -1483,12 +1468,12 @@ pub mod tests {
 		)
 	}
 
-	fn request_block_headers_genesis_and(peer_index: PeerIndex, mut hashes: Vec<H256>) -> Task {
+	fn request_block_headers_genesis_and(peer_index: PeerIndex, mut hashes: Vec<SHA256D>) -> Task {
 		hashes.push(test_data::genesis().hash());
 		Task::GetHeaders(peer_index, types::GetHeaders::with_block_locator_hashes(hashes))
 	}
 
-	fn request_blocks(peer_index: PeerIndex, hashes: Vec<H256>) -> Task {
+	fn request_blocks(peer_index: PeerIndex, hashes: Vec<SHA256D>) -> Task {
 		Task::GetData(
 			peer_index,
 			types::GetData {
@@ -2133,7 +2118,7 @@ pub mod tests {
 	fn transaction_is_requested_when_not_synchronizing() {
 		let (executor, core, sync) = create_sync(None, None);
 
-		sync.on_inventory(0, types::Inv::with_inventory(vec![InventoryVector::witness_tx(H256::from(0))]));
+		sync.on_inventory(0, types::Inv::with_inventory(vec![InventoryVector::witness_tx(SHA256D::default())]));
 
 		{
 			let tasks = executor.take_tasks();
@@ -2141,7 +2126,7 @@ pub mod tests {
 				tasks,
 				vec![Task::GetData(
 					0,
-					types::GetData::with_inventory(vec![InventoryVector::witness_tx(H256::from(0))])
+					types::GetData::with_inventory(vec![InventoryVector::witness_tx(SHA256D::default())])
 				)]
 			);
 		}
@@ -2154,14 +2139,21 @@ pub mod tests {
 			executor.take_tasks();
 		} // forget tasks
 
-		sync.on_inventory(0, types::Inv::with_inventory(vec![InventoryVector::witness_tx(H256::from(1))]));
+		sync.on_inventory(
+			0,
+			types::Inv::with_inventory(vec![InventoryVector::witness_tx(
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
+			)]),
+		);
 
 		let tasks = executor.take_tasks();
 		assert_eq!(
 			tasks,
 			vec![Task::GetData(
 				0,
-				types::GetData::with_inventory(vec![InventoryVector::witness_tx(H256::from(1))])
+				types::GetData::with_inventory(vec![InventoryVector::witness_tx(
+					SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()
+				)])
 			)]
 		);
 	}
@@ -2170,25 +2162,25 @@ pub mod tests {
 	fn same_transaction_can_be_requested_twice() {
 		let (executor, _, sync) = create_sync(None, None);
 
-		sync.on_inventory(0, types::Inv::with_inventory(vec![InventoryVector::witness_tx(H256::from(0))]));
+		sync.on_inventory(0, types::Inv::with_inventory(vec![InventoryVector::witness_tx(SHA256D::default())]));
 
 		let tasks = executor.take_tasks();
 		assert_eq!(
 			tasks,
 			vec![Task::GetData(
 				0,
-				types::GetData::with_inventory(vec![InventoryVector::witness_tx(H256::from(0))])
+				types::GetData::with_inventory(vec![InventoryVector::witness_tx(SHA256D::default())])
 			)]
 		);
 
-		sync.on_inventory(0, types::Inv::with_inventory(vec![InventoryVector::witness_tx(H256::from(0))]));
+		sync.on_inventory(0, types::Inv::with_inventory(vec![InventoryVector::witness_tx(SHA256D::default())]));
 
 		let tasks = executor.take_tasks();
 		assert_eq!(
 			tasks,
 			vec![Task::GetData(
 				0,
-				types::GetData::with_inventory(vec![InventoryVector::witness_tx(H256::from(0))])
+				types::GetData::with_inventory(vec![InventoryVector::witness_tx(SHA256D::default())])
 			)]
 		);
 	}
@@ -2201,14 +2193,14 @@ pub mod tests {
 			0,
 			types::Inv::with_inventory(vec![
 				InventoryVector::witness_tx(test_data::genesis().transactions[0].hash()),
-				InventoryVector::witness_tx(H256::from(0)),
+				InventoryVector::witness_tx(SHA256D::default()),
 			]),
 		);
 		assert_eq!(
 			executor.take_tasks(),
 			vec![Task::GetData(
 				0,
-				types::GetData::with_inventory(vec![InventoryVector::witness_tx(H256::from(0))])
+				types::GetData::with_inventory(vec![InventoryVector::witness_tx(SHA256D::default())])
 			)]
 		);
 	}

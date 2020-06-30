@@ -13,6 +13,7 @@ app_dirs = "1.2.1"
 libc = "0.2"
 clap = { version = "2", features = ["yaml"] }
 tokio = { version = "0.2.11", features = ["full"] }
+bitcrypto = { path = "../crypto" }
 message = { path = "../message" }
 network = { path = "../network" }
 p2p = { path = "../p2p" }

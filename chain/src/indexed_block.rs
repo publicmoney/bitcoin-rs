@@ -1,9 +1,9 @@
 use crate::block::Block;
-use crate::hash::H256;
 use crate::indexed_header::IndexedBlockHeader;
 use crate::indexed_transaction::IndexedTransaction;
 use crate::merkle_root::merkle_root;
 use crate::transaction::Transaction;
+use bitcrypto::SHA256D;
 use hex::FromHex;
 use ser::{deserialize, serialized_list_size, serialized_list_size_with_flags, Serializable, SERIALIZE_TRANSACTION_WITNESS};
 use std::cmp;
@@ -45,7 +45,7 @@ impl IndexedBlock {
 		)
 	}
 
-	pub fn hash(&self) -> &H256 {
+	pub fn hash(&self) -> &SHA256D {
 		&self.header.hash
 	}
 
@@ -73,15 +73,15 @@ impl IndexedBlock {
 		(size * 3) + size_with_witness
 	}
 
-	pub fn merkle_root(&self) -> H256 {
-		merkle_root(&self.transactions.iter().map(|tx| &tx.hash).collect::<Vec<&H256>>())
+	pub fn merkle_root(&self) -> SHA256D {
+		merkle_root(&self.transactions.iter().map(|tx| tx.hash).collect::<Vec<SHA256D>>())
 	}
 
-	pub fn witness_merkle_root(&self) -> H256 {
+	pub fn witness_merkle_root(&self) -> SHA256D {
 		let hashes = match self.transactions.split_first() {
 			None => vec![],
 			Some((_, rest)) => {
-				let mut hashes = vec![H256::from(0)];
+				let mut hashes = vec![SHA256D::default()];
 				hashes.extend(rest.iter().map(|tx| tx.raw.witness_hash()));
 				hashes
 			}

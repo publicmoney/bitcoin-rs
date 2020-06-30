@@ -1,10 +1,10 @@
 use crate::types::{BlockHeight, MemoryPoolRef, StorageRef};
 use crate::utils::MemoryPoolTransactionOutputProvider;
 use crate::VerificationParameters;
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedTransaction};
 use network::ConsensusParams;
 use parking_lot::Mutex;
-use primitives::hash::H256;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -20,7 +20,7 @@ pub trait BlockVerificationSink: Send + Sync + 'static {
 	/// When block verification has completed successfully.
 	fn on_block_verification_success(&self, block: IndexedBlock) -> Option<Vec<VerificationTask>>;
 	/// When block verification has failed.
-	fn on_block_verification_error(&self, err: &str, hash: &H256);
+	fn on_block_verification_error(&self, err: &str, hash: &SHA256D);
 }
 
 /// Transaction verification events sink
@@ -28,7 +28,7 @@ pub trait TransactionVerificationSink: Send + Sync + 'static {
 	/// When transaction verification has completed successfully.
 	fn on_transaction_verification_success(&self, transaction: IndexedTransaction);
 	/// When transaction verification has failed.
-	fn on_transaction_verification_error(&self, err: &str, hash: &H256);
+	fn on_transaction_verification_error(&self, err: &str, hash: &SHA256D);
 }
 
 /// Verification events sink
@@ -293,10 +293,10 @@ pub mod tests {
 	use crate::synchronization_executor::tests::DummyTaskExecutor;
 	use crate::types::{BlockHeight, MemoryPoolRef, StorageRef};
 	use crate::VerificationParameters;
+	use bitcrypto::{FromStr, SHA256D};
 	use chain::{IndexedBlock, IndexedTransaction};
 	use db::BlockChainDatabase;
 	use network::{ConsensusParams, Network};
-	use primitives::hash::H256;
 	use script::Error as ScriptError;
 	use std::collections::{HashMap, HashSet};
 	use std::sync::atomic::Ordering;
@@ -308,8 +308,8 @@ pub mod tests {
 	#[derive(Default)]
 	pub struct DummyVerifier {
 		sink: Option<Arc<CoreVerificationSink<DummyTaskExecutor>>>,
-		errors: HashMap<H256, String>,
-		actual_checks: HashSet<H256>,
+		errors: HashMap<SHA256D, String>,
+		actual_checks: HashSet<SHA256D>,
 		storage: Option<StorageRef>,
 		memory_pool: Option<MemoryPoolRef>,
 		verifier: Option<ChainVerifierWrapper>,
@@ -334,16 +334,16 @@ pub mod tests {
 				self.storage.as_ref().unwrap(),
 				VerificationParameters {
 					verification_level: VerificationLevel::Full,
-					verification_edge: 0u8.into(),
+					verification_edge: SHA256D::default(),
 				},
 			));
 		}
 
-		pub fn error_when_verifying(&mut self, hash: H256, err: &str) {
+		pub fn error_when_verifying(&mut self, hash: SHA256D, err: &str) {
 			self.errors.insert(hash, err.into());
 		}
 
-		pub fn actual_check_when_verifying(&mut self, hash: H256) {
+		pub fn actual_check_when_verifying(&mut self, hash: SHA256D) {
 			self.actual_checks.insert(hash);
 		}
 	}
@@ -351,7 +351,7 @@ pub mod tests {
 	impl Verifier for DummyVerifier {
 		fn verify_block(&self, block: IndexedBlock) {
 			match self.sink {
-				Some(ref sink) => match self.errors.get(&block.hash()) {
+				Some(ref sink) => match self.errors.get(block.hash()) {
 					Some(err) => sink.on_block_verification_error(&err, &block.hash()),
 					None => {
 						if self.actual_checks.contains(block.hash()) {
@@ -473,7 +473,7 @@ pub mod tests {
 			&storage,
 			VerificationParameters {
 				verification_level: VerificationLevel::Header,
-				verification_edge: 1.into(),
+				verification_edge: SHA256D::from_str("0100000000000000000000000000000000000000000000000000000000000000").unwrap(),
 			},
 		);
 		assert_eq!(wrapper.verify_block(&bad_transaction_block), Ok(()));
@@ -484,7 +484,7 @@ pub mod tests {
 			&storage,
 			VerificationParameters {
 				verification_level: VerificationLevel::Full,
-				verification_edge: 1.into(),
+				verification_edge: SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 			},
 		);
 		assert_eq!(
@@ -508,7 +508,7 @@ pub mod tests {
 			&storage,
 			VerificationParameters {
 				verification_level: VerificationLevel::NoVerification,
-				verification_edge: 1.into(),
+				verification_edge: SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 			},
 		);
 		assert_eq!(wrapper.verify_block(&bad_block), Ok(()));
@@ -519,7 +519,7 @@ pub mod tests {
 			&storage,
 			VerificationParameters {
 				verification_level: VerificationLevel::Full,
-				verification_edge: 1.into(),
+				verification_edge: SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 			},
 		);
 		assert_eq!(wrapper.verify_block(&bad_block), Err(VerificationError::Empty));

@@ -1,6 +1,6 @@
 use crate::bytes::Bytes;
-use crate::hash::H256;
 use crate::kv::{Key, KeyState, KeyValue, KeyValueDatabase, Operation, Transaction, Value};
+use bitcrypto::SHA256D;
 use chain::{BlockHeader, Transaction as ChainTransaction};
 use parking_lot::RwLock;
 use ser::List;
@@ -12,12 +12,12 @@ use storage::{BlockMeta, TransactionMeta};
 #[derive(Default, Debug)]
 struct InnerDatabase {
 	meta: HashMap<&'static str, KeyState<Bytes>>,
-	block_hash: HashMap<u32, KeyState<H256>>,
-	block_meta: HashMap<H256, KeyState<BlockMeta>>,
-	block_header: HashMap<H256, KeyState<BlockHeader>>,
-	block_transactions: HashMap<H256, KeyState<List<H256>>>,
-	transaction: HashMap<H256, KeyState<ChainTransaction>>,
-	transaction_meta: HashMap<H256, KeyState<TransactionMeta>>,
+	block_hash: HashMap<u32, KeyState<SHA256D>>,
+	block_meta: HashMap<SHA256D, KeyState<BlockMeta>>,
+	block_header: HashMap<SHA256D, KeyState<BlockHeader>>,
+	block_transactions: HashMap<SHA256D, KeyState<List<SHA256D>>>,
+	transaction: HashMap<SHA256D, KeyState<ChainTransaction>>,
+	transaction_meta: HashMap<SHA256D, KeyState<TransactionMeta>>,
 	configuration: HashMap<&'static str, KeyState<Bytes>>,
 }
 

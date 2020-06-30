@@ -3,8 +3,8 @@ use crate::synchronization_executor::TaskExecutor;
 use crate::synchronization_peers_tasks::{PeersTasks, TrustLevel};
 use crate::types::PeersRef;
 use crate::utils::{OrphanBlocksPool, OrphanTransactionsPool};
+use bitcrypto::SHA256D;
 use parking_lot::{Condvar, Mutex};
-use primitives::hash::H256;
 use std::collections::HashSet;
 use std::sync::{Arc, Weak};
 use std::thread;
@@ -198,9 +198,9 @@ pub fn manage_synchronization_peers_blocks(
 	config: &ManagePeersConfig,
 	peers: PeersRef,
 	peers_tasks: &mut PeersTasks,
-) -> (Vec<H256>, Vec<H256>) {
-	let mut blocks_to_request: Vec<H256> = Vec::new();
-	let mut blocks_to_forget: Vec<H256> = Vec::new();
+) -> (Vec<SHA256D>, Vec<SHA256D>) {
+	let mut blocks_to_request: Vec<SHA256D> = Vec::new();
+	let mut blocks_to_forget: Vec<SHA256D> = Vec::new();
 	let now = precise_time_s();
 
 	// reset tasks for peers, which has not responded during given period
@@ -283,10 +283,10 @@ pub fn manage_synchronization_peers_headers(config: &ManagePeersConfig, peers: P
 pub fn manage_unknown_orphaned_blocks(
 	config: &ManageUnknownBlocksConfig,
 	orphaned_blocks_pool: &mut OrphanBlocksPool,
-) -> Option<Vec<H256>> {
+) -> Option<Vec<SHA256D>> {
 	let unknown_to_remove = {
 		let unknown_blocks = orphaned_blocks_pool.unknown_blocks();
-		let mut unknown_to_remove: HashSet<H256> = HashSet::new();
+		let mut unknown_to_remove: HashSet<SHA256D> = HashSet::new();
 		let mut remove_num = if unknown_blocks.len() > config.max_number {
 			unknown_blocks.len() - config.max_number
 		} else {
@@ -313,7 +313,7 @@ pub fn manage_unknown_orphaned_blocks(
 	};
 
 	// remove unknown blocks
-	let unknown_to_remove: Vec<H256> = orphaned_blocks_pool.remove_blocks(&unknown_to_remove);
+	let unknown_to_remove: Vec<SHA256D> = orphaned_blocks_pool.remove_blocks(&unknown_to_remove);
 
 	if unknown_to_remove.is_empty() {
 		None
@@ -326,10 +326,10 @@ pub fn manage_unknown_orphaned_blocks(
 pub fn manage_orphaned_transactions(
 	config: &ManageOrphanTransactionsConfig,
 	orphaned_transactions_pool: &mut OrphanTransactionsPool,
-) -> Option<Vec<H256>> {
+) -> Option<Vec<SHA256D>> {
 	let orphans_to_remove = {
 		let unknown_transactions = orphaned_transactions_pool.transactions();
-		let mut orphans_to_remove: Vec<H256> = Vec::new();
+		let mut orphans_to_remove: Vec<SHA256D> = Vec::new();
 		let mut remove_num = if unknown_transactions.len() > config.max_number {
 			unknown_transactions.len() - config.max_number
 		} else {
@@ -356,7 +356,7 @@ pub fn manage_orphaned_transactions(
 	};
 
 	// remove unknown transactions
-	let orphans_to_remove: Vec<H256> = orphaned_transactions_pool
+	let orphans_to_remove: Vec<SHA256D> = orphaned_transactions_pool
 		.remove_transactions(&orphans_to_remove)
 		.into_iter()
 		.map(|t| t.hash)
@@ -380,7 +380,7 @@ mod tests {
 	use crate::synchronization_peers::PeersImpl;
 	use crate::synchronization_peers_tasks::{PeersTasks, TrustLevel};
 	use crate::utils::{OrphanBlocksPool, OrphanTransactionsPool};
-	use primitives::hash::H256;
+	use bitcrypto::{FromStr, SHA256D};
 	use std::collections::HashSet;
 	use std::sync::Arc;
 
@@ -391,8 +391,14 @@ mod tests {
 			..Default::default()
 		};
 		let mut peers = PeersTasks::default();
-		peers.on_blocks_requested(1, &vec![H256::from(0), H256::from(1)]);
-		peers.on_block_received(1, &H256::from(0));
+		peers.on_blocks_requested(
+			1,
+			&vec![
+				SHA256D::default(),
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
+			],
+		);
+		peers.on_block_received(1, &SHA256D::default());
 		assert_eq!(
 			manage_synchronization_peers_blocks(&config, Arc::new(PeersImpl::default()), &mut peers),
 			(vec![], vec![])
@@ -409,15 +415,18 @@ mod tests {
 			..Default::default()
 		};
 		let mut peers = PeersTasks::default();
-		peers.on_blocks_requested(1, &vec![H256::from(0)]);
-		peers.on_blocks_requested(2, &vec![H256::from(1)]);
+		peers.on_blocks_requested(1, &vec![SHA256D::default()]);
+		peers.on_blocks_requested(
+			2,
+			&vec![SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()],
+		);
 		peers.get_peer_stats_mut(1).unwrap().set_trust(TrustLevel::Trusted);
 		peers.get_peer_stats_mut(2).unwrap().set_trust(TrustLevel::Trusted);
 		sleep(Duration::from_millis(1));
 
 		let managed_tasks = manage_synchronization_peers_blocks(&config, Arc::new(PeersImpl::default()), &mut peers).0;
-		assert!(managed_tasks.contains(&H256::from(0)));
-		assert!(managed_tasks.contains(&H256::from(1)));
+		assert!(managed_tasks.contains(&SHA256D::default()));
+		assert!(managed_tasks.contains(&SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()));
 		let idle_peers = peers.idle_peers_for_blocks();
 		assert_eq!(2, idle_peers.len());
 		assert!(idle_peers.contains(&1));
@@ -479,7 +488,7 @@ mod tests {
 		};
 		let mut pool = OrphanTransactionsPool::new();
 		let transaction = test_data::block_h170().transactions[1].clone();
-		let unknown_inputs: HashSet<H256> = transaction.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
+		let unknown_inputs: HashSet<SHA256D> = transaction.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		pool.insert(transaction.into(), unknown_inputs);
 		assert_eq!(manage_orphaned_transactions(&config, &mut pool), None);
 		assert_eq!(pool.len(), 1);
@@ -495,7 +504,7 @@ mod tests {
 		};
 		let mut pool = OrphanTransactionsPool::new();
 		let transaction = test_data::block_h170().transactions[1].clone();
-		let unknown_inputs: HashSet<H256> = transaction.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
+		let unknown_inputs: HashSet<SHA256D> = transaction.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		let transaction_hash = transaction.hash();
 		pool.insert(transaction.into(), unknown_inputs);
 		sleep(Duration::from_millis(1));
@@ -512,10 +521,10 @@ mod tests {
 		};
 		let mut pool = OrphanTransactionsPool::new();
 		let transaction1 = test_data::block_h170().transactions[1].clone();
-		let unknown_inputs1: HashSet<H256> = transaction1.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
+		let unknown_inputs1: HashSet<SHA256D> = transaction1.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		let transaction1_hash = transaction1.hash();
 		let transaction2 = test_data::block_h182().transactions[1].clone();
-		let unknown_inputs2: HashSet<H256> = transaction2.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
+		let unknown_inputs2: HashSet<SHA256D> = transaction2.inputs.iter().map(|i| i.previous_output.hash.clone()).collect();
 		pool.insert(transaction1.into(), unknown_inputs1);
 		pool.insert(transaction2.into(), unknown_inputs2);
 		assert_eq!(manage_orphaned_transactions(&config, &mut pool), Some(vec![transaction1_hash]));

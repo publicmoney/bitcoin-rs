@@ -3,8 +3,7 @@
 
 use crate::bytes::Bytes;
 use crate::constants::{LOCKTIME_THRESHOLD, SEQUENCE_FINAL};
-use crate::hash::H256;
-use crypto::dhash256;
+use bitcrypto::{dhash256, Hash, SHA256D};
 use heapsize::HeapSizeOf;
 use hex::FromHex;
 use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
@@ -18,20 +17,20 @@ const WITNESS_FLAG: u8 = 1;
 
 #[derive(Debug, PartialEq, Eq, Clone, Default, Serializable, Deserializable, Hash)]
 pub struct OutPoint {
-	pub hash: H256,
+	pub hash: SHA256D,
 	pub index: u32,
 }
 
 impl OutPoint {
 	pub fn null() -> Self {
 		OutPoint {
-			hash: H256::default(),
+			hash: SHA256D::default(),
 			index: u32::max_value(),
 		}
 	}
 
 	pub fn is_null(&self) -> bool {
-		self.hash.is_zero() && self.index == u32::max_value()
+		self.hash == SHA256D::default() && self.index == u32::max_value()
 	}
 }
 
@@ -111,12 +110,12 @@ impl HeapSizeOf for Transaction {
 
 impl Transaction {
 	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn hash(&self) -> H256 {
+	pub fn hash(&self) -> SHA256D {
 		transaction_hash(self)
 	}
 
-	pub fn witness_hash(&self) -> H256 {
-		dhash256(&serialize_with_flags(self, SERIALIZE_TRANSACTION_WITNESS))
+	pub fn witness_hash(&self) -> SHA256D {
+		SHA256D::hash(&serialize_with_flags(self, SERIALIZE_TRANSACTION_WITNESS))
 	}
 
 	pub fn inputs(&self) -> &[TransactionInput] {
@@ -262,14 +261,14 @@ impl Deserializable for Transaction {
 	}
 }
 
-pub(crate) fn transaction_hash(transaction: &Transaction) -> H256 {
+pub(crate) fn transaction_hash(transaction: &Transaction) -> SHA256D {
 	dhash256(&serialize(transaction))
 }
 
 #[cfg(test)]
 mod tests {
 	use super::{OutPoint, Transaction, TransactionInput, TransactionOutput};
-	use crate::hash::H256;
+	use bitcrypto::{FromInnerHex, FromStr, SHA256D};
 	use ser::{serialize_with_flags, Serializable, SERIALIZE_TRANSACTION_WITNESS};
 
 	// real transaction from block 80000
@@ -294,7 +293,7 @@ mod tests {
 	#[test]
 	fn test_transaction_hash() {
 		let t: Transaction = "0100000001a6b97044d03da79c005b20ea9c0e1a6d9dc12d9f7b91a5911c9030a439eed8f5000000004948304502206e21798a42fae0e854281abd38bacd1aeed3ee3738d9e1446618c4571d1090db022100e2ac980643b0b82c0e88ffdfec6b64e3e6ba35e7ba5fdd7d5d6cc8d25c6b241501ffffffff0100f2052a010000001976a914404371705fa9bd789a2fcd52d2c580b65d35549d88ac00000000".into();
-		let hash = H256::from_reversed_str("5a4ebf66822b0b2d56bd9dc64ece0bc38ee7844a23ff1d7320a88c5fdb2ad3e2");
+		let hash = SHA256D::from_str("5a4ebf66822b0b2d56bd9dc64ece0bc38ee7844a23ff1d7320a88c5fdb2ad3e2").unwrap();
 		assert_eq!(t.hash(), hash);
 	}
 
@@ -313,7 +312,7 @@ mod tests {
 			version: 1,
 			inputs: vec![TransactionInput {
 				previous_output: OutPoint {
-					hash: "fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f".into(),
+					hash: SHA256D::from_inner_hex("fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f").unwrap(),
 					index: 0,
 				},
 				script_sig: "4830450221008b9d1dc26ba6a9cb62127b02742fa9d754cd3bebf337f7a55d114c8e5cdd30be022040529b194ba3f9281a99f2b1c0a19c0489bc22ede944ccf4ecbab4cc618ef3ed01".into(),
@@ -321,7 +320,7 @@ mod tests {
 				script_witness: vec![],
 			}, TransactionInput {
 				previous_output: OutPoint {
-					hash: "ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a".into(),
+					hash: SHA256D::from_inner_hex("ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a").unwrap(),
 					index: 1,
 				},
 				script_sig: "".into(),

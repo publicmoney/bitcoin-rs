@@ -1,8 +1,8 @@
 use super::super::rpc;
 use crate::util::{db_path, init_db, node_table_path};
 use crate::{config, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
+use bitcrypto::SHA256D;
 use p2p::LocalSyncNodeRef;
-use primitives::hash::H256;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -13,7 +13,7 @@ use tokio::runtime;
 use tokio::runtime::Runtime;
 
 enum BlockNotifierTask {
-	NewBlock(H256),
+	NewBlock(SHA256D),
 	Stop,
 }
 
@@ -43,8 +43,8 @@ impl BlockNotifier {
 		for cmd in rx {
 			match cmd {
 				BlockNotifierTask::NewBlock(new_block_hash) => {
-					let new_block_hash = new_block_hash.to_reversed_str();
-					let command = block_notify_command.replace("%s", &new_block_hash);
+					let new_block_hash = std::str::from_utf8(&new_block_hash[..]).expect("Error parsing block hash for notify command");
+					let command = block_notify_command.replace("%s", new_block_hash);
 					let c_command = ::std::ffi::CString::new(command.clone()).unwrap();
 					unsafe {
 						use libc::system;
@@ -67,7 +67,7 @@ impl SyncListener for BlockNotifier {
 		self.is_synchronizing.store(is_synchronizing, Ordering::SeqCst);
 	}
 
-	fn best_storage_block_inserted(&self, block_hash: &H256) {
+	fn best_storage_block_inserted(&self, block_hash: &SHA256D) {
 		if !self.is_synchronizing.load(Ordering::SeqCst) {
 			self.tx
 				.send(BlockNotifierTask::NewBlock(*block_hash))

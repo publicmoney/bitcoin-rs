@@ -1,10 +1,10 @@
 use crate::synchronization_peers::MerkleBlockArtefacts;
 use crate::utils::{build_compact_block, build_partial_merkle_tree, BloomFilter, FeeRateFilter, KnownHashFilter, KnownHashType};
 use bit_vec::BitVec;
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedTransaction};
 use message::types;
 use primitives::bytes::Bytes;
-use primitives::hash::H256;
 
 /// Filter, which controls data relayed over connection.
 #[derive(Debug, Default)]
@@ -19,17 +19,17 @@ pub struct ConnectionFilter {
 
 impl ConnectionFilter {
 	/// Add known item hash
-	pub fn hash_known_as(&mut self, hash: H256, hash_type: KnownHashType) {
+	pub fn hash_known_as(&mut self, hash: SHA256D, hash_type: KnownHashType) {
 		self.known_hash_filter.insert(hash, hash_type);
 	}
 
 	/// Is item with given hash && type is known by peer
-	pub fn is_hash_known_as(&self, hash: &H256, hash_type: KnownHashType) -> bool {
+	pub fn is_hash_known_as(&self, hash: &SHA256D, hash_type: KnownHashType) -> bool {
 		self.known_hash_filter.contains(hash, hash_type)
 	}
 
 	/// Check if block should be sent to this connection
-	pub fn filter_block(&self, block_hash: &H256) -> bool {
+	pub fn filter_block(&self, block_hash: &SHA256D) -> bool {
 		self.known_hash_filter.filter_block(block_hash)
 	}
 
@@ -95,7 +95,7 @@ impl ConnectionFilter {
 
 		// calculate hashes && match flags for all transactions
 		let (all_hashes, all_flags) = block.transactions.iter().fold(
-			(Vec::<H256>::with_capacity(all_len), BitVec::with_capacity(all_len)),
+			(Vec::<SHA256D>::with_capacity(all_len), BitVec::with_capacity(all_len)),
 			|(mut all_hashes, mut all_flags), t| {
 				let flag = self.bloom_filter.filter_transaction(t);
 				all_flags.push(flag);

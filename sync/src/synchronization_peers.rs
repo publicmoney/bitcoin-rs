@@ -1,10 +1,10 @@
 use crate::types::PeerIndex;
 use crate::utils::{ConnectionFilter, KnownHashType};
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedTransaction};
 use message::{types, Services};
 use p2p::OutboundSyncConnectionRef;
 use parking_lot::RwLock;
-use primitives::hash::H256;
 use std::collections::HashMap;
 
 /// Block announcement type
@@ -80,9 +80,9 @@ pub trait PeersFilters {
 		transaction_fee_rate: Option<u64>,
 	) -> TransactionAnnouncementType;
 	/// Remember known hash
-	fn hash_known_as(&self, peer_index: PeerIndex, hash: H256, hash_type: KnownHashType);
+	fn hash_known_as(&self, peer_index: PeerIndex, hash: SHA256D, hash_type: KnownHashType);
 	/// Is given hash known by peer as hash of given type
-	fn is_hash_known_as(&self, peer_index: PeerIndex, hash: &H256, hash_type: KnownHashType) -> bool;
+	fn is_hash_known_as(&self, peer_index: PeerIndex, hash: &SHA256D, hash_type: KnownHashType) -> bool;
 	/// Build compact block using filter for given peer
 	fn build_compact_block(&self, peer_index: PeerIndex, block: &IndexedBlock) -> Option<types::CompactBlock>;
 	/// Build merkle block using filter for given peer
@@ -238,13 +238,13 @@ impl PeersFilters for PeersImpl {
 		TransactionAnnouncementType::DoNotAnnounce
 	}
 
-	fn hash_known_as(&self, peer_index: PeerIndex, hash: H256, hash_type: KnownHashType) {
+	fn hash_known_as(&self, peer_index: PeerIndex, hash: SHA256D, hash_type: KnownHashType) {
 		if let Some(peer) = self.peers.write().get_mut(&peer_index) {
 			peer.filter.hash_known_as(hash, hash_type)
 		}
 	}
 
-	fn is_hash_known_as(&self, peer_index: PeerIndex, hash: &H256, hash_type: KnownHashType) -> bool {
+	fn is_hash_known_as(&self, peer_index: PeerIndex, hash: &SHA256D, hash_type: KnownHashType) -> bool {
 		self.peers
 			.read()
 			.get(&peer_index)

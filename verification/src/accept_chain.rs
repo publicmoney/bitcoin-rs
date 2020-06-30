@@ -26,7 +26,7 @@ impl<'a> ChainAcceptor<'a> {
 		height: u32,
 		deployments: &'a BlockDeployments,
 	) -> Self {
-		trace!(target: "verification", "Block verification {}", block.hash().to_reversed_str());
+		trace!(target: "verification", "Block verification {}", block.hash());
 		let output_store = DuplexTransactionOutputProvider::new(tx_out_provider, block.raw());
 
 		ChainAcceptor {

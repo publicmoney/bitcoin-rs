@@ -4,6 +4,7 @@ extern crate db;
 extern crate storage;
 extern crate test_data;
 
+use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use criterion::{criterion_group, criterion_main, Criterion};
 use db::BlockChainDatabase;
@@ -16,7 +17,7 @@ pub fn fetch(c: &mut Criterion) {
 	// test setup
 	let genesis: IndexedBlock = test_data::genesis().into();
 	let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
-	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
+	let mut rolling_hash = *genesis.hash();
 
 	let mut blocks = Vec::new();
 	let mut hashes = Vec::new();
@@ -58,7 +59,7 @@ pub fn write(c: &mut Criterion) {
 
 	// setup
 	let genesis: IndexedBlock = test_data::genesis().into();
-	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
+	let mut rolling_hash: SHA256D = *genesis.hash();
 
 	let mut blocks: Vec<IndexedBlock> = Vec::new();
 
@@ -100,7 +101,7 @@ pub fn reorg_short(c: &mut Criterion) {
 
 	// setup
 	let genesis: IndexedBlock = test_data::genesis().into();
-	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
+	let mut rolling_hash: SHA256D = *genesis.hash();
 
 	let mut blocks = Vec::new();
 
@@ -202,7 +203,7 @@ pub fn write_heavy(c: &mut Criterion) {
 	// test setup
 	let genesis: IndexedBlock = test_data::genesis().into();
 
-	let mut rolling_hash: chain::hash::H256 = *genesis.hash();
+	let mut rolling_hash: SHA256D = *genesis.hash();
 	let mut blocks = Vec::new();
 	let mut hashes = Vec::new();
 

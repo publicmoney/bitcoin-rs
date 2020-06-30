@@ -1,8 +1,8 @@
+use bitcrypto::SHA256D;
 use bitcrypto::{sha256, siphash24};
 use byteorder::{ByteOrder, LittleEndian};
 use chain::{BlockHeader, IndexedBlock, ShortTransactionID};
 use message::common::{BlockHeaderAndIDs, PrefilledTransaction};
-use primitives::hash::H256;
 use rand::{thread_rng, Rng};
 use ser::{Serializable, Stream};
 use std::collections::HashSet;
@@ -58,7 +58,7 @@ pub fn short_transaction_id_keys(nonce: u64, block_header: &BlockHeader) -> (u64
 	(key0, key1)
 }
 
-pub fn short_transaction_id(key0: u64, key1: u64, transaction_hash: &H256) -> ShortTransactionID {
+pub fn short_transaction_id(key0: u64, key1: u64, transaction_hash: &SHA256D) -> ShortTransactionID {
 	// 2) Running SipHash-2-4 with the input being the transaction ID and the keys (k0/k1) set to the first two little-endian
 	// 64-bit integers from the above hash, respectively.
 	let siphash_transaction_hash = siphash24(key0, key1, &**transaction_hash);
@@ -89,7 +89,7 @@ mod tests {
 		let nonce = 13450019974716797918_u64;
 		let (key0, key1) = short_transaction_id_keys(nonce, &block_header);
 		let actual_id = short_transaction_id(key0, key1, &transaction_hash);
-		let expected_id: ShortTransactionID = "036e8b8b8f00".into();
+		let expected_id = ShortTransactionID::from_hex("036e8b8b8f00").unwrap();
 		assert_eq!(expected_id, actual_id);
 	}
 

@@ -5,6 +5,7 @@ edition = "2018"
 
 [dependencies]
 byteorder = "1.0"
+# TODO use something other than heapsize (unmaintained). and what is it used for anyway?
 heapsize = "0.4"
 bitcrypto = { path = "../crypto" }
 chain = { path = "../chain", features = ["test-helpers"] }

@@ -2,9 +2,9 @@
 //!
 //! http://bitcoin.stackexchange.com/q/12554/40688
 
-use crate::hash::H520;
 use crate::Error;
-use hex::{FromHex, ToHex};
+use bitcrypto::FromHex;
+use hex::ToHex; // todo can we do without this crate and use bitcrypto hex?
 use std::{fmt, ops, str};
 
 #[derive(PartialEq)]
@@ -34,7 +34,7 @@ impl str::FromStr for Signature {
 	type Err = Error;
 
 	fn from_str(s: &str) -> Result<Self, Error> {
-		let vec = s.from_hex().map_err(|_| Error::InvalidSignature)?;
+		let vec = FromHex::from_hex(s).map_err(|_| Error::InvalidSignature)?;
 		Ok(Signature(vec))
 	}
 }
@@ -69,8 +69,7 @@ impl<'a> From<&'a [u8]> for Signature {
 	}
 }
 
-#[derive(PartialEq)]
-pub struct CompactSignature(H520);
+pub struct CompactSignature(pub [u8; 65]);
 
 impl fmt::Debug for CompactSignature {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -88,7 +87,15 @@ impl ops::Deref for CompactSignature {
 	type Target = [u8];
 
 	fn deref(&self) -> &Self::Target {
-		&*self.0
+		&self.0
+	}
+}
+
+impl PartialEq for CompactSignature {
+	fn eq(&self, other: &Self) -> bool {
+		let s_slice: &[u8] = self;
+		let o_slice: &[u8] = other;
+		s_slice == o_slice
 	}
 }
 
@@ -96,21 +103,13 @@ impl str::FromStr for CompactSignature {
 	type Err = Error;
 
 	fn from_str(s: &str) -> Result<Self, Error> {
-		match s.parse() {
-			Ok(hash) => Ok(CompactSignature(hash)),
-			_ => Err(Error::InvalidSignature),
-		}
+		let sig = FromHex::from_hex(s).map_err(|_| Error::InvalidSignature)?;
+		Ok(CompactSignature(sig))
 	}
 }
 
 impl From<&'static str> for CompactSignature {
 	fn from(s: &'static str) -> Self {
 		s.parse().unwrap()
-	}
-}
-
-impl From<H520> for CompactSignature {
-	fn from(h: H520) -> Self {
-		CompactSignature(h)
 	}
 }

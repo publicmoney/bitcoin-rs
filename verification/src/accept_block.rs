@@ -6,7 +6,7 @@ use crate::sigops::{transaction_sigops, transaction_sigops_cost};
 use crate::storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionOutputProvider};
 use crate::timestamp::median_timestamp;
 use crate::work::block_reward_satoshi;
-use crypto::dhash256;
+use bitcrypto::{dhash256, Hash, SHA256D};
 use script;
 use ser::Stream;
 
@@ -320,7 +320,9 @@ impl<'a> BlockWitness<'a> {
 				stream.append_slice(&coinbase.raw.inputs[0].script_witness[0]);
 				let hash_witness = dhash256(&stream.out());
 
-				if hash_witness != commitment.script_pubkey[6..].into() {
+				if hash_witness
+					!= SHA256D::from_slice(&commitment.script_pubkey[6..]).map_err(|_| Error::WitnessMerkleCommitmentMismatch)?
+				{
 					return Err(Error::WitnessMerkleCommitmentMismatch);
 				}
 

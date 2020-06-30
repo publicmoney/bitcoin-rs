@@ -1,11 +1,10 @@
 //! Secret with additional network identifier and format type
 
-use crate::hash::H520;
 use crate::network::Network;
 use crate::{CompactSignature, DisplayLayout, Error, Message, Secret, Signature, SECP256K1};
 use base58::{FromBase58, ToBase58};
-use crypto::checksum;
 use hex::ToHex;
+use primitives::checksum::Checksum;
 use secp256k1::key;
 use secp256k1::Message as SecpMessage;
 use std::fmt;
@@ -25,8 +24,8 @@ pub struct Private {
 impl Private {
 	pub fn sign(&self, message: &Message) -> Result<Signature, Error> {
 		let context = &SECP256K1;
-		let secret = key::SecretKey::from_slice(&*self.secret)?;
-		let message = SecpMessage::from_slice(&**message)?;
+		let secret = key::SecretKey::from_slice(&self.secret)?;
+		let message = SecpMessage::from_slice(message as &[u8])?;
 		let signature = context.sign(&message, &secret);
 		let data = signature.serialize_der();
 
@@ -35,19 +34,19 @@ impl Private {
 
 	pub fn sign_compact(&self, message: &Message) -> Result<CompactSignature, Error> {
 		let context = &SECP256K1;
-		let secret = key::SecretKey::from_slice(&*self.secret)?;
-		let message = SecpMessage::from_slice(&**message)?;
+		let secret = key::SecretKey::from_slice(&self.secret)?;
+		let message = SecpMessage::from_slice(message as &[u8])?;
 		let signature = context.sign_recoverable(&message, &secret);
 		let (recovery_id, data) = signature.serialize_compact();
 		let recovery_id = recovery_id.to_i32() as u8;
-		let mut signature = H520::default();
+		let mut signature = [0; 65];
 		signature[1..65].copy_from_slice(&data[0..64]);
 		if self.compressed {
 			signature[0] = 27 + recovery_id + 4;
 		} else {
 			signature[0] = 27 + recovery_id;
 		}
-		Ok(signature.into())
+		Ok(CompactSignature(signature))
 	}
 }
 
@@ -62,11 +61,11 @@ impl DisplayLayout for Private {
 		};
 
 		result.push(network_byte);
-		result.extend(&*self.secret);
+		result.extend(&self.secret);
 		if self.compressed {
 			result.push(1);
 		}
-		let cs = checksum(&result);
+		let cs = Checksum::generate(&result);
 		result.extend_from_slice(&*cs);
 		result
 	}
@@ -85,7 +84,7 @@ impl DisplayLayout for Private {
 			return Err(Error::InvalidPrivate);
 		}
 
-		let cs = checksum(&data[0..data.len() - 4]);
+		let cs = Checksum::generate(&data[0..data.len() - 4]);
 		if &data[data.len() - 4..] != &*cs {
 			return Err(Error::InvalidChecksum);
 		}
@@ -144,28 +143,25 @@ impl From<&'static str> for Private {
 #[cfg(test)]
 mod tests {
 	use super::Private;
-	use crate::hash::H256;
 	use crate::network::Network;
+	use bitcrypto::FromHex;
 
 	#[test]
 	fn test_private_to_string() {
 		let private = Private {
 			network: Network::Mainnet,
-			secret: H256::from_reversed_str("063377054c25f98bc538ac8dd2cf9064dd5d253a725ece0628a34e2f84803bd5"),
+			secret: FromHex::from_hex("d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c05773306").unwrap(),
 			compressed: false,
 		};
 
-		assert_eq!(
-			"5KSCKP8NUyBZPCCQusxRwgmz9sfvJQEgbGukmmHepWw5Bzp95mu".to_owned(),
-			private.to_string()
-		);
+		assert_eq!("5KSCKP8NUyBZPCCQusxRwgmz9sfvJQEgbGukmmHepWw5Bzp95mu", private.to_string());
 	}
 
 	#[test]
 	fn test_private_from_str() {
 		let private = Private {
 			network: Network::Mainnet,
-			secret: H256::from_reversed_str("063377054c25f98bc538ac8dd2cf9064dd5d253a725ece0628a34e2f84803bd5"),
+			secret: FromHex::from_hex("d53b80842f4ea32806ce5e723a255ddd6490cfd28dac38c58bf9254c05773306").unwrap(),
 			compressed: false,
 		};
 

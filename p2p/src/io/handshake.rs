@@ -182,7 +182,7 @@ mod tests {
 		let expected_error = MessageError::InvalidVersion;
 
 		let hs = handshake(&shared_stream, magic, local_version, 0).await;
-		assert_eq!(expected_error.to_string(), hs.unwrap_err().source().unwrap().to_string());
+		assert_eq!(hs.unwrap_err().source().unwrap().to_string(), expected_error.to_string());
 	}
 
 	#[tokio::test]

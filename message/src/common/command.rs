@@ -1,21 +1,22 @@
-use crate::hash::H96;
-use crate::Error;
-use std::{fmt, str};
+use crate::Error as MessageError;
+use bitcrypto::FromHex;
+use ser::{Deserializable, Error, Reader};
+use ser::{Serializable, Stream};
 
-#[derive(Debug, PartialEq, Clone, Hash, Eq, Serializable, Deserializable)]
-pub struct Command(H96);
+impl_array_wrapper!(Command, 12);
+impl_ser_for_array!(Command, 12);
 
-impl str::FromStr for Command {
-	type Err = Error;
+impl std::str::FromStr for Command {
+	type Err = MessageError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		if !s.is_ascii() || s.len() > 12 {
-			return Err(Error::InvalidCommand);
+			return Err(MessageError::InvalidCommand);
 		}
 
-		let mut result = H96::default();
+		let mut result = Command::default();
 		result[..s.len()].copy_from_slice(s.as_ref());
-		Ok(Command(result))
+		Ok(result)
 	}
 }
 
@@ -26,13 +27,13 @@ impl From<&'static str> for Command {
 }
 
 impl Command {
+	pub fn from_hex(s: &str) -> Result<Self, MessageError> {
+		Ok(Command(FromHex::from_hex(s).map_err(|_| MessageError::InvalidCommand)?))
+	}
+
 	pub fn len(&self) -> usize {
 		let trailing_zeros = self.0.iter().rev().take_while(|&x| x == &0).count();
 		self.0.len() - trailing_zeros
-	}
-
-	pub fn is_empty(&self) -> bool {
-		self.0.is_zero()
 	}
 
 	fn as_string(&self) -> String {
@@ -46,8 +47,8 @@ impl From<Command> for String {
 	}
 }
 
-impl fmt::Display for Command {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for Command {
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		f.write_str(&self.as_string())
 	}
 }
@@ -67,7 +68,7 @@ mod tests {
 	#[test]
 	fn test_command_parse() {
 		let command: Command = "version".into();
-		assert_eq!(Command("76657273696f6e0000000000".into()), command);
+		assert_eq!(Command::from_hex("76657273696f6e0000000000").unwrap(), command);
 	}
 
 	#[test]
@@ -79,7 +80,7 @@ mod tests {
 
 	#[test]
 	fn test_command_serialize() {
-		let expected = "76657273696f6e0000000000".into();
+		let expected: Bytes = "76657273696f6e0000000000".into();
 		let command: Command = "version".into();
 
 		assert_eq!(serialize(&command), expected);

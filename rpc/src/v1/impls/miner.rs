@@ -60,10 +60,10 @@ where
 pub mod tests {
 	use super::*;
 	use crate::v1::traits::Miner;
+	use bitcrypto::{FromStr, SHA256D};
 	use chain;
 	use jsonrpc_core::IoHandler;
 	use miner;
-	use primitives::hash::H256;
 
 	#[derive(Default)]
 	struct SuccessMinerClientCore;
@@ -75,7 +75,7 @@ pub mod tests {
 					.into();
 			miner::BlockTemplate {
 				version: 777,
-				previous_header_hash: H256::from(1),
+				previous_header_hash: SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
 				time: 33,
 				bits: 44.into(),
 				height: 55,

@@ -6,10 +6,10 @@ use crate::synchronization_verifier::{
 use crate::types::StorageRef;
 use crate::utils::OrphanBlocksPool;
 use crate::VerificationParameters;
+use bitcrypto::SHA256D;
 use chain;
 use network::ConsensusParams;
 use parking_lot::Mutex;
-use primitives::hash::H256;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use storage;
@@ -125,7 +125,7 @@ impl BlockVerificationSink for BlocksWriterSink {
 		None
 	}
 
-	fn on_block_verification_error(&self, err: &str, _hash: &H256) {
+	fn on_block_verification_error(&self, err: &str, _hash: &SHA256D) {
 		self.data.lock().err = Some(Error::Verification(err.into()));
 	}
 }
@@ -135,7 +135,7 @@ impl TransactionVerificationSink for BlocksWriterSink {
 		unreachable!("not intended to verify transactions")
 	}
 
-	fn on_transaction_verification_error(&self, _err: &str, _hash: &H256) {
+	fn on_transaction_verification_error(&self, _err: &str, _hash: &SHA256D) {
 		unreachable!("not intended to verify transactions")
 	}
 }
@@ -147,6 +147,7 @@ mod tests {
 	use super::super::Error;
 	use super::{BlocksWriter, MAX_ORPHANED_BLOCKS};
 	use crate::VerificationParameters;
+	use bitcrypto::SHA256D;
 	use db::BlockChainDatabase;
 	use network::{ConsensusParams, Network};
 	use std::sync::Arc;
@@ -155,7 +156,7 @@ mod tests {
 	fn default_verification_params() -> VerificationParameters {
 		VerificationParameters {
 			verification_level: VerificationLevel::Full,
-			verification_edge: 0u8.into(),
+			verification_edge: SHA256D::default(),
 		}
 	}
 
@@ -228,7 +229,7 @@ mod tests {
 			ConsensusParams::new(Network::Testnet),
 			VerificationParameters {
 				verification_level: VerificationLevel::NoVerification,
-				verification_edge: 0u8.into(),
+				verification_edge: SHA256D::default(),
 			},
 		);
 		assert_eq!(blocks_target.append_block(b1.into()), Ok(()));

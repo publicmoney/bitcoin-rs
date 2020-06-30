@@ -1,6 +1,6 @@
+use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use linked_hash_map::LinkedHashMap;
-use primitives::hash::H256;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
 use time;
@@ -10,9 +10,9 @@ use time;
 /// Blocks from this storage are either moved to verification queue, or removed at all.
 pub struct OrphanBlocksPool {
 	/// Blocks from requested_hashes, but received out-of-order.
-	orphaned_blocks: HashMap<H256, HashMap<H256, IndexedBlock>>,
+	orphaned_blocks: HashMap<SHA256D, HashMap<SHA256D, IndexedBlock>>,
 	/// Blocks that we have received without requesting with receiving time.
-	unknown_blocks: LinkedHashMap<H256, f64>,
+	unknown_blocks: LinkedHashMap<SHA256D, f64>,
 }
 
 impl OrphanBlocksPool {
@@ -30,12 +30,12 @@ impl OrphanBlocksPool {
 	}
 
 	/// Check if block with given hash is stored as unknown in this pool
-	pub fn contains_unknown_block(&self, hash: &H256) -> bool {
+	pub fn contains_unknown_block(&self, hash: &SHA256D) -> bool {
 		self.unknown_blocks.contains_key(hash)
 	}
 
 	/// Get unknown blocks in the insertion order
-	pub fn unknown_blocks(&self) -> &LinkedHashMap<H256, f64> {
+	pub fn unknown_blocks(&self) -> &LinkedHashMap<SHA256D, f64> {
 		&self.unknown_blocks
 	}
 
@@ -56,7 +56,7 @@ impl OrphanBlocksPool {
 	}
 
 	/// Remove all blocks, which are not-unknown
-	pub fn remove_known_blocks(&mut self) -> Vec<H256> {
+	pub fn remove_known_blocks(&mut self) -> Vec<SHA256D> {
 		let orphans_to_remove: HashSet<_> = self
 			.orphaned_blocks
 			.values()
@@ -68,8 +68,8 @@ impl OrphanBlocksPool {
 	}
 
 	/// Remove all blocks, depending on this parent
-	pub fn remove_blocks_for_parent(&mut self, hash: &H256) -> VecDeque<IndexedBlock> {
-		let mut queue: VecDeque<H256> = VecDeque::new();
+	pub fn remove_blocks_for_parent(&mut self, hash: &SHA256D) -> VecDeque<IndexedBlock> {
+		let mut queue: VecDeque<SHA256D> = VecDeque::new();
 		queue.push_back(hash.clone());
 
 		let mut removed: VecDeque<IndexedBlock> = VecDeque::new();
@@ -87,8 +87,8 @@ impl OrphanBlocksPool {
 	}
 
 	/// Remove blocks with given hashes + all dependent blocks
-	pub fn remove_blocks(&mut self, hashes: &HashSet<H256>) -> Vec<H256> {
-		let mut removed: Vec<H256> = Vec::new();
+	pub fn remove_blocks(&mut self, hashes: &HashSet<SHA256D>) -> Vec<SHA256D> {
+		let mut removed: Vec<SHA256D> = Vec::new();
 
 		self.orphaned_blocks.retain(|_, orphans| {
 			for hash in hashes {
@@ -114,7 +114,7 @@ mod tests {
 	extern crate test_data;
 
 	use super::OrphanBlocksPool;
-	use primitives::hash::H256;
+	use bitcrypto::SHA256D;
 	use std::collections::HashSet;
 
 	#[test]
@@ -218,7 +218,7 @@ mod tests {
 		pool.insert_orphaned_block(b4.into());
 		pool.insert_orphaned_block(b5.into());
 
-		let mut blocks_to_remove: HashSet<H256> = HashSet::new();
+		let mut blocks_to_remove: HashSet<SHA256D> = HashSet::new();
 		blocks_to_remove.insert(b1_hash.clone());
 		blocks_to_remove.insert(b3_hash.clone());
 

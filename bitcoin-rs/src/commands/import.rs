@@ -16,7 +16,7 @@ pub fn import(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 	for blk in blk_dir {
 		// TODO: verify magic!
 		let blk = blk.map_err(|err| format!("Cannot read block: {:?}. Previous block: {:?}", err, previous_hash))?;
-		let blk_hash = blk.block.hash().reversed();
+		let blk_hash = blk.block.hash().clone();
 		match writer.append_block(blk.block) {
 			Ok(_) => {
 				counter += 1;

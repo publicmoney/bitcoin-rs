@@ -1,8 +1,8 @@
-use crate::hash::H256;
+use bitcrypto::SHA256D;
 use chain::Transaction;
 
 #[derive(Debug, PartialEq, Serializable, Deserializable)]
 pub struct BlockTransactions {
-	pub blockhash: H256,
+	pub blockhash: SHA256D,
 	pub transactions: Vec<Transaction>,
 }

@@ -1,10 +1,10 @@
 use crate::types::{BlockHeight, MemoryPoolRef, StorageRef};
 use crate::utils::{BestHeadersChain, BestHeadersChainInformation, HashPosition, HashQueueChain};
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction, OutPoint, TransactionOutput};
 use linked_hash_map::LinkedHashMap;
 use miner::{FeeCalculator, MemoryPoolInformation, MemoryPoolOrderingStrategy};
 use primitives::bytes::Bytes;
-use primitives::hash::H256;
 use std::collections::{HashSet, VecDeque};
 use std::fmt;
 use storage;
@@ -22,7 +22,7 @@ const NUMBER_OF_QUEUES: usize = 3;
 #[derive(Default, PartialEq)]
 pub struct BlockInsertionResult {
 	/// Hashes of blocks, which were canonized during this insertion procedure. Order matters
-	pub canonized_blocks_hashes: Vec<H256>,
+	pub canonized_blocks_hashes: Vec<SHA256D>,
 	/// Transaction to 'reverify'. Order matters
 	pub transactions_to_reverify: Vec<IndexedTransaction>,
 }
@@ -30,10 +30,7 @@ pub struct BlockInsertionResult {
 impl fmt::Debug for BlockInsertionResult {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_struct("BlockInsertionResult")
-			.field(
-				"canonized_blocks_hashes",
-				&self.canonized_blocks_hashes.iter().map(H256::reversed).collect::<Vec<_>>(),
-			)
+			.field("canonized_blocks_hashes", &self.canonized_blocks_hashes.iter().collect::<Vec<_>>())
 			.field("transactions_to_reverify", &self.transactions_to_reverify)
 			.finish()
 	}
@@ -41,7 +38,7 @@ impl fmt::Debug for BlockInsertionResult {
 
 impl BlockInsertionResult {
 	#[cfg(test)]
-	pub fn with_canonized_blocks(canonized_blocks_hashes: Vec<H256>) -> Self {
+	pub fn with_canonized_blocks(canonized_blocks_hashes: Vec<SHA256D>) -> Self {
 		BlockInsertionResult {
 			canonized_blocks_hashes,
 			transactions_to_reverify: Vec::new(),
@@ -102,7 +99,7 @@ pub struct Information {
 /// 4) all blocks currently scheduled for requesting [newest blocks]
 pub struct Chain {
 	/// Genesis block hash (stored for optimizations)
-	genesis_block_hash: H256,
+	genesis_block_hash: SHA256D,
 	/// Best storage block (stored for optimizations)
 	best_storage_block: storage::BlockHeight,
 	/// Local blocks storage
@@ -112,11 +109,11 @@ pub struct Chain {
 	/// In-memory queue of blocks headers
 	headers_chain: BestHeadersChain,
 	/// Currently verifying transactions
-	verifying_transactions: LinkedHashMap<H256, IndexedTransaction>,
+	verifying_transactions: LinkedHashMap<SHA256D, IndexedTransaction>,
 	/// Transactions memory pool
 	memory_pool: MemoryPoolRef,
 	/// Blocks that have been marked as dead-ends
-	dead_end_blocks: HashSet<H256>,
+	dead_end_blocks: HashSet<SHA256D>,
 }
 
 impl BlockState {
@@ -190,7 +187,7 @@ impl Chain {
 	}
 
 	/// Get n best blocks of given state
-	pub fn best_n_of_blocks_state(&self, state: BlockState, n: BlockHeight) -> Vec<H256> {
+	pub fn best_n_of_blocks_state(&self, state: BlockState, n: BlockHeight) -> Vec<SHA256D> {
 		match state {
 			BlockState::Scheduled | BlockState::Requested | BlockState::Verifying => self.hash_chain.front_n_at(state.to_queue_index(), n),
 			_ => unreachable!("must be checked by caller"),
@@ -230,7 +227,7 @@ impl Chain {
 	}
 
 	/// Get block header by hash
-	pub fn block_hash(&self, number: BlockHeight) -> Option<H256> {
+	pub fn block_hash(&self, number: BlockHeight) -> Option<SHA256D> {
 		if number <= self.best_storage_block.number {
 			self.storage.block_hash(number)
 		} else {
@@ -249,7 +246,7 @@ impl Chain {
 	}
 
 	/// Get block header by hash
-	pub fn block_header_by_hash(&self, hash: &H256) -> Option<IndexedBlockHeader> {
+	pub fn block_header_by_hash(&self, hash: &SHA256D) -> Option<IndexedBlockHeader> {
 		if let Some(header) = self.storage.block_header(storage::BlockRef::Hash(*hash)) {
 			return Some(header);
 		}
@@ -257,7 +254,7 @@ impl Chain {
 	}
 
 	/// Get block state
-	pub fn block_state(&self, hash: &H256) -> BlockState {
+	pub fn block_state(&self, hash: &SHA256D) -> BlockState {
 		match self.hash_chain.contains_in(hash) {
 			Some(queue_index) => BlockState::from_queue_index(queue_index),
 			None => {
@@ -278,8 +275,8 @@ impl Chain {
 	/// mixed block locator hashes ([0 - from fork1, 1 - from fork2, 2 - from fork1]).
 	/// Peer will respond with blocks of fork1 || fork2 => we could end up in some side fork
 	/// To resolve this, after switching to saturated state, we will also ask all peers for inventory.
-	pub fn block_locator_hashes(&self) -> Vec<H256> {
-		let mut block_locator_hashes: Vec<H256> = Vec::new();
+	pub fn block_locator_hashes(&self) -> Vec<SHA256D> {
+		let mut block_locator_hashes: Vec<SHA256D> = Vec::new();
 
 		// calculate for hash_queue
 		let (local_index, step) = self.block_locator_hashes_for_queue(&mut block_locator_hashes);
@@ -302,7 +299,7 @@ impl Chain {
 	}
 
 	/// Moves n blocks from scheduled queue to requested queue
-	pub fn request_blocks_hashes(&mut self, n: BlockHeight) -> Vec<H256> {
+	pub fn request_blocks_hashes(&mut self, n: BlockHeight) -> Vec<SHA256D> {
 		let scheduled = self.hash_chain.pop_front_n_at(SCHEDULED_QUEUE, n);
 		self.hash_chain.push_back_n_at(REQUESTED_QUEUE, scheduled.clone());
 		scheduled
@@ -324,14 +321,14 @@ impl Chain {
 
 	/// Moves n blocks from requested queue to verifying queue
 	#[cfg(test)]
-	pub fn verify_blocks_hashes(&mut self, n: BlockHeight) -> Vec<H256> {
+	pub fn verify_blocks_hashes(&mut self, n: BlockHeight) -> Vec<SHA256D> {
 		let requested = self.hash_chain.pop_front_n_at(REQUESTED_QUEUE, n);
 		self.hash_chain.push_back_n_at(VERIFYING_QUEUE, requested.clone());
 		requested
 	}
 
 	/// Mark this block as dead end, so these tasks won't be synchronized
-	pub fn mark_dead_end_block(&mut self, hash: &H256) {
+	pub fn mark_dead_end_block(&mut self, hash: &SHA256D) {
 		self.dead_end_blocks.insert(*hash);
 	}
 
@@ -342,7 +339,7 @@ impl Chain {
 			self.storage.block_hash(self.storage.best_block().number)
 		);
 		let block_origin = self.storage.block_origin(&block.header)?;
-		trace!(target: "sync", "insert_best_block {:?} origin: {:?}", block.hash().reversed(), block_origin);
+		trace!(target: "sync", "insert_best_block {:?} origin: {:?}", block.hash(), block_origin);
 		match block_origin {
 			storage::BlockOrigin::KnownBlock => {
 				// there should be no known blocks at this point
@@ -425,7 +422,7 @@ impl Chain {
 					.collect::<Vec<_>>();
 
 				trace!(target: "sync", "insert_best_block, old_main_blocks_transactions: {:?}",
-					   old_main_blocks_transactions.iter().map(|tx| tx.hash.reversed()).collect::<Vec<H256>>());
+					   old_main_blocks_transactions.iter().map(|tx| tx.hash).collect::<Vec<SHA256D>>());
 
 				// reverify memory pool transactions, sorted by timestamp
 				let memory_pool_transactions_count = memory_pool.information().transactions_count;
@@ -473,20 +470,20 @@ impl Chain {
 	}
 
 	/// Forget in-memory block
-	pub fn forget_block(&mut self, hash: &H256) -> HashPosition {
+	pub fn forget_block(&mut self, hash: &SHA256D) -> HashPosition {
 		self.headers_chain.remove(hash);
 		self.forget_block_leave_header(hash)
 	}
 
 	/// Forget in-memory blocks
-	pub fn forget_blocks(&mut self, hashes: &[H256]) {
+	pub fn forget_blocks(&mut self, hashes: &[SHA256D]) {
 		for hash in hashes {
 			self.forget_block(hash);
 		}
 	}
 
 	/// Forget in-memory block, but leave its header in the headers_chain (orphan queue)
-	pub fn forget_block_leave_header(&mut self, hash: &H256) -> HashPosition {
+	pub fn forget_block_leave_header(&mut self, hash: &SHA256D) -> HashPosition {
 		match self.hash_chain.remove_at(VERIFYING_QUEUE, hash) {
 			HashPosition::Missing => match self.hash_chain.remove_at(REQUESTED_QUEUE, hash) {
 				HashPosition::Missing => self.hash_chain.remove_at(SCHEDULED_QUEUE, hash),
@@ -497,7 +494,7 @@ impl Chain {
 	}
 
 	/// Forget in-memory blocks, but leave their headers in the headers_chain (orphan queue)
-	pub fn forget_blocks_leave_header(&mut self, hashes: &[H256]) {
+	pub fn forget_blocks_leave_header(&mut self, hashes: &[SHA256D]) {
 		for hash in hashes {
 			self.forget_block_leave_header(hash);
 		}
@@ -505,21 +502,21 @@ impl Chain {
 
 	/// Forget in-memory block by hash if it is currently in given state
 	#[cfg(test)]
-	pub fn forget_block_with_state(&mut self, hash: &H256, state: BlockState) -> HashPosition {
+	pub fn forget_block_with_state(&mut self, hash: &SHA256D, state: BlockState) -> HashPosition {
 		self.headers_chain.remove(hash);
 		self.forget_block_with_state_leave_header(hash, state)
 	}
 
 	/// Forget in-memory block by hash if it is currently in given state
-	pub fn forget_block_with_state_leave_header(&mut self, hash: &H256, state: BlockState) -> HashPosition {
+	pub fn forget_block_with_state_leave_header(&mut self, hash: &SHA256D, state: BlockState) -> HashPosition {
 		self.hash_chain.remove_at(state.to_queue_index(), hash)
 	}
 
 	/// Forget in-memory block by hash.
 	/// Also forget all its known children.
-	pub fn forget_block_with_children(&mut self, hash: &H256) {
-		let mut removal_stack: VecDeque<H256> = VecDeque::new();
-		let mut removal_queue: VecDeque<H256> = VecDeque::new();
+	pub fn forget_block_with_children(&mut self, hash: &SHA256D) {
+		let mut removal_stack: VecDeque<SHA256D> = VecDeque::new();
+		let mut removal_queue: VecDeque<SHA256D> = VecDeque::new();
 		removal_queue.push_back(*hash);
 
 		// remove in reverse order to minimize headers operations
@@ -539,7 +536,7 @@ impl Chain {
 	}
 
 	/// Get transaction state
-	pub fn transaction_state(&self, hash: &H256) -> TransactionState {
+	pub fn transaction_state(&self, hash: &SHA256D) -> TransactionState {
 		if self.verifying_transactions.contains_key(hash) {
 			return TransactionState::Verifying;
 		}
@@ -553,7 +550,7 @@ impl Chain {
 	}
 
 	/// Get transactions hashes with given state
-	pub fn transactions_hashes_with_state(&self, state: TransactionState) -> Vec<H256> {
+	pub fn transactions_hashes_with_state(&self, state: TransactionState) -> Vec<SHA256D> {
 		match state {
 			TransactionState::InMemory => self.memory_pool.read().get_transactions_ids(),
 			TransactionState::Verifying => self.verifying_transactions.keys().cloned().collect(),
@@ -567,16 +564,16 @@ impl Chain {
 	}
 
 	/// Remove verifying trasaction
-	pub fn forget_verifying_transaction(&mut self, hash: &H256) -> bool {
+	pub fn forget_verifying_transaction(&mut self, hash: &SHA256D) -> bool {
 		self.verifying_transactions.remove(hash).is_some()
 	}
 
 	/// Remove verifying transaction + all dependent transactions currently verifying
-	pub fn forget_verifying_transaction_with_children(&mut self, hash: &H256) {
+	pub fn forget_verifying_transaction_with_children(&mut self, hash: &SHA256D) {
 		self.forget_verifying_transaction(hash);
 
 		// TODO: suboptimal
-		let mut queue: VecDeque<H256> = VecDeque::new();
+		let mut queue: VecDeque<SHA256D> = VecDeque::new();
 		queue.push_back(*hash);
 		while let Some(hash) = queue.pop_front() {
 			let all_keys: Vec<_> = self.verifying_transactions.keys().cloned().collect();
@@ -603,7 +600,7 @@ impl Chain {
 	}
 
 	/// Get transaction by hash (if it's in memory pool or verifying)
-	pub fn transaction_by_hash(&self, hash: &H256) -> Option<IndexedTransaction> {
+	pub fn transaction_by_hash(&self, hash: &SHA256D) -> Option<IndexedTransaction> {
 		self.verifying_transactions.get(hash).cloned().or_else(|| {
 			self.memory_pool
 				.read()
@@ -627,7 +624,7 @@ impl Chain {
 	}
 
 	/// Calculate block locator hashes for hash queue
-	fn block_locator_hashes_for_queue(&self, hashes: &mut Vec<H256>) -> (BlockHeight, BlockHeight) {
+	fn block_locator_hashes_for_queue(&self, hashes: &mut Vec<SHA256D>) -> (BlockHeight, BlockHeight) {
 		let queue_len = self.hash_chain.len();
 		if queue_len == 0 {
 			return (0, 1);
@@ -650,7 +647,7 @@ impl Chain {
 	}
 
 	/// Calculate block locator hashes for storage
-	fn block_locator_hashes_for_storage(&self, mut index: BlockHeight, mut step: BlockHeight, hashes: &mut Vec<H256>) {
+	fn block_locator_hashes_for_storage(&self, mut index: BlockHeight, mut step: BlockHeight, hashes: &mut Vec<SHA256D>) {
 		loop {
 			let block_hash = self
 				.storage
@@ -675,14 +672,14 @@ impl Chain {
 }
 
 impl storage::TransactionProvider for Chain {
-	fn transaction_bytes(&self, hash: &H256) -> Option<Bytes> {
+	fn transaction_bytes(&self, hash: &SHA256D) -> Option<Bytes> {
 		self.memory_pool
 			.read()
 			.transaction_bytes(hash)
 			.or_else(|| self.storage.transaction_bytes(hash))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<IndexedTransaction> {
+	fn transaction(&self, hash: &SHA256D) -> Option<IndexedTransaction> {
 		self.memory_pool.read().transaction(hash).or_else(|| self.storage.transaction(hash))
 	}
 }
@@ -759,11 +756,11 @@ mod tests {
 
 	use super::{BlockInsertionResult, BlockState, Chain, TransactionState};
 	use crate::utils::HashPosition;
+	use bitcrypto::SHA256D;
 	use chain::{IndexedBlockHeader, Transaction};
 	use db::BlockChainDatabase;
 	use miner::MemoryPool;
 	use parking_lot::RwLock;
-	use primitives::hash::H256;
 	use std::sync::Arc;
 
 	#[test]
@@ -781,7 +778,7 @@ mod tests {
 		assert_eq!(chain.length_of_blocks_state(BlockState::Stored), 1);
 		assert_eq!(&chain.best_block(), &db_best_block);
 		assert_eq!(chain.block_state(&db_best_block.hash), BlockState::Stored);
-		assert_eq!(chain.block_state(&H256::from(0)), BlockState::Unknown);
+		assert_eq!(chain.block_state(&SHA256D::default()), BlockState::Unknown);
 	}
 
 	#[test]

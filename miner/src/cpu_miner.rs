@@ -1,11 +1,11 @@
 use crate::block_assembler::BlockTemplate;
+use bitcrypto::dhash256;
+use bitcrypto::SHA256D;
 use byteorder::{LittleEndian, WriteBytesExt};
 use chain::{merkle_root, Transaction};
-use crypto::dhash256;
 use primitives::bigint::{Uint, U256};
 use primitives::bytes::Bytes;
 use primitives::compact::Compact;
-use primitives::hash::H256;
 use ser::Stream;
 use verification::is_valid_proof_of_work_hash;
 
@@ -17,8 +17,8 @@ struct BlockHeaderBytes {
 
 impl BlockHeaderBytes {
 	/// Creates new instance of block header bytes.
-	fn new(version: u32, previous_header_hash: H256, bits: Compact) -> Self {
-		let merkle_root_hash = H256::default();
+	fn new(version: u32, previous_header_hash: SHA256D, bits: Compact) -> Self {
+		let merkle_root_hash = SHA256D::default();
 		let time = 0u32;
 		let nonce = 0u32;
 
@@ -35,7 +35,7 @@ impl BlockHeaderBytes {
 	}
 
 	/// Set merkle root hash
-	fn set_merkle_root_hash(&mut self, hash: &H256) {
+	fn set_merkle_root_hash(&mut self, hash: &SHA256D) {
 		let merkle_bytes: &mut [u8] = &mut self.data[4 + 32..4 + 32 + 32];
 		merkle_bytes.copy_from_slice(&**hash);
 	}
@@ -53,7 +53,7 @@ impl BlockHeaderBytes {
 	}
 
 	/// Returns block header hash
-	fn hash(&self) -> H256 {
+	fn hash(&self) -> SHA256D {
 		dhash256(&self.data)
 	}
 }
@@ -63,7 +63,7 @@ pub trait CoinbaseTransactionBuilder {
 	/// Should be used to increase number of hash possibities for miner
 	fn set_extranonce(&mut self, extranonce: &[u8]);
 	/// Returns transaction hash
-	fn hash(&self) -> H256;
+	fn hash(&self) -> SHA256D;
 	/// Coverts transaction into raw bytes
 	fn finish(self) -> Transaction;
 }
@@ -106,9 +106,9 @@ where
 
 		// recalculate merkle root hash
 		let coinbase_hash = coinbase_transaction_builder.hash();
-		let mut merkle_tree = vec![&coinbase_hash];
+		let mut merkle_tree = vec![coinbase_hash];
 		merkle_tree.extend(block.transactions.iter().map(|tx| &tx.hash));
-		let merkle_root_hash = merkle_root(&merkle_tree);
+		let merkle_root_hash = merkle_root(merkle_tree.as_slice());
 
 		// update header with new merkle root hash
 		header_bytes.set_merkle_root_hash(&merkle_root_hash);
@@ -139,11 +139,11 @@ where
 mod tests {
 	use super::{find_solution, CoinbaseTransactionBuilder};
 	use crate::block_assembler::BlockTemplate;
+	use bitcrypto::SHA256D;
 	use chain::{Transaction, TransactionInput, TransactionOutput};
 	use keys::AddressHash;
 	use primitives::bigint::{Uint, U256};
 	use primitives::bytes::Bytes;
-	use primitives::hash::H256;
 	use script::Builder;
 
 	pub struct P2shCoinbaseTransactionBuilder {
@@ -170,7 +170,7 @@ mod tests {
 			self.transaction.inputs[0].script_sig = extranonce.to_vec().into();
 		}
 
-		fn hash(&self) -> H256 {
+		fn hash(&self) -> SHA256D {
 			self.transaction.hash()
 		}
 
@@ -183,7 +183,7 @@ mod tests {
 	fn test_cpu_miner_low_difficulty() {
 		let block_template = BlockTemplate {
 			version: 0,
-			previous_header_hash: 0.into(),
+			previous_header_hash: SHA256D::default(),
 			time: 0,
 			bits: U256::max_value().into(),
 			height: 0,
@@ -193,7 +193,7 @@ mod tests {
 			sigop_limit: 100,
 		};
 
-		let hash = Default::default();
+		let hash = AddressHash::default();
 		let coinbase_builder = P2shCoinbaseTransactionBuilder::new(&hash, 10);
 		let solution = find_solution(&block_template, coinbase_builder, U256::max_value());
 		assert!(solution.is_some());

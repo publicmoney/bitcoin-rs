@@ -1,5 +1,5 @@
-use super::hash::H256;
 use super::transaction::RawTransaction;
+use bitcrypto::SHA256D;
 use chain;
 use miner;
 use std::collections::HashMap;
@@ -22,7 +22,7 @@ pub struct BlockTemplate {
 	/// Bit mask of versionbits the server requires set in submissions
 	pub vbrequired: Option<u32>,
 	/// The hash of previous (best known) block
-	pub previousblockhash: H256,
+	pub previousblockhash: SHA256D,
 	/// Contents of non-coinbase transactions that should be included in the next block
 	pub transactions: Vec<BlockTemplateTransaction>,
 	/// Data that should be included in the coinbase's scriptSig content
@@ -34,7 +34,7 @@ pub struct BlockTemplate {
 	/// information for coinbase transaction
 	pub coinbasetxn: Option<BlockTemplateTransaction>,
 	/// The hash target
-	pub target: H256,
+	pub target: SHA256D,
 	/// The minimum timestamp appropriate for next block time in seconds since epoch (Jan 1 1970 GMT)
 	pub mintime: Option<i64>,
 	/// List of ways the block template may be changed, e.g. 'time', 'transactions', 'prevblock'
@@ -61,9 +61,9 @@ pub struct BlockTemplateTransaction {
 	/// Transaction data encoded in hexadecimal
 	pub data: RawTransaction,
 	/// Transaction id encoded in little-endian hexadecimal
-	pub txid: Option<H256>,
+	pub txid: Option<SHA256D>,
 	/// Hash encoded in little-endian hexadecimal (including witness data)
-	pub hash: Option<H256>,
+	pub hash: Option<SHA256D>,
 	/// Transactions before this one (by 1-based index in 'transactions' list) that must be present in the final block if this one is
 	pub depends: Option<Vec<u64>>,
 	/// Difference in value between transaction inputs and outputs (in Satoshis).
@@ -83,7 +83,7 @@ impl From<miner::BlockTemplate> for BlockTemplate {
 	fn from(block: miner::BlockTemplate) -> Self {
 		BlockTemplate {
 			version: block.version,
-			previousblockhash: block.previous_header_hash.reversed().into(),
+			previousblockhash: block.previous_header_hash.into(),
 			curtime: block.time,
 			bits: block.bits.into(),
 			height: block.height,
@@ -110,8 +110,8 @@ impl From<chain::IndexedTransaction> for BlockTemplateTransaction {
 #[cfg(test)]
 mod tests {
 	use super::super::bytes::Bytes;
-	use super::super::hash::H256;
 	use super::*;
+	use bitcrypto::{FromStr, SHA256D};
 	use hex::FromHex;
 	use serde_json;
 
@@ -134,8 +134,8 @@ mod tests {
 		assert_eq!(
 			serde_json::to_string(&BlockTemplateTransaction {
 				data: Bytes("00010203".from_hex().unwrap()),
-				txid: Some(H256::from(1)),
-				hash: Some(H256::from(2)),
+				txid: Some(SHA256D::from_str("0100000000000000000000000000000000000000000000000000000000000000").unwrap()),
+				hash: Some(SHA256D::from_str("0200000000000000000000000000000000000000000000000000000000000000").unwrap()),
 				depends: Some(vec![1, 2]),
 				fee: Some(100),
 				sigops: Some(200),
@@ -169,8 +169,8 @@ mod tests {
 			serde_json::from_str::<BlockTemplateTransaction>(r#"{"data":"00010203","txid":"0100000000000000000000000000000000000000000000000000000000000000","hash":"0200000000000000000000000000000000000000000000000000000000000000","depends":[1,2],"fee":100,"sigops":200,"weight":300,"required":true}"#).unwrap(),
 			BlockTemplateTransaction {
 				data: Bytes("00010203".from_hex().unwrap()),
-				txid: Some(H256::from(1)),
-				hash: Some(H256::from(2)),
+				txid: Some(SHA256D::from_str("0100000000000000000000000000000000000000000000000000000000000000").unwrap()),
+				hash: Some(SHA256D::from_str("0200000000000000000000000000000000000000000000000000000000000000").unwrap()),
 				depends: Some(vec![1, 2]),
 				fee: Some(100),
 				sigops: Some(200),
@@ -187,12 +187,12 @@ mod tests {
 				rules: None,
 				vbavailable: None,
 				vbrequired: None,
-				previousblockhash: H256::default(),
+				previousblockhash: SHA256D::default(),
 				transactions: vec![],
 				coinbaseaux: None,
 				coinbasevalue: None,
 				coinbasetxn: None,
-				target: H256::default(),
+				target: SHA256D::default(),
 				mintime: None,
 				mutable: None,
 				noncerange: None,
@@ -212,7 +212,7 @@ mod tests {
 				rules: Some(vec!["a".to_owned()]),
 				vbavailable: Some(vec![("b".to_owned(), 5)].into_iter().collect()),
 				vbrequired: Some(10),
-				previousblockhash: H256::from(10),
+				previousblockhash: SHA256D::from_str("0a00000000000000000000000000000000000000000000000000000000000000").unwrap(),
 				transactions: vec![BlockTemplateTransaction {
 					data: Bytes("00010203".from_hex().unwrap()),
 					txid: None,
@@ -227,15 +227,15 @@ mod tests {
 				coinbasevalue: Some(30),
 				coinbasetxn: Some(BlockTemplateTransaction {
 					data: Bytes("555555".from_hex().unwrap()),
-					txid: Some(H256::from(44)),
-					hash: Some(H256::from(55)),
+					txid: Some(SHA256D::from_str("2c00000000000000000000000000000000000000000000000000000000000000").unwrap()),
+					hash: Some(SHA256D::from_str("3700000000000000000000000000000000000000000000000000000000000000").unwrap()),
 					depends: Some(vec![1]),
 					fee: Some(300),
 					sigops: Some(400),
 					weight: Some(500),
 					required: true,
 				}),
-				target: H256::from(100),
+				target: SHA256D::from_str("6400000000000000000000000000000000000000000000000000000000000000").unwrap(),
 				mintime: Some(7),
 				mutable: Some(vec!["afg".to_owned()]),
 				noncerange: Some("00000000ffffffff".to_owned()),
@@ -260,12 +260,12 @@ mod tests {
 				rules: None,
 				vbavailable: None,
 				vbrequired: None,
-				previousblockhash: H256::default(),
+				previousblockhash: SHA256D::default(),
 				transactions: vec![],
 				coinbaseaux: None,
 				coinbasevalue: None,
 				coinbasetxn: None,
-				target: H256::default(),
+				target: SHA256D::default(),
 				mintime: None,
 				mutable: None,
 				noncerange: None,
@@ -283,7 +283,7 @@ mod tests {
 				rules: Some(vec!["a".to_owned()]),
 				vbavailable: Some(vec![("b".to_owned(), 5)].into_iter().collect()),
 				vbrequired: Some(10),
-				previousblockhash: H256::from(10),
+				previousblockhash: SHA256D::from_str("0a00000000000000000000000000000000000000000000000000000000000000").unwrap(),
 				transactions: vec![BlockTemplateTransaction {
 					data: Bytes("00010203".from_hex().unwrap()),
 					txid: None,
@@ -298,15 +298,15 @@ mod tests {
 				coinbasevalue: Some(30),
 				coinbasetxn: Some(BlockTemplateTransaction {
 					data: Bytes("555555".from_hex().unwrap()),
-					txid: Some(H256::from(44)),
-					hash: Some(H256::from(55)),
+					txid: Some(SHA256D::from_str("2c00000000000000000000000000000000000000000000000000000000000000").unwrap()),
+					hash: Some(SHA256D::from_str("3700000000000000000000000000000000000000000000000000000000000000").unwrap()),
 					depends: Some(vec![1]),
 					fee: Some(300),
 					sigops: Some(400),
 					weight: Some(500),
 					required: true,
 				}),
-				target: H256::from(100),
+				target: SHA256D::from_str("6400000000000000000000000000000000000000000000000000000000000000").unwrap(),
 				mintime: Some(7),
 				mutable: Some(vec!["afg".to_owned()]),
 				noncerange: Some("00000000ffffffff".to_owned()),

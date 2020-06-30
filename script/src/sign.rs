@@ -2,11 +2,14 @@
 
 use crate::bytes::Bytes;
 use crate::chain::{OutPoint, Transaction, TransactionInput, TransactionOutput};
-use crate::hash::H256;
 use crate::keys::KeyPair;
 use crate::{Builder, Script};
-use crypto::dhash256;
+use bitcrypto::{dhash256, Hash, SHA256D};
 use ser::Stream;
+
+const ONE: [u8; 32] = [
+	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum SignatureVersion {
@@ -121,7 +124,7 @@ impl TransactionInputSigner {
 		script_pubkey: &Script,
 		sigversion: SignatureVersion,
 		sighashtype: u32,
-	) -> H256 {
+	) -> SHA256D {
 		let sighash = Sighash::from_u32(sighashtype);
 		match sigversion {
 			SignatureVersion::Base => self.signature_hash_original(input_index, script_pubkey, sighashtype, sighash),
@@ -158,13 +161,13 @@ impl TransactionInputSigner {
 		}
 	}
 
-	pub fn signature_hash_original(&self, input_index: usize, script_pubkey: &Script, sighashtype: u32, sighash: Sighash) -> H256 {
+	pub fn signature_hash_original(&self, input_index: usize, script_pubkey: &Script, sighashtype: u32, sighash: Sighash) -> SHA256D {
 		if input_index >= self.inputs.len() {
-			return 1u8.into();
+			return SHA256D::from_inner(ONE);
 		}
 
 		if sighash.base == SighashBase::Single && input_index >= self.outputs.len() {
-			return 1u8.into();
+			return SHA256D::from_inner(ONE);
 		}
 
 		let script_pubkey = script_pubkey.without_separators();
@@ -236,7 +239,7 @@ impl TransactionInputSigner {
 		script_pubkey: &Script,
 		sighashtype: u32,
 		sighash: Sighash,
-	) -> H256 {
+	) -> SHA256D {
 		let hash_prevouts = compute_hash_prevouts(sighash, &self.inputs);
 		let hash_sequence = compute_hash_sequence(sighash, &self.inputs);
 		let hash_outputs = compute_hash_outputs(sighash, input_index, &self.outputs);
@@ -257,7 +260,7 @@ impl TransactionInputSigner {
 	}
 }
 
-fn compute_hash_prevouts(sighash: Sighash, inputs: &[UnsignedTransactionInput]) -> H256 {
+fn compute_hash_prevouts(sighash: Sighash, inputs: &[UnsignedTransactionInput]) -> SHA256D {
 	match sighash.anyone_can_pay {
 		false => {
 			let mut stream = Stream::default();
@@ -266,11 +269,11 @@ fn compute_hash_prevouts(sighash: Sighash, inputs: &[UnsignedTransactionInput]) 
 			}
 			dhash256(&stream.out())
 		}
-		true => 0u8.into(),
+		true => SHA256D::default(),
 	}
 }
 
-fn compute_hash_sequence(sighash: Sighash, inputs: &[UnsignedTransactionInput]) -> H256 {
+fn compute_hash_sequence(sighash: Sighash, inputs: &[UnsignedTransactionInput]) -> SHA256D {
 	match sighash.base {
 		SighashBase::All if !sighash.anyone_can_pay => {
 			let mut stream = Stream::default();
@@ -279,11 +282,11 @@ fn compute_hash_sequence(sighash: Sighash, inputs: &[UnsignedTransactionInput]) 
 			}
 			dhash256(&stream.out())
 		}
-		_ => 0u8.into(),
+		_ => SHA256D::default(),
 	}
 }
 
-fn compute_hash_outputs(sighash: Sighash, input_index: usize, outputs: &[TransactionOutput]) -> H256 {
+fn compute_hash_outputs(sighash: Sighash, input_index: usize, outputs: &[TransactionOutput]) -> SHA256D {
 	match sighash.base {
 		SighashBase::All => {
 			let mut stream = Stream::default();
@@ -297,7 +300,7 @@ fn compute_hash_outputs(sighash: Sighash, input_index: usize, outputs: &[Transac
 			stream.append(&outputs[input_index]);
 			dhash256(&stream.out())
 		}
-		_ => 0u8.into(),
+		_ => SHA256D::default(),
 	}
 }
 
@@ -305,8 +308,8 @@ fn compute_hash_outputs(sighash: Sighash, input_index: usize, outputs: &[Transac
 mod tests {
 	use super::{Sighash, SighashBase, SignatureVersion, TransactionInputSigner, UnsignedTransactionInput};
 	use crate::bytes::Bytes;
-	use crate::hash::H256;
 	use crate::script::Script;
+	use bitcrypto::{FromHex, FromInnerHex, SHA256D};
 	use chain::{OutPoint, Transaction, TransactionOutput};
 	use keys::{Address, KeyPair, Private};
 
@@ -316,14 +319,14 @@ mod tests {
 	#[test]
 	fn test_signature_hash_simple() {
 		let private: Private = "5HusYj2b2x4nroApgfvaSfKYZhRbKFH41bVyPooymbC6KfgSXdD".into();
-		let previous_tx_hash = H256::from_reversed_str("81b4c832d70cb56ff957589752eb4125a4cab78a25a8fc52d6a09e5bd4404d48");
+		let previous_tx_hash = SHA256D::from_hex("81b4c832d70cb56ff957589752eb4125a4cab78a25a8fc52d6a09e5bd4404d48").unwrap();
 		let previous_output_index = 0;
 		let from: Address = "1MMMMSUb1piy2ufrSguNUdFmAcvqrQF8M5".into();
 		let to: Address = "1KKKK6N21XKo48zWKuQKXdvSsCf95ibHFa".into();
 		let previous_output = "76a914df3bd30160e6c6145baaf2c88a8844c13a00d1d588ac".into();
 		let current_output: Bytes = "76a914c8e90996c7c6080ee06284600c684ed904d14c5c88ac".into();
 		let value = 91234;
-		let expected_signature_hash = "5fda68729a6312e17e641e9a49fac2a4a6a680126610af573caab270d232f850".into();
+		let expected_signature_hash = SHA256D::from_inner_hex("5fda68729a6312e17e641e9a49fac2a4a6a680126610af573caab270d232f850").unwrap();
 
 		// this is irrelevant
 		let kp = KeyPair::from_private(private).unwrap();
@@ -358,7 +361,7 @@ mod tests {
 		let tx: Transaction = tx.into();
 		let signer: TransactionInputSigner = tx.into();
 		let script: Script = script.into();
-		let expected = H256::from_reversed_str(result);
+		let expected = SHA256D::from_hex(result).unwrap();
 
 		let sighash = Sighash::from_u32(hash_type as u32);
 		let hash = signer.signature_hash_original(input_index, &script, hash_type as u32, sighash);

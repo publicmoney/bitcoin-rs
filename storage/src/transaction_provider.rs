@@ -1,6 +1,6 @@
 use crate::bytes::Bytes;
-use crate::hash::H256;
 use crate::TransactionMeta;
+use bitcrypto::SHA256D;
 use chain::{IndexedTransaction, OutPoint, TransactionOutput};
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -8,15 +8,15 @@ use std::collections::HashMap;
 /// Should be used to obtain all transactions from canon chain and forks.
 pub trait TransactionProvider {
 	/// Returns true if store contains given transaction.
-	fn contains_transaction(&self, hash: &H256) -> bool {
+	fn contains_transaction(&self, hash: &SHA256D) -> bool {
 		self.transaction(hash).is_some()
 	}
 
 	/// Resolves transaction body bytes by transaction hash.
-	fn transaction_bytes(&self, hash: &H256) -> Option<Bytes>;
+	fn transaction_bytes(&self, hash: &SHA256D) -> Option<Bytes>;
 
 	/// Resolves serialized transaction info by transaction hash.
-	fn transaction(&self, hash: &H256) -> Option<IndexedTransaction>;
+	fn transaction(&self, hash: &SHA256D) -> Option<IndexedTransaction>;
 }
 
 /// Should be used to get canon chain transaction outputs.
@@ -32,7 +32,7 @@ pub trait TransactionOutputProvider: Send + Sync {
 pub trait TransactionMetaProvider: Send + Sync {
 	/// Returns None if transacting with given hash does not exist
 	/// Otherwise returns transaction meta object
-	fn transaction_meta(&self, hash: &H256) -> Option<TransactionMeta>;
+	fn transaction_meta(&self, hash: &SHA256D) -> Option<TransactionMeta>;
 }
 
 /// Transaction output provider that caches all read outputs.

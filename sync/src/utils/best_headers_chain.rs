@@ -1,6 +1,6 @@
 use super::{HashPosition, HashQueue};
+use bitcrypto::SHA256D;
 use chain::IndexedBlockHeader;
-use primitives::hash::H256;
 use std::collections::HashMap;
 
 /// Best headers chain information
@@ -17,16 +17,16 @@ pub struct Information {
 #[derive(Debug)]
 pub struct BestHeadersChain {
 	/// Best hash in storage
-	storage_best_hash: H256,
+	storage_best_hash: SHA256D,
 	/// Headers by hash
-	headers: HashMap<H256, IndexedBlockHeader>,
+	headers: HashMap<SHA256D, IndexedBlockHeader>,
 	/// Best chain
 	best: HashQueue,
 }
 
 impl BestHeadersChain {
 	/// Create new best headers chain
-	pub fn new(storage_best_hash: H256) -> Self {
+	pub fn new(storage_best_hash: SHA256D) -> Self {
 		BestHeadersChain {
 			storage_best_hash,
 			headers: HashMap::new(),
@@ -48,12 +48,12 @@ impl BestHeadersChain {
 	}
 
 	/// Get header by given hash
-	pub fn by_hash(&self, hash: &H256) -> Option<IndexedBlockHeader> {
+	pub fn by_hash(&self, hash: &SHA256D) -> Option<IndexedBlockHeader> {
 		self.headers.get(hash).cloned()
 	}
 
 	/// Get all direct child blocks hashes of given block hash
-	pub fn children(&self, hash: &H256) -> Vec<H256> {
+	pub fn children(&self, hash: &SHA256D) -> Vec<SHA256D> {
 		self.best
 			.position(hash)
 			.and_then(|pos| self.best.at(pos + 1))
@@ -62,7 +62,7 @@ impl BestHeadersChain {
 	}
 
 	/// Get hash of best block
-	pub fn best_block_hash(&self) -> H256 {
+	pub fn best_block_hash(&self) -> SHA256D {
 		self.best
 			.back()
 			.or_else(|| Some(self.storage_best_hash.clone()))
@@ -88,7 +88,7 @@ impl BestHeadersChain {
 	}
 
 	/// Remove block header with given hash and all its children
-	pub fn remove(&mut self, hash: &H256) {
+	pub fn remove(&mut self, hash: &SHA256D) {
 		if self.headers.remove(hash).is_some() {
 			match self.best.remove(hash) {
 				HashPosition::Front => self.clear(),
@@ -99,14 +99,14 @@ impl BestHeadersChain {
 	}
 
 	/// Remove blocks headers with given hash and all its children
-	pub fn remove_n<I: IntoIterator<Item = H256>>(&mut self, hashes: I) {
+	pub fn remove_n<I: IntoIterator<Item = SHA256D>>(&mut self, hashes: I) {
 		for hash in hashes {
 			self.remove(&hash);
 		}
 	}
 
 	/// Called when new blocks is inserted to storage
-	pub fn block_inserted_to_storage(&mut self, hash: &H256, storage_best_hash: &H256) {
+	pub fn block_inserted_to_storage(&mut self, hash: &SHA256D, storage_best_hash: &SHA256D) {
 		if self.best.front().map(|h| &h == hash).unwrap_or(false) {
 			self.best.pop_front();
 			self.headers.remove(hash);
@@ -137,15 +137,15 @@ mod tests {
 	extern crate test_data;
 
 	use super::BestHeadersChain;
-	use primitives::hash::H256;
+	use bitcrypto::SHA256D;
 
 	#[test]
 	fn best_chain_empty() {
-		let chain = BestHeadersChain::new(H256::default());
+		let chain = BestHeadersChain::new(SHA256D::default());
 		assert_eq!(chain.at(0), None);
-		assert_eq!(chain.by_hash(&H256::from(0)), None);
-		assert_eq!(chain.children(&H256::default()), vec![]);
-		assert_eq!(chain.best_block_hash(), H256::default());
+		assert_eq!(chain.by_hash(&SHA256D::default()), None);
+		assert_eq!(chain.children(&SHA256D::default()), Vec::<SHA256D>::new());
+		assert_eq!(chain.best_block_hash(), SHA256D::default());
 	}
 
 	#[test]
@@ -195,7 +195,7 @@ mod tests {
 		chain.insert_n(vec![b2.clone().into(), b3.clone().into(), b4.clone().into()]);
 		assert_eq!(chain.information().best, 4);
 		assert_eq!(chain.information().total, 4);
-		chain.remove(&H256::default());
+		chain.remove(&SHA256D::default());
 		assert_eq!(chain.information().best, 4);
 		assert_eq!(chain.information().total, 4);
 

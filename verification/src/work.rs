@@ -1,8 +1,8 @@
+use bitcrypto::{FromInnerHex, SHA256D};
 use chain::IndexedBlockHeader;
 use network::{ConsensusParams, Network};
 use primitives::bigint::U256;
 use primitives::compact::Compact;
-use primitives::hash::H256;
 use std::cmp;
 use storage::{BlockHeaderProvider, BlockRef};
 
@@ -17,19 +17,20 @@ fn range_constrain(value: i64, min: i64, max: i64) -> i64 {
 }
 
 /// Returns true if hash is lower or equal than target represented by compact bits
-pub fn is_valid_proof_of_work_hash(bits: Compact, hash: &H256) -> bool {
+pub fn is_valid_proof_of_work_hash(bits: Compact, hash: &SHA256D) -> bool {
 	let target = match bits.to_u256() {
 		Ok(target) => target,
 		_err => return false,
 	};
 
-	let value = U256::from(&*hash.reversed() as &[u8]);
+	let reversed = SHA256D::from_inner_hex(&hash.to_string()).unwrap();
+	let value = U256::from(&*reversed as &[u8]);
 	value <= target
 }
 
 /// Returns true if hash is lower or equal than target and target is lower or equal
 /// than current network maximum
-pub fn is_valid_proof_of_work(max_work_bits: Compact, bits: Compact, hash: &H256) -> bool {
+pub fn is_valid_proof_of_work(max_work_bits: Compact, bits: Compact, hash: &SHA256D) -> bool {
 	let maximum = match max_work_bits.to_u256() {
 		Ok(max) => max,
 		_err => return false,
@@ -40,7 +41,8 @@ pub fn is_valid_proof_of_work(max_work_bits: Compact, bits: Compact, hash: &H256
 		_err => return false,
 	};
 
-	let value = U256::from(&*hash.reversed() as &[u8]);
+	let reversed = SHA256D::from_inner_hex(&hash.to_string()).unwrap();
+	let value = U256::from(&*reversed as &[u8]);
 	target <= maximum && value <= target
 }
 
@@ -53,7 +55,13 @@ pub fn retarget_timespan(retarget_timestamp: u32, last_timestamp: u32) -> u32 {
 }
 
 /// Returns work required for given header
-pub fn work_required(parent_hash: H256, time: u32, height: u32, store: &dyn BlockHeaderProvider, consensus: &ConsensusParams) -> Compact {
+pub fn work_required(
+	parent_hash: SHA256D,
+	time: u32,
+	height: u32,
+	store: &dyn BlockHeaderProvider,
+	consensus: &ConsensusParams,
+) -> Compact {
 	let max_bits = consensus.network.max_bits().into();
 	if height == 0 {
 		return max_bits;
@@ -72,7 +80,7 @@ pub fn work_required(parent_hash: H256, time: u32, height: u32, store: &dyn Bloc
 	parent_header.raw.bits
 }
 
-pub fn work_required_testnet(parent_hash: H256, time: u32, height: u32, store: &dyn BlockHeaderProvider, network: Network) -> Compact {
+pub fn work_required_testnet(parent_hash: SHA256D, time: u32, height: u32, store: &dyn BlockHeaderProvider, network: Network) -> Compact {
 	assert!(height != 0, "cannot calculate required work for genesis block");
 
 	let mut bits = Vec::new();
@@ -149,13 +157,13 @@ pub fn block_reward_satoshi(block_height: u32) -> u64 {
 #[cfg(test)]
 mod tests {
 	use super::{block_reward_satoshi, is_valid_proof_of_work, is_valid_proof_of_work_hash};
+	use bitcrypto::{FromHex, SHA256D};
 	use network::Network;
 	use primitives::compact::Compact;
-	use primitives::hash::H256;
 
 	fn is_valid_pow(max: Compact, bits: u32, hash: &'static str) -> bool {
-		is_valid_proof_of_work_hash(bits.into(), &H256::from_reversed_str(hash))
-			&& is_valid_proof_of_work(max.into(), bits.into(), &H256::from_reversed_str(hash))
+		is_valid_proof_of_work_hash(bits.into(), &SHA256D::from_hex(hash).unwrap())
+			&& is_valid_proof_of_work(max.into(), bits.into(), &SHA256D::from_hex(hash).unwrap())
 	}
 
 	#[test]

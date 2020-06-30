@@ -2,10 +2,10 @@
 
 use super::genesis;
 use crate::invoke::{Identity, Invoke};
+use bitcrypto::SHA256D;
 use chain;
 use primitives::bytes::Bytes;
 use primitives::compact::Compact;
-use primitives::hash::H256;
 use script::{Builder as ScriptBuilder, Opcode};
 use ser::{serialized_list_size, Serializable};
 use std::cell::Cell;
@@ -27,7 +27,7 @@ impl BlockHashBuilder {
 
 impl<F> BlockHashBuilder<F>
 where
-	F: Invoke<(H256, chain::Block)>,
+	F: Invoke<(SHA256D, chain::Block)>,
 {
 	pub fn with_callback(callback: F) -> Self {
 		BlockHashBuilder { block: None, callback }
@@ -50,7 +50,7 @@ where
 
 impl<F> Invoke<chain::Block> for BlockHashBuilder<F>
 where
-	F: Invoke<(H256, chain::Block)>,
+	F: Invoke<(SHA256D, chain::Block)>,
 {
 	type Result = Self;
 
@@ -113,7 +113,7 @@ where
 	}
 
 	pub fn merkled_header(self) -> BlockHeaderBuilder<Self> {
-		let hashes: Vec<H256> = self.transactions.iter().map(|t| t.hash()).collect();
+		let hashes: Vec<SHA256D> = self.transactions.iter().map(|t| t.hash()).collect();
 		let builder = self.header().merkle_root(chain::merkle_root(&hashes));
 		builder
 	}
@@ -206,11 +206,11 @@ where
 pub struct BlockHeaderBuilder<F = Identity> {
 	callback: F,
 	time: u32,
-	parent: H256,
+	parent: SHA256D,
 	nonce: u32,
 	bits: Compact,
 	version: u32,
-	merkle_root: H256,
+	merkle_root: SHA256D,
 }
 
 impl<F> BlockHeaderBuilder<F>
@@ -226,15 +226,15 @@ where
 				val
 			}),
 			nonce: 0,
-			merkle_root: 0.into(),
-			parent: 0.into(),
+			merkle_root: SHA256D::default(),
+			parent: SHA256D::default(),
 			bits: Compact::max_value(),
 			// set to 4 to allow creating long test chains
 			version: 4,
 		}
 	}
 
-	pub fn parent(mut self, parent: H256) -> Self {
+	pub fn parent(mut self, parent: SHA256D) -> Self {
 		self.parent = parent;
 		self
 	}
@@ -244,7 +244,7 @@ where
 		self
 	}
 
-	pub fn merkle_root(mut self, merkle_root: H256) -> Self {
+	pub fn merkle_root(mut self, merkle_root: SHA256D) -> Self {
 		self.merkle_root = merkle_root;
 		self
 	}
@@ -436,7 +436,7 @@ where
 		self
 	}
 
-	pub fn hash(mut self, hash: H256) -> Self {
+	pub fn hash(mut self, hash: SHA256D) -> Self {
 		let mut output = self.output.unwrap_or(chain::OutPoint {
 			hash: hash.clone(),
 			index: 0,
@@ -448,7 +448,7 @@ where
 
 	pub fn index(mut self, index: u32) -> Self {
 		let mut output = self.output.unwrap_or(chain::OutPoint {
-			hash: H256::from(0),
+			hash: SHA256D::default(),
 			index,
 		});
 		output.index = index;
@@ -458,7 +458,7 @@ where
 
 	pub fn coinbase(mut self) -> Self {
 		self.output = Some(chain::OutPoint {
-			hash: H256::from(0),
+			hash: SHA256D::default(),
 			index: 0xffffffff,
 		});
 		self.signature = vec![0u8; 2].into();
@@ -564,81 +564,88 @@ pub fn build_n_empty_blocks(n: u32, start_nonce: u32) -> Vec<chain::Block> {
 	result
 }
 
-#[test]
-fn example1() {
-	let block = BlockBuilder::new().header().time(1000).build().build();
-	assert_eq!(block.header().time, 1000);
-}
+#[cfg(test)]
+mod tests {
+	use crate::{block_builder, block_hash_builder};
+	use bitcrypto::{FromHex, Hash, SHA256D};
+	use ser::Serializable;
 
-#[test]
-fn example2() {
-	#[rustfmt::skip]
-	let block = BlockBuilder::new()
-		.header().build()
-		.transaction().lock_time(100500).build()
-		.build();
+	#[test]
+	fn example1() {
+		let block = block_builder().header().time(1000).build().build();
+		assert_eq!(block.header().time, 1000);
+	}
 
-	assert_eq!(block.transactions().len(), 1);
-}
+	#[test]
+	fn example2() {
+		#[rustfmt::skip]
+		let block = block_builder()
+			.header().build()
+			.transaction().lock_time(100500).build()
+			.build();
 
-#[test]
-fn example3() {
-	#[rustfmt::skip]
-	let block = block_builder().header().build()
-		.transaction().coinbase().build()
-		.build();
+		assert_eq!(block.transactions().len(), 1);
+	}
 
-	assert!(block.transactions()[0].is_coinbase());
-}
+	#[test]
+	fn example3() {
+		#[rustfmt::skip]
+		let block = block_builder().header().build()
+			.transaction().coinbase().build()
+			.build();
 
-#[test]
-fn example4() {
-	#[rustfmt::skip]
-	let block = block_builder().header().build()
-		.transaction().coinbase()
-			.output().value(10).build()
-			.build()
-		.transaction()
-			.input().hash(H256::from(1)).index(1).build()
-			.build()
-		.build();
+		assert!(block.transactions()[0].is_coinbase());
+	}
 
-	assert_eq!(block.transactions().len(), 2);
-	assert_eq!(block.transactions()[1].inputs[0].previous_output.hash, H256::from(1));
-}
+	#[test]
+	fn example4() {
+		#[rustfmt::skip]
+		let block = block_builder().header().build()
+			.transaction().coinbase()
+				.output().value(10).build()
+				.build()
+			.transaction()
+				.input().hash(SHA256D::default()).index(1).build()
+				.build()
+			.build();
 
-#[test]
-fn example5() {
-	#[rustfmt::skip]
-	let (hash, block) = block_hash_builder()
-		.block()
-			.header().parent(H256::from(0)).build()
-			.build()
-		.build();
+		assert_eq!(block.transactions().len(), 2);
+		assert_eq!(block.transactions()[1].inputs[0].previous_output.hash, SHA256D::default());
+	}
 
-	assert_eq!(hash, "3e24319d69a77c58e2da8c7331a21729482835c96834dafb3e1793c1253847c7".into());
-	assert_eq!(
-		block.header().previous_header_hash,
-		"0000000000000000000000000000000000000000000000000000000000000000".into()
-	);
-}
+	#[test]
+	fn example5() {
+		#[rustfmt::skip]
+		let (hash, block) = block_hash_builder()
+			.block()
+				.header().parent(SHA256D::default()).build()
+				.build()
+			.build();
 
-#[test]
-fn transaction_with_size() {
-	#[rustfmt::skip]
-	let block = block_builder().header().build()
-		.transaction().coinbase()
-			.output().value(10).build()
-			.build()
-		.transaction_with_size(100)
-			.build()
-		.transaction_with_size(2000)
-			.build()
-		.transaction_with_size(50000)
-			.build()
-		.build();
+		assert_eq!(
+			hash,
+			SHA256D::from_inner(FromHex::from_hex("3e24319d69a77c58e2da8c7331a21729482835c96834dafb3e1793c1253847c7").unwrap())
+		);
+		assert_eq!(block.header().previous_header_hash, SHA256D::default());
+	}
 
-	assert_eq!(block.transactions[1].serialized_size(), 100);
-	assert_eq!(block.transactions[2].serialized_size(), 2000);
-	assert_eq!(block.transactions[3].serialized_size(), 50000);
+	#[test]
+	fn transaction_with_size() {
+		#[rustfmt::skip]
+		let block = block_builder().header().build()
+			.transaction().coinbase()
+				.output().value(10).build()
+				.build()
+			.transaction_with_size(100)
+				.build()
+			.transaction_with_size(2000)
+				.build()
+			.transaction_with_size(50000)
+				.build()
+			.build();
+
+		assert_eq!(block.transactions[1].serialized_size(), 100);
+		assert_eq!(block.transactions[2].serialized_size(), 2000);
+		assert_eq!(block.transactions[3].serialized_size(), 50000);
+	}
 }

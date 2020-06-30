@@ -14,7 +14,7 @@ pub struct ChainVerifier<'a> {
 
 impl<'a> ChainVerifier<'a> {
 	pub fn new(block: &'a IndexedBlock, network: Network, current_time: u32) -> Self {
-		trace!(target: "verification", "Block pre-verification {}", block.hash().to_reversed_str());
+		trace!(target: "verification", "Block pre-verification {}", block.hash());
 		ChainVerifier {
 			block: BlockVerifier::new(block),
 			header: HeaderVerifier::new(&block.header, network, current_time),

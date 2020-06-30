@@ -1,10 +1,10 @@
 extern crate byteorder;
-extern crate primitives;
 
 mod compact_integer;
 mod impls;
 mod list;
 mod reader;
+mod serialize_array_wrapper_macro;
 mod stream;
 
 pub use primitives::{bytes, compact, hash};

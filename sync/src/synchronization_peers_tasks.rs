@@ -1,7 +1,7 @@
 use crate::types::PeerIndex;
 use crate::utils::AverageSpeedMeter;
+use bitcrypto::SHA256D;
 use linked_hash_map::LinkedHashMap;
-use primitives::hash::H256;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -44,7 +44,7 @@ pub struct PeersTasks {
 	/// Peers statistics
 	stats: HashMap<PeerIndex, PeerStats>,
 	/// Blocks statistics
-	blocks_stats: HashMap<H256, BlockStats>,
+	blocks_stats: HashMap<SHA256D, BlockStats>,
 }
 
 /// Pending headers request
@@ -60,7 +60,7 @@ pub struct BlocksRequest {
 	/// Time when request has been sent
 	pub timestamp: f64,
 	/// Hashes of blocks that have been requested
-	pub blocks: HashSet<H256>,
+	pub blocks: HashSet<SHA256D>,
 }
 
 /// Peer trust level.
@@ -143,7 +143,7 @@ impl PeersTasks {
 	}
 
 	/// Get peer tasks
-	pub fn get_blocks_tasks(&self, peer_index: PeerIndex) -> Option<&HashSet<H256>> {
+	pub fn get_blocks_tasks(&self, peer_index: PeerIndex) -> Option<&HashSet<SHA256D>> {
 		self.blocks_requests.get(&peer_index).map(|br| &br.blocks)
 	}
 
@@ -197,7 +197,7 @@ impl PeersTasks {
 	}
 
 	/// Block is received from peer.
-	pub fn on_block_received(&mut self, peer_index: PeerIndex, block_hash: &H256) {
+	pub fn on_block_received(&mut self, peer_index: PeerIndex, block_hash: &SHA256D) {
 		// block received => reset failures
 		self.blocks_stats.remove(block_hash);
 
@@ -253,7 +253,7 @@ impl PeersTasks {
 	}
 
 	/// Blocks have been requested from peer.
-	pub fn on_blocks_requested(&mut self, peer_index: PeerIndex, blocks_hashes: &[H256]) {
+	pub fn on_blocks_requested(&mut self, peer_index: PeerIndex, blocks_hashes: &[SHA256D]) {
 		if !self.all.contains(&peer_index) {
 			self.unuseful_peer(peer_index);
 		}
@@ -286,9 +286,9 @@ impl PeersTasks {
 	}
 
 	/// We have failed to get blocks
-	pub fn on_blocks_failure(&mut self, hashes: Vec<H256>) -> (Vec<H256>, Vec<H256>) {
-		let mut failed_blocks: Vec<H256> = Vec::new();
-		let mut normal_blocks: Vec<H256> = Vec::with_capacity(hashes.len());
+	pub fn on_blocks_failure(&mut self, hashes: Vec<SHA256D>) -> (Vec<SHA256D>, Vec<SHA256D>) {
+		let mut failed_blocks: Vec<SHA256D> = Vec::new();
+		let mut normal_blocks: Vec<SHA256D> = Vec::with_capacity(hashes.len());
 		for hash in hashes {
 			let is_failed_block = {
 				let block_stats = self.blocks_stats.entry(hash.clone()).or_insert_with(BlockStats::default);
@@ -347,7 +347,7 @@ impl PeersTasks {
 	}
 
 	/// Reset peer tasks && move peer to idle state
-	pub fn reset_blocks_tasks(&mut self, peer_index: PeerIndex) -> Vec<H256> {
+	pub fn reset_blocks_tasks(&mut self, peer_index: PeerIndex) -> Vec<SHA256D> {
 		self.idle_for_blocks.insert(peer_index);
 		self.blocks_requests
 			.remove(&peer_index)
@@ -402,7 +402,7 @@ impl fmt::Debug for Information {
 mod tests {
 	use super::{PeersTasks, MAX_BLOCKS_FAILURES, MAX_PEER_FAILURES};
 	use crate::types::PeerIndex;
-	use primitives::hash::H256;
+	use bitcrypto::{FromStr, SHA256D};
 
 	#[test]
 	fn peers_empty_on_start() {
@@ -418,8 +418,8 @@ mod tests {
 	#[test]
 	fn peers_all_unuseful_after_reset() {
 		let mut peers = PeersTasks::default();
-		peers.on_blocks_requested(7, &vec![H256::default()]);
-		peers.on_blocks_requested(8, &vec![H256::default()]);
+		peers.on_blocks_requested(7, &vec![SHA256D::default()]);
+		peers.on_blocks_requested(8, &vec![SHA256D::default()]);
 		assert_eq!(peers.information().idle, 0);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 2);
@@ -432,11 +432,11 @@ mod tests {
 	#[test]
 	fn peer_idle_after_reset_tasks() {
 		let mut peers = PeersTasks::default();
-		peers.on_blocks_requested(7, &vec![H256::default()]);
+		peers.on_blocks_requested(7, &vec![SHA256D::default()]);
 		assert_eq!(peers.information().idle, 0);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 1);
-		assert_eq!(peers.reset_blocks_tasks(7), vec![H256::default()]);
+		assert_eq!(peers.reset_blocks_tasks(7), vec![SHA256D::default()]);
 		assert_eq!(peers.information().idle, 1);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 0);
@@ -494,32 +494,35 @@ mod tests {
 
 		peers.useful_peer(5);
 
-		peers.on_blocks_requested(7, &vec![H256::default()]);
+		peers.on_blocks_requested(7, &vec![SHA256D::default()]);
 		assert_eq!(peers.information().idle, 1);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 1);
 
-		peers.on_blocks_requested(8, &vec![H256::default()]);
+		peers.on_blocks_requested(8, &vec![SHA256D::default()]);
 		assert_eq!(peers.information().idle, 1);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 2);
 
-		peers.on_block_received(7, &H256::default());
+		peers.on_block_received(7, &SHA256D::default());
 		assert_eq!(peers.information().idle, 2);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 1);
 
-		peers.on_block_received(9, &H256::default());
+		peers.on_block_received(9, &SHA256D::default());
 		assert_eq!(peers.information().idle, 2);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 1);
 
-		peers.on_block_received(8, &"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f".into());
+		peers.on_block_received(
+			8,
+			&SHA256D::from_str("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap(),
+		);
 		assert_eq!(peers.information().idle, 2);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 1);
 
-		peers.on_block_received(8, &H256::default());
+		peers.on_block_received(8, &SHA256D::default());
 		assert_eq!(peers.information().idle, 3);
 		assert_eq!(peers.information().unuseful, 0);
 		assert_eq!(peers.information().active, 0);
@@ -533,11 +536,11 @@ mod tests {
 		peers.useful_peer(2);
 		assert_eq!(peers.ordered_blocks_requests().len(), 0);
 
-		peers.on_blocks_requested(1, &vec![H256::default()]);
+		peers.on_blocks_requested(1, &vec![SHA256D::default()]);
 		assert_eq!(peers.ordered_blocks_requests().len(), 1);
 		assert_eq!(*peers.ordered_blocks_requests().keys().nth(0).unwrap(), 1);
 
-		peers.on_blocks_requested(2, &vec![H256::default()]);
+		peers.on_blocks_requested(2, &vec![SHA256D::default()]);
 		assert_eq!(peers.ordered_blocks_requests().len(), 2);
 		assert_eq!(*peers.ordered_blocks_requests().keys().nth(0).unwrap(), 1);
 		assert_eq!(*peers.ordered_blocks_requests().keys().nth(1).unwrap(), 2);
@@ -577,7 +580,7 @@ mod tests {
 			peers.information().active + peers.information().idle + peers.information().unuseful,
 			1
 		);
-		peers.on_blocks_requested(1, &vec![H256::default()]);
+		peers.on_blocks_requested(1, &vec![SHA256D::default()]);
 		peers.useful_peer(1);
 		assert_eq!(
 			peers.information().active + peers.information().idle + peers.information().unuseful,
@@ -600,34 +603,70 @@ mod tests {
 	fn peer_block_failures() {
 		let mut peers = PeersTasks::default();
 		peers.useful_peer(1);
-		peers.on_blocks_requested(1, &vec![H256::from(1)]);
+		peers.on_blocks_requested(
+			1,
+			&vec![SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()],
+		);
 		for _ in 0..MAX_BLOCKS_FAILURES {
 			let requested_blocks = peers.reset_blocks_tasks(1);
 			let (blocks_to_request, blocks_to_forget) = peers.on_blocks_failure(requested_blocks);
-			assert_eq!(blocks_to_request, vec![H256::from(1)]);
-			assert_eq!(blocks_to_forget, vec![]);
-			peers.on_blocks_requested(1, &vec![H256::from(1)]);
+			assert_eq!(
+				blocks_to_request,
+				vec![SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()]
+			);
+			assert_eq!(blocks_to_forget, Vec::<SHA256D>::new());
+			peers.on_blocks_requested(
+				1,
+				&vec![SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()],
+			);
 		}
 		let requested_blocks = peers.reset_blocks_tasks(1);
 		let (blocks_to_request, blocks_to_forget) = peers.on_blocks_failure(requested_blocks);
-		assert_eq!(blocks_to_request, vec![]);
-		assert_eq!(blocks_to_forget, vec![H256::from(1)]);
+		assert_eq!(blocks_to_request, Vec::<SHA256D>::new());
+		assert_eq!(
+			blocks_to_forget,
+			vec![SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()]
+		);
 	}
 
 	#[test]
 	fn peer_sort_peers_for_blocks() {
 		let mut peers = PeersTasks::default();
-		peers.on_blocks_requested(1, &vec![H256::from(1), H256::from(2)]);
-		peers.on_blocks_requested(2, &vec![H256::from(3), H256::from(4)]);
-		peers.on_block_received(2, &H256::from(3));
-		peers.on_block_received(2, &H256::from(4));
+		peers.on_blocks_requested(
+			1,
+			&vec![
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000002").unwrap(),
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000002").unwrap(),
+			],
+		);
+		peers.on_blocks_requested(
+			2,
+			&vec![
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000003").unwrap(),
+				SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000004").unwrap(),
+			],
+		);
+		peers.on_block_received(
+			2,
+			&SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000003").unwrap(),
+		);
+		peers.on_block_received(
+			2,
+			&SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000004").unwrap(),
+		);
 
 		use std::thread;
 		use std::time::Duration;
 		thread::park_timeout(Duration::from_millis(50));
 
-		peers.on_block_received(1, &H256::from(1));
-		peers.on_block_received(1, &H256::from(2));
+		peers.on_block_received(
+			1,
+			&SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(),
+		);
+		peers.on_block_received(
+			1,
+			&SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000002").unwrap(),
+		);
 
 		let mut peers_for_blocks: Vec<PeerIndex> = vec![1, 2];
 		peers.sort_peers_for_blocks(&mut peers_for_blocks);

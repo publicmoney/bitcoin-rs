@@ -1,5 +1,5 @@
-use crate::hash::H256;
 use crate::{MessageResult, Payload};
+use bitcrypto::SHA256D;
 use ser::{Reader, Stream};
 use std::io;
 
@@ -8,16 +8,16 @@ pub const GETHEADERS_MAX_RESPONSE_HEADERS: usize = 2_000;
 #[derive(Debug, PartialEq)]
 pub struct GetHeaders {
 	pub version: u32,
-	pub block_locator_hashes: Vec<H256>,
-	pub hash_stop: H256,
+	pub block_locator_hashes: Vec<SHA256D>,
+	pub hash_stop: SHA256D,
 }
 
 impl GetHeaders {
-	pub fn with_block_locator_hashes(block_locator_hashes: Vec<H256>) -> Self {
+	pub fn with_block_locator_hashes(block_locator_hashes: Vec<SHA256D>) -> Self {
 		GetHeaders {
 			version: 0, // this field is ignored by implementations
 			block_locator_hashes,
-			hash_stop: H256::default(),
+			hash_stop: SHA256D::default(),
 		}
 	}
 }
@@ -47,7 +47,7 @@ impl Payload for GetHeaders {
 	fn serialize_payload(&self, stream: &mut Stream, _version: u32) -> MessageResult<()> {
 		stream
 			.append(&self.version)
-			.append_list(&self.block_locator_hashes)
+			.append_list::<SHA256D, SHA256D>(&self.block_locator_hashes)
 			.append(&self.hash_stop);
 		Ok(())
 	}

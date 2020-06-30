@@ -8,6 +8,7 @@ elastic-array = "0.11"
 parking_lot = "0.10"
 bit-vec = "0.6"
 lru-cache = "0.1"
+bitcrypto = { path = "../crypto" }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }
 serialization_derive = { path = "../serialization_derive" }

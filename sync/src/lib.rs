@@ -9,7 +9,6 @@ extern crate bit_vec;
 extern crate futures;
 extern crate linked_hash_map;
 extern crate message;
-extern crate miner;
 extern crate murmur3;
 extern crate network;
 extern crate p2p;
@@ -40,10 +39,10 @@ mod utils;
 pub use types::LocalNodeRef;
 pub use types::PeersRef;
 
+use bitcrypto::SHA256D;
 use message::Services;
 use network::{ConsensusParams, Network};
 use parking_lot::RwLock;
-use primitives::hash::H256;
 use std::sync::Arc;
 use utils::AverageSpeedMeter;
 use verification::BackwardsCompatibleChainVerifier as ChainVerifier;
@@ -69,7 +68,7 @@ pub struct VerificationParameters {
 	pub verification_level: verification::VerificationLevel,
 	/// Blocks verification edge: all blocks before this are validated using verification_level.
 	/// All blocks after this (inclusive) are validated using VerificationLevel::Full level.
-	pub verification_edge: H256,
+	pub verification_edge: SHA256D,
 }
 
 /// Synchronization events listener
@@ -77,7 +76,7 @@ pub trait SyncListener: Send + 'static {
 	/// Called when node switches to synchronization state
 	fn synchronization_state_switched(&self, is_synchronizing: bool);
 	/// Called when new best storage block is inserted
-	fn best_storage_block_inserted(&self, block_hash: &H256);
+	fn best_storage_block_inserted(&self, block_hash: &SHA256D);
 }
 
 /// Create blocks writer.

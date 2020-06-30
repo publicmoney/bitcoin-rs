@@ -8,7 +8,8 @@
 use crate::network::Network;
 use crate::{AddressHash, DisplayLayout, Error};
 use base58::{FromBase58, ToBase58};
-use crypto::checksum;
+use bitcrypto::Hash;
+use primitives::checksum::Checksum;
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -62,7 +63,7 @@ impl DisplayLayout for Address {
 		};
 
 		result[1..21].copy_from_slice(&*self.hash);
-		let cs = checksum(&result[0..21]);
+		let cs = Checksum::generate(&result[0..21]);
 		result[21..25].copy_from_slice(&*cs);
 		AddressDisplayLayout(result)
 	}
@@ -75,7 +76,7 @@ impl DisplayLayout for Address {
 			return Err(Error::InvalidAddress);
 		}
 
-		let cs = checksum(&data[0..21]);
+		let cs = Checksum::generate(&data[0..21]);
 		if &data[21..] != &*cs {
 			return Err(Error::InvalidChecksum);
 		}
@@ -88,8 +89,7 @@ impl DisplayLayout for Address {
 			_ => return Err(Error::InvalidAddress),
 		};
 
-		let mut hash = AddressHash::default();
-		hash.copy_from_slice(&data[1..21]);
+		let hash = AddressHash::from_slice(&data[1..21]).map_err(|_| Error::InvalidAddress)?;
 
 		let address = Address { kind, network, hash };
 
@@ -125,13 +125,15 @@ impl From<&'static str> for Address {
 mod tests {
 	use super::{Address, Type};
 	use crate::network::Network;
+	use crate::AddressHash;
+	use bitcrypto::FromHex;
 
 	#[test]
 	fn test_address_to_string() {
 		let address = Address {
 			kind: Type::P2PKH,
 			network: Network::Mainnet,
-			hash: "3f4aa1fedf1f54eeb03b759deadb36676b184911".into(),
+			hash: AddressHash::from_hex("3f4aa1fedf1f54eeb03b759deadb36676b184911").unwrap(),
 		};
 
 		assert_eq!("16meyfSoQV6twkAAxPe51RtMVz7PGRmWna".to_owned(), address.to_string());
@@ -142,7 +144,7 @@ mod tests {
 		let address = Address {
 			kind: Type::P2PKH,
 			network: Network::Mainnet,
-			hash: "3f4aa1fedf1f54eeb03b759deadb36676b184911".into(),
+			hash: AddressHash::from_hex("3f4aa1fedf1f54eeb03b759deadb36676b184911").unwrap(),
 		};
 
 		assert_eq!(address, "16meyfSoQV6twkAAxPe51RtMVz7PGRmWna".into());

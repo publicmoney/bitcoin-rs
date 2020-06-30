@@ -1,7 +1,6 @@
 extern crate byteorder;
 extern crate heapsize;
 
-extern crate bitcrypto as crypto;
 extern crate chain;
 extern crate db;
 extern crate keys;

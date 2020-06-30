@@ -30,6 +30,8 @@ pub fn node_table_path(data_dir: &Option<String>) -> PathBuf {
 pub fn init_db(cfg: &Config) -> Result<(), String> {
 	// insert genesis block if db is empty
 	let genesis_block = cfg.network.genesis_block();
+	info!("Initialising database with genesis block: {:?}", genesis_block.hash());
+
 	match cfg.db.block_hash(0) {
 		Some(ref db_genesis_block_hash) if db_genesis_block_hash != genesis_block.hash() => {
 			Err("Trying to open database with incompatible genesis block".into())

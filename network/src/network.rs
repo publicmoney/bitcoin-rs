@@ -2,9 +2,9 @@
 //! https://www.anintegratedworld.com/unravelling-the-mysterious-block-chain-magic-number/
 
 use crate::compact::Compact;
+use bitcrypto::{FromInnerHex, SHA256D};
 use chain::IndexedBlock;
 use primitives::bigint::U256;
-use primitives::hash::H256;
 use std::fmt;
 
 const MAGIC_MAINNET: u32 = 0xD9B4BEF9;
@@ -86,10 +86,10 @@ impl Network {
 		}
 	}
 
-	pub fn default_verification_edge(&self) -> H256 {
+	pub fn default_verification_edge(&self) -> SHA256D {
 		match *self {
-			Network::Mainnet => H256::from_reversed_str("0000000000000000030abc968e1bd635736e880b946085c93152969b9a81a6e2"),
-			Network::Testnet => H256::from_reversed_str("000000000871ee6842d3648317ccc8a435eb8cc3c2429aee94faff9ba26b05a0"),
+			Network::Mainnet => SHA256D::from_inner_hex("0000000000000000030abc968e1bd635736e880b946085c93152969b9a81a6e2").unwrap(),
+			Network::Testnet => SHA256D::from_inner_hex("000000000871ee6842d3648317ccc8a435eb8cc3c2429aee94faff9ba26b05a0").unwrap(),
 			_ => *self.genesis_block().hash(),
 		}
 	}
@@ -115,6 +115,8 @@ mod tests {
 
 	#[test]
 	fn test_network_magic_number() {
+		println!("{:?}", Network::Mainnet.genesis_block().hash());
+		println!("{:?}", Network::Testnet.genesis_block().hash());
 		assert_eq!(MAGIC_MAINNET, Network::Mainnet.magic());
 		assert_eq!(MAGIC_TESTNET, Network::Testnet.magic());
 		assert_eq!(MAGIC_REGTEST, Network::Regtest.magic());

@@ -1,4 +1,3 @@
-extern crate bitcrypto as crypto;
 extern crate heapsize;
 extern crate primitives;
 extern crate rayon;
@@ -11,14 +10,14 @@ pub mod constants;
 
 mod block;
 mod block_header;
-mod merkle_root;
-mod transaction;
-
 mod indexed_block;
 mod indexed_header;
 mod indexed_transaction;
+mod merkle_root;
 /// `IndexedBlock` extension
 mod read_and_hash;
+mod short_transaction_id;
+mod transaction;
 
 pub use primitives::{bigint, bytes, compact, hash};
 
@@ -31,5 +30,4 @@ pub use indexed_block::IndexedBlock;
 pub use indexed_header::IndexedBlockHeader;
 pub use indexed_transaction::IndexedTransaction;
 pub use read_and_hash::{HashedData, ReadAndHash};
-
-pub type ShortTransactionID = hash::H48;
+pub use short_transaction_id::ShortTransactionID;

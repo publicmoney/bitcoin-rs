@@ -2,6 +2,7 @@
 
 use crate::bytes::Bytes;
 use crate::{Error, Opcode};
+use crypto::Hash;
 use keys::{self, AddressHash, Public};
 use std::{fmt, ops};
 
@@ -407,8 +408,12 @@ impl Script {
 				})
 				.map(|public| vec![ScriptAddress::new_p2pkh(public.address_hash())])
 			}
-			ScriptType::PubKeyHash => Ok(vec![ScriptAddress::new_p2pkh(self.data[3..23].into())]),
-			ScriptType::ScriptHash => Ok(vec![ScriptAddress::new_p2sh(self.data[2..22].into())]),
+			ScriptType::PubKeyHash => Ok(vec![ScriptAddress::new_p2pkh(
+				AddressHash::from_slice(&self.data[3..23]).map_err(|_| keys::Error::InvalidAddress)?,
+			)]),
+			ScriptType::ScriptHash => Ok(vec![ScriptAddress::new_p2sh(
+				AddressHash::from_slice(&self.data[2..22]).map_err(|_| keys::Error::InvalidAddress)?,
+			)]),
 			ScriptType::Multisig => {
 				let mut addresses: Vec<ScriptAddress> = Vec::new();
 				let mut pc = 1;

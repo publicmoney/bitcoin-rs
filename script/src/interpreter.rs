@@ -3,7 +3,7 @@ use crate::script::MAX_SCRIPT_ELEMENT_SIZE;
 use crate::sign::{Sighash, SignatureVersion};
 use crate::{script, Builder, Error, Num, Opcode, Script, ScriptWitness, SignatureChecker, Stack, VerificationFlags};
 use chain::constants::SEQUENCE_LOCKTIME_DISABLE_FLAG;
-use crypto::{dhash160, dhash256, ripemd160, sha1, sha256};
+use crypto::{dhash160, dhash256, ripemd160, sha1, sha256, Hash, SHA256};
 use keys::{Public, Signature};
 use std::{cmp, mem};
 
@@ -352,7 +352,7 @@ fn verify_witness_program(
 			let stack = &witness_stack[0..witness_stack_len - 1];
 			let script_pubkey_hash = sha256(script_pubkey);
 
-			if script_pubkey_hash != witness_program[0..32].into() {
+			if script_pubkey_hash != SHA256::from_slice(&witness_program[0..32]).map_err(|_| Error::WitnessProgramMismatch)? {
 				return Err(Error::WitnessProgramMismatch);
 			}
 
@@ -2159,10 +2159,8 @@ mod tests {
 		let output: Script = "A914D8DACDADB7462AE15CD906F1878706D0DA8660E687".into();
 
 		let flags = VerificationFlags::default().verify_p2sh(true);
-		assert_eq!(
-			verify_script(&input, &output, &ScriptWitness::default(), &flags, &checker, SignatureVersion::Base),
-			Ok(())
-		);
+		let result = verify_script(&input, &output, &ScriptWitness::default(), &flags, &checker, SignatureVersion::Base);
+		assert_eq!(result, Ok(()));
 	}
 
 	fn run_witness_test(

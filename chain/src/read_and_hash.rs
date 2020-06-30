@@ -1,11 +1,10 @@
-use crate::hash::H256;
-use crypto::{DHash256, Digest};
+use bitcrypto::{Hash, HashEngine, SHA256D};
 use ser::{Deserializable, Error as ReaderError, Reader};
 use std::io;
 
 pub struct HashedData<T> {
 	pub size: usize,
-	pub hash: H256,
+	pub hash: SHA256D,
 	pub data: T,
 }
 
@@ -24,14 +23,14 @@ where
 		T: Deserializable,
 	{
 		let mut size = 0usize;
-		let mut hasher = DHash256::new();
+		let mut engine = SHA256D::engine();
 		let data = self.read_with_proxy(|bytes| {
 			size += bytes.len();
-			hasher.input(bytes);
+			engine.input(bytes);
 		})?;
 
 		let result = HashedData {
-			hash: hasher.finish(),
+			hash: SHA256D::from_engine(engine),
 			data,
 			size,
 		};

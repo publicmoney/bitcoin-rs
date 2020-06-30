@@ -6,6 +6,7 @@ use crate::synchronization_verifier::TransactionVerificationSink;
 use crate::types::{
 	ClientRef, MemoryPoolRef, PeerIndex, PeersRef, RequestId, ServerRef, StorageRef, SyncListenerRef, SynchronizationStateRef,
 };
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use futures::{finished, lazy};
 use message::types;
@@ -13,7 +14,6 @@ use miner::BlockAssembler;
 use miner::BlockTemplate;
 use network::ConsensusParams;
 use parking_lot::{Condvar, Mutex};
-use primitives::hash::H256;
 use std::sync::Arc;
 use time;
 
@@ -42,7 +42,7 @@ struct TransactionAcceptSink {
 
 #[derive(Default)]
 struct TransactionAcceptSinkData {
-	result: Mutex<Option<Result<H256, String>>>,
+	result: Mutex<Option<Result<SHA256D, String>>>,
 	waiter: Condvar,
 }
 
@@ -119,13 +119,13 @@ where
 
 	/// When transaction is received
 	pub fn on_transaction(&self, peer_index: PeerIndex, tx: IndexedTransaction) {
-		trace!(target: "sync", "Got `transaction` message from peer#{}. Tx hash: {}", peer_index, tx.hash.to_reversed_str());
+		trace!(target: "sync", "Got `transaction` message from peer#{}. Tx hash: {}", peer_index, tx.hash);
 		self.client.on_transaction(peer_index, tx);
 	}
 
 	/// When block is received
 	pub fn on_block(&self, peer_index: PeerIndex, block: IndexedBlock) {
-		trace!(target: "sync", "Got `block` message from peer#{}. Block hash: {}", peer_index, block.header.hash.to_reversed_str());
+		trace!(target: "sync", "Got `block` message from peer#{}. Block hash: {}", peer_index, block.header.hash);
 		self.client.on_block(peer_index, block);
 	}
 
@@ -256,7 +256,7 @@ where
 	}
 
 	/// Verify and then schedule new transaction
-	pub fn accept_transaction(&self, transaction: IndexedTransaction) -> Result<H256, String> {
+	pub fn accept_transaction(&self, transaction: IndexedTransaction) -> Result<SHA256D, String> {
 		let sink_data = Arc::new(TransactionAcceptSinkData::default());
 		let sink = TransactionAcceptSink::new(sink_data.clone()).boxed();
 		{
@@ -294,7 +294,7 @@ impl TransactionAcceptSink {
 }
 
 impl TransactionAcceptSinkData {
-	pub fn wait(&self) -> Result<H256, String> {
+	pub fn wait(&self) -> Result<SHA256D, String> {
 		let mut lock = self.result.lock();
 		if lock.is_some() {
 			return lock.take().expect("checked line above");
@@ -312,7 +312,7 @@ impl TransactionVerificationSink for TransactionAcceptSink {
 		self.data.waiter.notify_all();
 	}
 
-	fn on_transaction_verification_error(&self, err: &str, _hash: &H256) {
+	fn on_transaction_verification_error(&self, err: &str, _hash: &SHA256D) {
 		*self.data.result.lock() = Some(Err(err.to_owned()));
 		self.data.waiter.notify_all();
 	}

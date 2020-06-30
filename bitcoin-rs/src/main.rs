@@ -17,6 +17,7 @@ mod util;
 
 use app_dirs::AppInfo;
 
+// TODO make user agent configurable? Should look like bitcoin-core by default for privacy?
 pub const USER_AGENT: &'static str = env!("CARGO_PKG_NAME");
 pub const USER_AGENT_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 

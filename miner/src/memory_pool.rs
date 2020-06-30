@@ -6,10 +6,10 @@
 //! It also guarantees that ancestor-descendant relation won't break during ordered removal (ancestors always removed
 //! before descendants). Removal using `remove_by_hash` can break this rule.
 use crate::fee::MemoryPoolFeeCalculator;
+use bitcrypto::SHA256D;
 use chain::{IndexedTransaction, OutPoint, Transaction, TransactionOutput};
 use heapsize::HeapSizeOf;
 use primitives::bytes::Bytes;
-use primitives::hash::H256;
 use ser::{serialize, Serializable};
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
@@ -55,9 +55,9 @@ pub struct Entry {
 	/// Transaction
 	pub transaction: Transaction,
 	/// In-pool ancestors hashes for this transaction
-	pub ancestors: HashSet<H256>,
+	pub ancestors: HashSet<SHA256D>,
 	/// Transaction hash (stored for efficiency)
-	pub hash: H256,
+	pub hash: SHA256D,
 	/// Transaction size (stored for efficiency)
 	pub size: usize,
 	/// Throughout index of this transaction in memory pool (non persistent)
@@ -82,9 +82,9 @@ struct Storage {
 	/// Total transactions size (when serialized) in bytes
 	transactions_size_in_bytes: usize,
 	/// By-hash storage
-	by_hash: HashMap<H256, Entry>,
+	by_hash: HashMap<SHA256D, Entry>,
 	/// Transactions by previous output
-	by_previous_output: HashMap<HashedOutPoint, H256>,
+	by_previous_output: HashMap<HashedOutPoint, SHA256D>,
 	/// References storage
 	references: ReferenceStorage,
 }
@@ -93,9 +93,9 @@ struct Storage {
 #[derive(Debug, Clone)]
 struct ReferenceStorage {
 	/// By-input storage
-	by_input: HashMap<H256, HashSet<H256>>,
+	by_input: HashMap<SHA256D, HashSet<SHA256D>>,
 	/// Pending entries
-	pending: HashSet<H256>,
+	pending: HashSet<SHA256D>,
 	/// Ordered storage
 	ordered: OrderedReferenceStorage,
 }
@@ -114,7 +114,7 @@ struct OrderedReferenceStorage {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ByTimestampOrderedEntry {
 	/// Transaction hash
-	hash: H256,
+	hash: SHA256D,
 	/// Throughout index of this transaction in memory pool (non persistent)
 	storage_index: u64,
 }
@@ -122,7 +122,7 @@ struct ByTimestampOrderedEntry {
 #[derive(Debug, Eq, PartialEq, Clone)]
 struct ByTransactionScoreOrderedEntry {
 	/// Transaction hash
-	hash: H256,
+	hash: SHA256D,
 	/// Transaction size
 	size: usize,
 	/// Transaction fee
@@ -134,7 +134,7 @@ struct ByTransactionScoreOrderedEntry {
 #[derive(Debug, Eq, PartialEq, Clone)]
 struct ByPackageScoreOrderedEntry {
 	/// Transaction hash
-	hash: H256,
+	hash: SHA256D,
 	/// size + Sum(size) for all in-pool descendants
 	package_size: usize,
 	/// miner_fee + Sum(miner_fee) for all in-pool descendants
@@ -155,7 +155,7 @@ pub enum DoubleSpendCheckResult {
 	/// No double spend
 	NoDoubleSpend,
 	/// Input {self.1, self.2} of new transaction is already spent in previous final memory-pool transaction {self.0}
-	DoubleSpend(H256, H256, u32),
+	DoubleSpend(SHA256D, SHA256D, u32),
 	/// Some inputs of new transaction are already spent by non-final memory-pool transactions
 	NonFinalDoubleSpend(NonFinalDoubleSpendSet),
 }
@@ -347,11 +347,11 @@ impl Storage {
 		self.by_hash.insert(entry.hash.clone(), entry);
 	}
 
-	pub fn get_by_hash(&self, h: &H256) -> Option<&Entry> {
+	pub fn get_by_hash(&self, h: &SHA256D) -> Option<&Entry> {
 		self.by_hash.get(h)
 	}
 
-	pub fn contains(&self, hash: &H256) -> bool {
+	pub fn contains(&self, hash: &SHA256D) -> bool {
 		self.by_hash.contains_key(hash)
 	}
 
@@ -359,10 +359,10 @@ impl Storage {
 		self.by_previous_output.contains_key(&prevout.clone().into())
 	}
 
-	pub fn set_virtual_fee(&mut self, h: &H256, virtual_fee: i64) {
+	pub fn set_virtual_fee(&mut self, h: &SHA256D, virtual_fee: i64) {
 		// for updating ancestors
 		let mut miner_virtual_fee_change = 0i64;
-		let mut ancestors: Option<Vec<H256>> = None;
+		let mut ancestors: Option<Vec<SHA256D>> = None;
 
 		// modify the entry itself
 		if let Some(entry) = self.by_hash.get_mut(h) {
@@ -400,11 +400,11 @@ impl Storage {
 		}
 	}
 
-	pub fn read_by_hash(&self, h: &H256) -> Option<&Transaction> {
+	pub fn read_by_hash(&self, h: &SHA256D) -> Option<&Transaction> {
 		self.by_hash.get(h).map(|e| &e.transaction)
 	}
 
-	pub fn read_with_strategy(&self, strategy: OrderingStrategy) -> Option<H256> {
+	pub fn read_with_strategy(&self, strategy: OrderingStrategy) -> Option<SHA256D> {
 		match strategy {
 			OrderingStrategy::ByTimestamp => self
 				.references
@@ -430,7 +430,7 @@ impl Storage {
 		}
 	}
 
-	pub fn remove_by_hash(&mut self, h: &H256) -> Option<Entry> {
+	pub fn remove_by_hash(&mut self, h: &SHA256D) -> Option<Entry> {
 		self.by_hash.remove(h).map(|entry| {
 			// update pool information
 			self.transactions_size_in_bytes -= entry.size;
@@ -525,12 +525,12 @@ impl Storage {
 		Some(removed)
 	}
 
-	pub fn remove_by_parent_hash(&mut self, h: &H256) -> Option<Vec<IndexedTransaction>> {
+	pub fn remove_by_parent_hash(&mut self, h: &SHA256D) -> Option<Vec<IndexedTransaction>> {
 		// this code will run only when ancestor transaction is inserted
 		// in memory pool after its descendants
-		if let Some(mut descendants) = self.references.by_input.get(h).map(|d| d.iter().cloned().collect::<Vec<H256>>()) {
+		if let Some(mut descendants) = self.references.by_input.get(h).map(|d| d.iter().cloned().collect::<Vec<SHA256D>>()) {
 			// prepare Vec of all descendants hashes
-			let mut all_descendants: HashSet<H256> = HashSet::new();
+			let mut all_descendants: HashSet<SHA256D> = HashSet::new();
 			while let Some(descendant) = descendants.pop() {
 				if all_descendants.contains(&descendant) {
 					continue;
@@ -547,11 +547,11 @@ impl Storage {
 			all_descendants.sort_by(|left, right| {
 				let left = self
 					.by_hash
-					.get(left)
+					.get(*left)
 					.expect("`left` is read from `by_input`; all entries from `by_input` have corresponding entries in `by_hash`; qed");
 				let right = self
 					.by_hash
-					.get(right)
+					.get(*right)
 					.expect("`right` is read from `by_input`; all entries from `by_input` have corresponding entries in `by_hash`; qed");
 				if left.ancestors.contains(&right.hash) {
 					return Ordering::Greater;
@@ -624,7 +624,7 @@ impl Storage {
 		result
 	}
 
-	pub fn get_transactions_ids(&self) -> Vec<H256> {
+	pub fn get_transactions_ids(&self) -> Vec<SHA256D> {
 		self.by_hash.keys().cloned().collect()
 	}
 }
@@ -632,8 +632,8 @@ impl Storage {
 impl ReferenceStorage {
 	pub fn has_in_pool_ancestors(
 		&self,
-		removed: Option<&HashSet<H256>>,
-		by_hash: &HashMap<H256, Entry>,
+		removed: Option<&HashSet<SHA256D>>,
+		by_hash: &HashMap<SHA256D, Entry>,
 		transaction: &Transaction,
 	) -> bool {
 		transaction.inputs.iter().any(|input| {
@@ -641,7 +641,7 @@ impl ReferenceStorage {
 		})
 	}
 
-	pub fn remove(&mut self, removed: Option<&HashSet<H256>>, by_hash: &HashMap<H256, Entry>, entry: &Entry) {
+	pub fn remove(&mut self, removed: Option<&HashSet<SHA256D>>, by_hash: &HashMap<SHA256D, Entry>, entry: &Entry) {
 		// for each pending descendant transaction
 		if let Some(descendants) = self.by_input.get(&entry.hash) {
 			let descendants = descendants.iter().filter_map(|hash| by_hash.get(hash));
@@ -744,7 +744,7 @@ impl MemoryPool {
 
 	/// Removes single transaction by its hash.
 	/// All descendants remain in the pool.
-	pub fn remove_by_hash(&mut self, h: &H256) -> Option<IndexedTransaction> {
+	pub fn remove_by_hash(&mut self, h: &SHA256D) -> Option<IndexedTransaction> {
 		self.storage
 			.remove_by_hash(h)
 			.map(|entry| IndexedTransaction::new(entry.hash, entry.transaction))
@@ -761,20 +761,20 @@ impl MemoryPool {
 	}
 
 	/// Reads single transaction by its hash.
-	pub fn read_by_hash(&self, h: &H256) -> Option<&Transaction> {
+	pub fn read_by_hash(&self, h: &SHA256D) -> Option<&Transaction> {
 		self.storage.read_by_hash(h)
 	}
 
 	/// Reads hash of the 'top' transaction from the `MemoryPool` using selected strategy.
 	/// Ancestors are always returned before descendant transactions.
-	pub fn read_with_strategy(&mut self, strategy: OrderingStrategy) -> Option<H256> {
+	pub fn read_with_strategy(&mut self, strategy: OrderingStrategy) -> Option<SHA256D> {
 		self.storage.read_with_strategy(strategy)
 	}
 
 	/// Reads hashes of up to n transactions from the `MemoryPool`, using selected strategy.
 	/// Ancestors are always returned before descendant transactions.
 	/// Use this function with care, only if really needed (heavy memory usage)
-	pub fn read_n_with_strategy(&mut self, n: usize, strategy: OrderingStrategy) -> Vec<H256> {
+	pub fn read_n_with_strategy(&mut self, n: usize, strategy: OrderingStrategy) -> Vec<SHA256D> {
 		self.iter(strategy).map(|entry| entry.hash.clone()).take(n).collect()
 	}
 
@@ -791,17 +791,17 @@ impl MemoryPool {
 	}
 
 	/// Set miner virtual fee for transaction
-	pub fn set_virtual_fee(&mut self, h: &H256, virtual_fee: i64) {
+	pub fn set_virtual_fee(&mut self, h: &SHA256D, virtual_fee: i64) {
 		self.storage.set_virtual_fee(h, virtual_fee)
 	}
 
 	/// Get transaction by hash
-	pub fn get(&self, hash: &H256) -> Option<&Transaction> {
+	pub fn get(&self, hash: &SHA256D) -> Option<&Transaction> {
 		self.storage.get_by_hash(hash).map(|entry| &entry.transaction)
 	}
 
 	/// Checks if transaction is in the mempool
-	pub fn contains(&self, hash: &H256) -> bool {
+	pub fn contains(&self, hash: &SHA256D) -> bool {
 		self.storage.contains(hash)
 	}
 
@@ -816,7 +816,7 @@ impl MemoryPool {
 
 	/// Returns TXIDs of all transactions in `MemoryPool` (as in GetRawMemPool RPC)
 	/// https://bitcoin.org/en/developer-reference#getrawmempool
-	pub fn get_transactions_ids(&self) -> Vec<H256> {
+	pub fn get_transactions_ids(&self) -> Vec<SHA256D> {
 		self.storage.get_transactions_ids()
 	}
 
@@ -851,8 +851,8 @@ impl MemoryPool {
 		})
 	}
 
-	fn get_ancestors(&self, t: &Transaction) -> HashSet<H256> {
-		let mut ancestors: HashSet<H256> = HashSet::new();
+	fn get_ancestors(&self, t: &Transaction) -> HashSet<SHA256D> {
+		let mut ancestors: HashSet<SHA256D> = HashSet::new();
 		let ancestors_entries = t
 			.inputs
 			.iter()
@@ -883,11 +883,11 @@ impl MemoryPool {
 }
 
 impl TransactionProvider for MemoryPool {
-	fn transaction_bytes(&self, hash: &H256) -> Option<Bytes> {
+	fn transaction_bytes(&self, hash: &SHA256D) -> Option<Bytes> {
 		self.get(hash).map(|t| serialize(t))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<IndexedTransaction> {
+	fn transaction(&self, hash: &SHA256D) -> Option<IndexedTransaction> {
 		self.get(hash).cloned().map(|tx| IndexedTransaction::new(*hash, tx))
 	}
 }
@@ -913,7 +913,7 @@ impl HeapSizeOf for MemoryPool {
 pub struct MemoryPoolIterator<'a> {
 	memory_pool: &'a MemoryPool,
 	references: ReferenceStorage,
-	removed: HashSet<H256>,
+	removed: HashSet<SHA256D>,
 	strategy: OrderingStrategy,
 }
 
@@ -978,6 +978,7 @@ pub mod tests {
 	use self::test_data::{ChainBuilder, TransactionBuilder};
 	use super::{DoubleSpendCheckResult, MemoryPool, OrderingStrategy};
 	use crate::fee::NonZeroFeeCalculator;
+	use bitcrypto::SHA256D;
 	use chain::{OutPoint, Transaction};
 	use heapsize::HeapSizeOf;
 
@@ -1023,7 +1024,7 @@ pub mod tests {
 	fn test_memory_pool_read_with_strategy() {
 		let mut pool = MemoryPool::new();
 		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), None);
-		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), vec![]);
+		assert_eq!(pool.read_n_with_strategy(100, OrderingStrategy::ByTimestamp), Vec::<SHA256D>::new());
 
 		pool.insert_verified(default_tx().into(), &NonZeroFeeCalculator);
 		assert_eq!(pool.read_with_strategy(OrderingStrategy::ByTimestamp), Some(default_tx().hash()));

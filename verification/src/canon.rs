@@ -1,5 +1,5 @@
+use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
-use primitives::hash::H256;
 use std::ops;
 
 /// Blocks whose parents are known to be in the chain
@@ -13,7 +13,7 @@ impl<'a> CanonBlock<'a> {
 		CanonBlock { block }
 	}
 
-	pub fn hash<'b>(&'b self) -> &'a H256
+	pub fn hash<'b>(&'b self) -> &'a SHA256D
 	where
 		'a: 'b,
 	{

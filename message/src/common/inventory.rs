@@ -1,4 +1,4 @@
-use crate::hash::H256;
+use bitcrypto::SHA256D;
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
 
@@ -56,32 +56,32 @@ impl Deserializable for InventoryType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct InventoryVector {
 	pub inv_type: InventoryType,
-	pub hash: H256,
+	pub hash: SHA256D,
 }
 
 impl InventoryVector {
-	pub fn tx(hash: H256) -> Self {
+	pub fn tx(hash: SHA256D) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageTx,
 			hash,
 		}
 	}
 
-	pub fn witness_tx(hash: H256) -> Self {
+	pub fn witness_tx(hash: SHA256D) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageWitnessTx,
 			hash,
 		}
 	}
 
-	pub fn block(hash: H256) -> Self {
+	pub fn block(hash: SHA256D) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageBlock,
 			hash,
 		}
 	}
 
-	pub fn witness_block(hash: H256) -> Self {
+	pub fn witness_block(hash: SHA256D) -> Self {
 		InventoryVector {
 			inv_type: InventoryType::MessageWitnessBlock,
 			hash,
@@ -111,8 +111,10 @@ impl Deserializable for InventoryVector {
 
 #[cfg(test)]
 mod tests {
+	use super::SHA256D;
 	use super::{InventoryType, InventoryVector};
 	use crate::bytes::Bytes;
+	use bitcrypto::FromStr;
 	use ser::{deserialize, serialize};
 
 	#[test]
@@ -121,7 +123,7 @@ mod tests {
 
 		let inventory = InventoryVector {
 			inv_type: InventoryType::MessageBlock,
-			hash: 4u8.into(),
+			hash: SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000004").unwrap(),
 		};
 
 		assert_eq!(serialize(&inventory), expected);
@@ -133,7 +135,7 @@ mod tests {
 
 		let expected = InventoryVector {
 			inv_type: InventoryType::MessageBlock,
-			hash: 4u8.into(),
+			hash: SHA256D::from_str("0000000000000000000000000000000000000000000000000000000000000004").unwrap(),
 		};
 
 		assert_eq!(expected, deserialize(raw.as_ref()).unwrap());
