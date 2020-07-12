@@ -8,6 +8,7 @@ use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use criterion::{criterion_group, criterion_main, Criterion};
 use db::BlockChainDatabase;
+use std::path::Path;
 use storage::{BlockOrigin, BlockProvider, BlockRef, ForkChain};
 
 pub fn fetch(c: &mut Criterion) {
@@ -197,7 +198,7 @@ pub fn reorg_short(c: &mut Criterion) {
 // 2. write 100 blocks that has 100 transaction each spending outputs from first 1000 blocks
 pub fn write_heavy(c: &mut Criterion) {
 	// params
-	const BLOCKS_INITIAL: usize = 1200;
+	const BLOCKS_INITIAL: usize = 100;
 	const BLOCKS: usize = 10;
 	const TRANSACTIONS: usize = 10;
 	// test setup
@@ -252,7 +253,9 @@ pub fn write_heavy(c: &mut Criterion) {
 	// bench
 	c.bench_function("write_heavy", |b| {
 		b.iter(|| {
-			let store = BlockChainDatabase::init_test_chain(vec![genesis.clone()]);
+			let store = BlockChainDatabase::open_at_path(Path::new("testdb"), 1).unwrap();
+			store.insert(genesis.clone()).unwrap();
+			store.canonize(&genesis.header.hash).unwrap();
 			for block in &blocks {
 				let block: IndexedBlock = block.clone().into();
 				let hash = block.hash().clone();
@@ -263,5 +266,10 @@ pub fn write_heavy(c: &mut Criterion) {
 	});
 }
 
-criterion_group!(benches, fetch, write, reorg_short, write_heavy);
+criterion_group! {
+	name = benches;
+	// This can be any expression that returns a `Criterion` object.
+	config = Criterion::default().significance_level(0.1).sample_size(10);
+	targets = write_heavy
+}
 criterion_main!(benches);

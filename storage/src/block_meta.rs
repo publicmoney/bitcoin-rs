@@ -1,4 +1,5 @@
 use std::fmt;
+// use primitives::compact::Compact;
 
 /// Block meta information
 #[derive(Clone, PartialEq, Default, Serializable, Deserializable)]
@@ -9,7 +10,8 @@ pub struct BlockMeta {
 	pub n_tx: u32,
 	/// Number of transactions in the chain up to and including this block
 	pub n_chain_tx: u32,
-	// TODO chainwork?
+	// Total difficulty so far
+	// pub cumulative_difficulty: Compact
 }
 
 impl fmt::Debug for BlockMeta {

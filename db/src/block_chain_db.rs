@@ -96,7 +96,10 @@ where
 		let db = CacheDatabase::new(AutoFlushingOverlayDatabase::new(db, 50));
 		let best_block = Self::read_best_block(&db).unwrap_or_default();
 		BlockChainDatabase {
-			best_block: RwLock::new(best_block),
+			best_block: RwLock::new(BlockHeight {
+				hash: SHA256D::default(),
+				number: 0,
+			}),
 			db,
 		}
 	}
@@ -269,12 +272,14 @@ where
 		let block = match self.block(hash.clone().into()) {
 			Some(block) => block,
 			None => {
+				println!("1");
 				error!(target: "db", "Block is not found during canonization: {}", hash);
 				return Err(Error::CannotCanonize);
 			}
 		};
 
 		if best_block.hash != block.header.raw.previous_header_hash {
+			println!("2");
 			error!(
 				target: "db",
 				"Wrong best block during canonization. Best {}, parent: {}",

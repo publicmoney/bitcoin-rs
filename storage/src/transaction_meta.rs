@@ -14,6 +14,7 @@ pub struct TransactionMeta {
 	bits: BitVec,
 }
 
+// TODO remove de/serialize after db migration
 impl Serializable for TransactionMeta {
 	fn serialize(&self, stream: &mut Stream) {
 		stream.append(&self.block_height).append(&Bytes::from(self.bits.to_bytes()));
@@ -56,7 +57,7 @@ impl TransactionMeta {
 			.get(0)
 			.expect("One bit should always exists, since it is created as usize + 1; minimum value of usize is 0; 0 + 1 = 1; qed")
 	}
-
+	// todo delete unused functions
 	/// Denote particular output as used
 	pub fn denote_used(&mut self, index: usize) {
 		self.bits.set(index + 1, true);

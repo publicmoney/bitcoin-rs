@@ -1,0 +1,25 @@
+[package]
+name = "database"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bit-vec = "0.6"
+log = "0.4"
+parking_lot = "0.11"
+hammersbald = { path = "../../../rust-bitcoin/hammersbald" }
+chain = { path = "../chain" }
+storage = { path = "../storage" }
+bitcrypto = { path = "../crypto" }
+serialization = { path = "../serialization" }
+serialization_derive = { path = "../serialization_derive" }
+
+[dev-dependencies]
+test-data = { path = "../test-data" }
+criterion = "0.3"
+
+[[bench]]
+name = "database"
+harness = false

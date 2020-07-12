@@ -7,7 +7,7 @@ pub struct SideChainOrigin {
 	pub ancestor: u32,
 	/// side chain block hashes. Ordered from oldest to newest
 	pub canonized_route: Vec<SHA256D>,
-	/// canon chain block hahses. Ordered from oldest to newest
+	/// canon chain block hashes. Ordered from oldest to newest
 	pub decanonized_route: Vec<SHA256D>,
 	/// new block number
 	pub block_number: u32,
