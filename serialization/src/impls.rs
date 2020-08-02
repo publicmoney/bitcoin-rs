@@ -9,7 +9,6 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use hammersbald::PRef;
 use primitives::checksum::Checksum;
 use std::io;
-use std::io::Read;
 
 impl_ser_for_array!(Checksum, 4);
 impl_ser_for_hash!(SHA256D, 32);

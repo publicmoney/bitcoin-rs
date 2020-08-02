@@ -6,9 +6,9 @@ use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
 
 /// structure for indexing transaction info
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TransactionMeta {
-	block_height: u32,
+	pub block_height: u32,
 	/// first bit indicate if transaction is a coinbase transaction
 	/// next bits indicate if transaction has spend outputs
 	bits: BitVec,
@@ -44,6 +44,10 @@ impl TransactionMeta {
 		}
 	}
 
+	pub fn from_raw(block_height: u32, bits: BitVec) -> Self {
+		TransactionMeta { block_height, bits }
+	}
+
 	/// New coinbase transaction
 	pub fn new_coinbase(block_height: u32, outputs: usize) -> Self {
 		let mut result = Self::new(block_height, outputs);
@@ -57,7 +61,7 @@ impl TransactionMeta {
 			.get(0)
 			.expect("One bit should always exists, since it is created as usize + 1; minimum value of usize is 0; 0 + 1 = 1; qed")
 	}
-	// todo delete unused functions
+
 	/// Denote particular output as used
 	pub fn denote_used(&mut self, index: usize) {
 		self.bits.set(index + 1, true);
@@ -79,6 +83,10 @@ impl TransactionMeta {
 	pub fn is_fully_spent(&self) -> bool {
 		// skip coinbase bit, the rest needs to true
 		self.bits.iter().skip(1).all(|x| x)
+	}
+
+	pub fn set_coinbase(&mut self) {
+		self.bits.set(0, true);
 	}
 }
 

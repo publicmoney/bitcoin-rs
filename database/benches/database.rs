@@ -7,13 +7,14 @@ use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use database::adapator::BlockChainDatabase;
-use database::persistent;
+use database::blockchain_db::BlockChainDatabase;
 
 // which is better performance - keyed lookup or two lookups by ref? Thinking about getting blocks txs from list
 // 1. write 12000 blocks
 // 2. write 100 blocks that has 100 transaction each spending outputs from first 1000 blocks
 pub fn write_heavy(c: &mut Criterion) {
+	let _ = std::fs::remove_dir_all("testdb");
+
 	// params
 	const BLOCKS_INITIAL: usize = 100;
 	const BLOCKS: usize = 10;
@@ -70,50 +71,59 @@ pub fn write_heavy(c: &mut Criterion) {
 	// bench
 	c.bench_function("write_heavy", |b| {
 		b.iter(|| {
+			let _ = std::fs::remove_dir_all("testdb");
 			// let db = transient(10).unwrap();
-			let db = persistent("bench", 8, 128).unwrap();
-			let mut store = BlockChainDatabase::open(db).unwrap();
+			// let db = HamDb::persistent("bench", 8, 128).unwrap();
+			let store = BlockChainDatabase::persistent().unwrap();
 
-			store.insert(&genesis).unwrap();
+			store.insert(genesis.clone()).unwrap();
 			store.canonize(&genesis.header.hash).unwrap();
 			for block in &blocks {
 				let block: IndexedBlock = block.clone().into();
 				let hash = block.hash().clone();
-				store.insert(&block).expect("cannot insert bench block");
+				store.insert(block).expect("cannot insert bench block");
 				store.canonize(&hash).unwrap();
 			}
 		})
 	});
 }
 
-pub fn key_speed(c: &mut Criterion) {
-	c.bench_function("key speed", |b| {
-		let mut db = persistent("bench", 0, 128).unwrap();
+// Benchmarking write_heavy: Analyzing
+// write_heavy             time:   [1.9006 s 1.9827 s 2.0565 s]
+// change: [+18493% +19848% +21461%] (p = 0.00 < 0.10)
+// Performance has regressed.
+// Found 2 outliers among 10 measurements (20.00%)
+// 2 (20.00%) low mild
 
-		for x in 0..1000 {
-			let key = format!("abc{}", x);
-			db.put_keyed(key.as_ref(), "hello".as_ref()).unwrap();
-		}
-		b.iter(|| {
-			db.get_keyed("abc500".as_ref()).unwrap();
-		})
-	});
+// pub fn key_speed(c: &mut Criterion) {
+// 	c.bench_function("key speed", |b| {
+// 		let mut db = hammersbald::persistent("bench", 0, 128).unwrap();
+//
+// 		for x in 0..1000 {
+// 			let key = format!("abc{}", x);
+// 			db.put_keyed(key.as_ref(), "hello".as_ref()).unwrap();
+// 		}
+// 		b.iter(|| {
+// 			db.get_keyed("abc500".as_ref()).unwrap();
+// 		})
+// 	});
+//
+// 	c.bench_function("get speed", |b| {
+// 		let mut db = hammersbald::persistent("bench", 0, 128).unwrap();
+// 		for x in 0..1000 {
+// 			db.put("hello".as_ref()).unwrap();
+// 		}
+// 		let pref = db.put("hello".as_ref()).unwrap();
+// 		b.iter(|| {
+// 			db.get(pref).unwrap();
+// 		})
+// 	});
+// }
 
-	c.bench_function("get speed", |b| {
-		let mut db = persistent("bench", 0, 128).unwrap();
-		for x in 0..1000 {
-			db.put("hello".as_ref()).unwrap();
-		}
-		let pref = db.put("hello".as_ref()).unwrap();
-		b.iter(|| {
-			db.get(pref).unwrap();
-		})
-	});
-}
 criterion_group! {
 	name = benches;
 	// This can be any expression that returns a `Criterion` object.
 	config = Criterion::default().significance_level(0.1).sample_size(10);
-	targets = key_speed
+	targets = write_heavy
 }
 criterion_main!(benches);

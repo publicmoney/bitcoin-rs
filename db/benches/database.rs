@@ -253,6 +253,7 @@ pub fn write_heavy(c: &mut Criterion) {
 	// bench
 	c.bench_function("write_heavy", |b| {
 		b.iter(|| {
+			let _ = std::fs::remove_dir_all("testdb");
 			let store = BlockChainDatabase::open_at_path(Path::new("testdb"), 1).unwrap();
 			store.insert(genesis.clone()).unwrap();
 			store.canonize(&genesis.header.hash).unwrap();
