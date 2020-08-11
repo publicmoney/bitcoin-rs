@@ -1,8 +1,5 @@
-use std::fmt;
-// use primitives::compact::Compact;
-
 /// Block meta information
-#[derive(Clone, PartialEq, Default, Serializable, Deserializable)]
+#[derive(Clone, PartialEq, Debug, Serializable, Deserializable)]
 pub struct BlockMeta {
 	/// Height/number of the block (genesis block has zero height)
 	pub number: u32,
@@ -12,14 +9,17 @@ pub struct BlockMeta {
 	pub n_chain_tx: u32,
 	// Total difficulty so far
 	// pub cumulative_difficulty: Compact
+	// Total supply
+	pub total_supply: u64,
 }
 
-impl fmt::Debug for BlockMeta {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.debug_struct("BlockMeta")
-			.field("number", &self.number)
-			.field("n_tx", &self.n_tx)
-			.field("n_chain_tx", &self.n_chain_tx)
-			.finish()
+impl Default for BlockMeta {
+	fn default() -> Self {
+		BlockMeta {
+			number: u32::max_value(),
+			total_supply: 0,
+			n_tx: 0,
+			n_chain_tx: 0,
+		}
 	}
 }

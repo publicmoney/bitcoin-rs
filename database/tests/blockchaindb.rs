@@ -1,12 +1,12 @@
 extern crate chain;
-extern crate database;
+extern crate db;
 extern crate storage;
 extern crate test_data;
 
 use bitcrypto::SHA256D;
 use chain::IndexedBlock;
-use database::blockchain_db::BlockChainDatabase;
-use database::ham_db::HamDb;
+use db::blockchain_db::BlockChainDatabase;
+use db::ham_db::HamDb;
 use storage::{BlockProvider, ForkChain, SideChainOrigin};
 
 #[test]

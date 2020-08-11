@@ -266,32 +266,49 @@ mod tests {
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
-				.output().value(1).build()
-				.build()
-			.transaction()
-				.output().value(50).build()
+				.output().value(45).build()
 				.build()
 			.merkled_header().build()
 			.build();
 
-		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
-		let reference_tx = genesis.transactions()[1].hash();
+		let block_one = test_data::block_builder()
+			.transaction()
+			.coinbase()
+			.output()
+			.value(40)
+			.build()
+			.build()
+			.transaction()
+			.input()
+			.hash(genesis.transactions[0].hash())
+			.build()
+			.output()
+			.value(20)
+			.build()
+			.build()
+			.merkled_header()
+			.parent(genesis.hash())
+			.build()
+			.build();
+
+		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into(), block_one.clone().into()]);
+		let reference_tx = block_one.transactions()[1].hash();
 
 		#[rustfmt::skip]
-		let block = test_data::block_builder()
+		let block_two = test_data::block_builder()
 			.transaction()
 				.coinbase()
-				.output().value(2).build()
+				.output().value(30).build()
 				.build()
 			.transaction()
 				.input().hash(reference_tx).build()
 				.output().value(1).build()
 				.build()
-			.merkled_header().parent(genesis.hash()).build()
+			.merkled_header().parent(block_one.hash()).build()
 			.build();
 
 		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest));
-		assert!(verifier.verify(VerificationLevel::Full, &block.into()).is_ok());
+		assert_eq!(Ok(()), verifier.verify(VerificationLevel::Full, &block_two.into()));
 	}
 
 	#[test]
@@ -300,16 +317,13 @@ mod tests {
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
-				.output().value(1).build()
-				.build()
-			.transaction()
 				.output().value(50).build()
 				.build()
 			.merkled_header().build()
 			.build();
 
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
-		let first_tx_hash = genesis.transactions()[1].hash();
+		let first_tx_hash = genesis.transactions()[0].hash();
 		#[rustfmt::skip]
 		let block = test_data::block_builder()
 			.transaction()
@@ -327,8 +341,11 @@ mod tests {
 			.merkled_header().parent(genesis.hash()).build()
 			.build();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest));
-		assert!(verifier.verify(VerificationLevel::Full, &block.into()).is_ok());
+		let mut consensus_params = ConsensusParams::new(Network::Unitest);
+		consensus_params.coinbase_maturity = 1; // to allow us to spend in next block
+
+		let verifier = ChainVerifier::new(Arc::new(storage), consensus_params);
+		assert_eq!(Ok(()), verifier.verify(VerificationLevel::Full, &block.into()));
 	}
 
 	#[test]
@@ -337,16 +354,13 @@ mod tests {
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
-				.output().value(1).build()
-				.build()
-			.transaction()
 				.output().value(50).build()
 				.build()
 			.merkled_header().build()
 			.build();
 
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
-		let first_tx_hash = genesis.transactions()[1].hash();
+		let first_tx_hash = genesis.transactions()[0].hash();
 
 		#[rustfmt::skip]
 		let block = test_data::block_builder()
@@ -443,9 +457,7 @@ mod tests {
 		assert_eq!(expected, verifier.verify(VerificationLevel::Header, &block.clone().into()));
 	}
 
-	// TODO fix the test
 	#[test]
-	#[ignore]
 	fn coinbase_happy() {
 		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
@@ -459,52 +471,40 @@ mod tests {
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
 		let genesis_coinbase = genesis.transactions()[0].hash();
 
-		// waiting 100 blocks for genesis coinbase to become valid
-		for _ in 0..100 {
-			let block: IndexedBlock = test_data::block_builder()
-				.transaction()
-				.coinbase()
-				.build()
-				.merkled_header()
-				.parent(genesis.hash())
-				.build()
-				.build()
-				.into();
-			let hash = block.hash().clone();
-			storage.insert(block).expect("All dummy blocks should be inserted");
-			storage.canonize(&hash).unwrap();
-		}
-
 		let best_hash = storage.best_block().hash;
 
 		#[rustfmt::skip]
 		let block = test_data::block_builder()
-			.transaction().coinbase().build()
+			.transaction()
+				.coinbase()
+				.output().value(40).build()
+				.build()
 			.transaction()
 				.input().hash(genesis_coinbase.clone()).build()
+				.output().value(10).build()
 				.build()
 			.merkled_header().parent(best_hash).build()
 			.build();
 
-		let verifier = ChainVerifier::new(Arc::new(storage), ConsensusParams::new(Network::Unitest));
-		assert!(verifier.verify(VerificationLevel::Full, &block.into()).is_ok());
+		let mut consensus_params = ConsensusParams::new(Network::Unitest);
+		consensus_params.coinbase_maturity = 1; // to allow us to spend coinbase in next block
+		let verifier = ChainVerifier::new(Arc::new(storage), consensus_params);
+		assert_eq!(Ok(()), verifier.verify(VerificationLevel::Full, &block.into()));
 	}
 
 	#[test]
-	fn absoulte_sigops_overflow_block() {
+	fn absolute_sigops_overflow_block() {
 		#[rustfmt::skip]
 		let genesis = test_data::block_builder()
 			.transaction()
 				.coinbase()
-				.build()
-			.transaction()
-				.output().value(50).build()
+					.output().value(50).build()
 				.build()
 			.merkled_header().build()
 			.build();
 
 		let storage = BlockChainDatabase::init_test_chain(vec![genesis.clone().into()]);
-		let reference_tx = genesis.transactions()[1].hash();
+		let reference_tx = genesis.transactions()[0].hash();
 
 		let mut builder_tx1 = script::Builder::default();
 		for _ in 0..81000 {

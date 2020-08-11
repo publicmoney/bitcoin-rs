@@ -13,9 +13,10 @@ pub fn db_path(data_dir: &Option<String>) -> String {
 	db_path.to_str().unwrap().to_string()
 }
 
-pub fn open_db(data_dir: &Option<String>, db_cache: usize) -> storage::SharedStore {
+pub fn open_db(data_dir: &Option<String>, db_cache_size_mb: usize) -> storage::SharedStore {
 	let db_path = db_path(data_dir);
-	Arc::new(db::BlockChainDatabase::open_at_path(PathBuf::from(db_path), db_cache).expect("Failed to open database"))
+	Arc::new(db::BlockChainDatabase::persistent(db_path, db_cache_size_mb).unwrap())
+	//open_at_path(PathBuf::from(db_path), db_cache).expect("Failed to open database"))
 }
 
 pub fn node_table_path(data_dir: &Option<String>) -> PathBuf {

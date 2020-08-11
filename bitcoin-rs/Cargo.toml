@@ -18,7 +18,7 @@ message = { path = "../message" }
 network = { path = "../network" }
 p2p = { path = "../p2p" }
 storage = { path = "../storage" }
-db = { path = "../db" }
+db = { path = "../database" }
 verification = { path = "../verification" }
 sync = { path = "../sync" }
 import = { path = "../import" }

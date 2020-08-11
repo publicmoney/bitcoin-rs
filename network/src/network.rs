@@ -115,8 +115,6 @@ mod tests {
 
 	#[test]
 	fn test_network_magic_number() {
-		println!("{:?}", Network::Mainnet.genesis_block().hash());
-		println!("{:?}", Network::Testnet.genesis_block().hash());
 		assert_eq!(MAGIC_MAINNET, Network::Mainnet.magic());
 		assert_eq!(MAGIC_TESTNET, Network::Testnet.magic());
 		assert_eq!(MAGIC_REGTEST, Network::Regtest.magic());

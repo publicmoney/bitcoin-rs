@@ -8,8 +8,8 @@ use serialization::serialize;
 use std::collections::HashMap;
 use storage::bytes::Bytes;
 use storage::{
-	BlockChain, BlockHeaderProvider, BlockHeight, BlockMeta, BlockOrigin, BlockProvider, BlockRef, ForkChain, SideChainOrigin, Store,
-	TransactionMeta, TransactionMetaProvider, TransactionOutputProvider, TransactionProvider,
+	BlockChain, BlockHeaderProvider, BlockHeight, BlockMeta, BlockOrigin, BlockProvider, BlockRef, CanonStore, ForkChain, Forkable,
+	SideChainOrigin, Store, TransactionMeta, TransactionMetaProvider, TransactionOutputProvider, TransactionProvider,
 };
 
 const MAX_FORK_ROUTE_PRESET: usize = 2048;
@@ -39,21 +39,24 @@ impl<'a, T: DbInterface> ForkChain for ForkChainDatabase<'a, T> {
 	}
 }
 
-pub fn from_ham(e: hammersbald::Error) -> storage::Error {
-	storage::Error::DatabaseError(e.to_string())
-}
-
-pub fn from_serial(e: serialization::Error) -> storage::Error {
-	storage::Error::DatabaseError(e.to_string())
-}
-
 impl BlockChainDatabase<HamDb> {
 	pub fn transient() -> Result<BlockChainDatabase<HamDb>, storage::Error> {
 		BlockChainDatabase::open(HamDb::transient()?)
 	}
 
-	pub fn persistent() -> Result<BlockChainDatabase<HamDb>, storage::Error> {
-		BlockChainDatabase::open(HamDb::persistent()?)
+	pub fn persistent(db_path: String, db_cache_size_mb: usize) -> Result<BlockChainDatabase<HamDb>, storage::Error> {
+		BlockChainDatabase::open(HamDb::persistent(db_path, db_cache_size_mb)?)
+	}
+
+	pub fn init_test_chain(blocks: Vec<IndexedBlock>) -> Self {
+		let store = Self::transient().unwrap();
+
+		for block in blocks {
+			let hash = block.hash().clone();
+			store.insert(block).unwrap();
+			store.canonize(&hash).unwrap();
+		}
+		store
 	}
 }
 
@@ -70,18 +73,18 @@ where
 	}
 
 	pub fn fork(&self, side_chain: SideChainOrigin) -> Result<ForkChainDatabase<T>, storage::Error> {
-		let memory_db = BlockChainDatabase::open(OverlayDatabase::new(&self.db))?;
+		let overlay_db = BlockChainDatabase::open(OverlayDatabase::new(&self.db))?;
 
 		for hash in side_chain.decanonized_route.into_iter().rev() {
-			let decanonized_hash = memory_db.decanonize()?;
+			let decanonized_hash = overlay_db.decanonize()?;
 			assert_eq!(hash, decanonized_hash);
 		}
 
 		for block_hash in &side_chain.canonized_route {
-			memory_db.canonize(block_hash)?;
+			overlay_db.canonize(block_hash)?;
 		}
 
-		let fork = ForkChainDatabase { blockchain: memory_db };
+		let fork = ForkChainDatabase { blockchain: overlay_db };
 
 		Ok(fork)
 	}
@@ -103,7 +106,8 @@ where
 		}
 
 		self.db.insert_block(block)?;
-		self.db.flush()
+		// self.db.flush()
+		Ok(())
 	}
 
 	pub fn block_origin(&self, header: &IndexedBlockHeader) -> Result<BlockOrigin, storage::Error> {
@@ -127,7 +131,6 @@ where
 
 		let mut sidechain_route = Vec::new();
 		let mut next_hash = header.raw.previous_header_hash.clone();
-
 		for fork_len in 0..MAX_FORK_ROUTE_PRESET {
 			match self.block_number(&next_hash) {
 				Some(number) => {
@@ -150,7 +153,7 @@ where
 				None => {
 					sidechain_route.push(next_hash);
 					next_hash = self
-						.block_header(BlockRef::Hash(next_hash))
+						.block_header(next_hash.into())
 						.expect("not to find orphaned side chain in database; qed")
 						.raw
 						.previous_header_hash;
@@ -162,12 +165,11 @@ where
 	}
 
 	pub fn canonize(&self, block_hash: &SHA256D) -> Result<(), storage::Error> {
-		// println!("Try to canonize {:?}", block_hash);
 		let mut best_height = self.best_block.write();
 
 		let new_best_block = match self.db.fetch_block(block_hash)? {
 			Some(b) => b,
-			_ => {
+			None => {
 				error!(target: "db", "Block is not found during canonization: {}", block_hash);
 				return Err(storage::Error::CannotCanonize);
 			}
@@ -221,17 +223,21 @@ where
 					}
 				}
 			}
+
+			for output in &tx.raw.outputs {
+				best_block_meta.total_supply += output.value;
+			}
 		}
 
-		self.db.set_block_by_number(&new_best_block.header.hash, best_block_meta.number)?;
-		self.db.set_best(&new_best_block.header.hash)?;
-		self.db.update_block_meta(&new_best_block.header.hash, &best_block_meta)?;
-		for (hash, meta) in metas {
-			self.db.update_transaction_meta(&hash, meta)?;
+		self.db.set_block_by_number(&block_hash, best_block_meta.number)?;
+		self.db.set_best(&block_hash)?;
+		self.db.update_block_meta(&block_hash, &best_block_meta)?;
+		for (tx_hash, meta) in metas {
+			self.db.update_transaction_meta(&tx_hash, meta)?;
 		}
-		self.db.flush()?;
+		// self.db.flush()?;
+		debug!("Canonized block number: {:?}, hash: {:?}", best_block_meta.number, block_hash);
 
-		// println!("Canonized: {:?}", block_hash);
 		*best_height = BlockHeight {
 			hash: *block_hash,
 			number: best_block_meta.number,
@@ -276,7 +282,6 @@ where
 						if let Some(mut unused_tx) = self.db.fetch_transaction_meta(&input.previous_output.hash)? {
 							unused_tx.denote_unused(input.previous_output.index as usize);
 							entry.insert(unused_tx);
-							continue;
 						} else {
 							error!(
 								target: "db",
@@ -295,7 +300,7 @@ where
 			self.db.update_transaction_meta(&hash, meta)?;
 		}
 
-		self.db.flush()?;
+		// self.db.flush()?;
 		*best = new_best_block;
 
 		Ok(best_height.hash)
@@ -303,6 +308,10 @@ where
 
 	pub fn best_block(&self) -> BlockHeight {
 		self.best_block.read().clone()
+	}
+
+	pub fn flush(&self) -> Result<(), storage::Error> {
+		self.db.flush()
 	}
 
 	fn rollback_best(&self) -> Result<SHA256D, storage::Error> {
@@ -337,7 +346,7 @@ where
 {
 	fn block_meta(&self, block_ref: BlockRef) -> Option<BlockMeta> {
 		self.resolve_hash(block_ref)
-			.and_then(|hash| self.db.fetch_block_meta(&hash).unwrap())
+			.and_then(|hash| self.db.fetch_block_meta(&hash).unwrap_or_default())
 	}
 
 	fn block_hash(&self, number: u32) -> Option<SHA256D> {
@@ -345,7 +354,12 @@ where
 	}
 
 	fn block_number(&self, hash: &SHA256D) -> Option<u32> {
-		self.db.fetch_block_meta(hash).unwrap_or_default().map(|meta| meta.number)
+		if let Ok(Some(meta)) = self.db.fetch_block_meta(hash) {
+			if meta.number != u32::max_value() {
+				return Some(meta.number);
+			}
+		}
+		None
 	}
 
 	fn block(&self, block_ref: BlockRef) -> Option<IndexedBlock> {
@@ -364,6 +378,33 @@ where
 			.into_iter()
 			.filter_map(|hash| self.transaction(&hash))
 			.collect()
+	}
+}
+
+impl<T> CanonStore for BlockChainDatabase<T>
+where
+	T: DbInterface,
+{
+	fn as_store(&self) -> &dyn Store {
+		&*self
+	}
+}
+
+impl<T> Forkable for BlockChainDatabase<T>
+where
+	T: DbInterface,
+{
+	fn fork<'a>(&'a self, side_chain: SideChainOrigin) -> Result<Box<dyn ForkChain + 'a>, storage::Error> {
+		BlockChainDatabase::fork(self, side_chain).map(|fork_chain| {
+			let boxed: Box<dyn ForkChain> = Box::new(fork_chain);
+			boxed
+		})
+	}
+
+	fn switch_to_fork<'a>(&self, fork: Box<dyn ForkChain + 'a>) -> Result<(), storage::Error> {
+		let mut best_block = self.best_block.write();
+		*best_block = fork.store().best_block();
+		fork.flush()
 	}
 }
 
@@ -461,21 +502,21 @@ mod tests {
 	use storage::{AsSubstore, BlockMeta, BlockProvider, BlockRef, TransactionMetaProvider};
 	use test_data::{block_h0, block_h1, block_h2};
 
+	const TEST_DB: &'static str = "testdb";
+
 	#[test]
 	fn test_persistence() {
-		std::fs::remove_file("bitcoin-rs.0.bc").unwrap();
-		std::fs::remove_file("bitcoin-rs.0.lg").unwrap();
-		std::fs::remove_file("bitcoin-rs.0.tb").unwrap();
-		std::fs::remove_file("bitcoin-rs.0.bl").unwrap();
+		let _ = std::fs::remove_dir_all(TEST_DB);
 
 		let b0: IndexedBlock = block_h0().into();
 		{
-			let db = BlockChainDatabase::persistent().unwrap();
+			let db = BlockChainDatabase::persistent(TEST_DB.to_string(), 1).unwrap();
 			db.insert(b0.clone()).unwrap();
 			db.canonize(b0.hash()).unwrap();
+			db.flush().unwrap();
 		}
 		{
-			let db = BlockChainDatabase::persistent().unwrap();
+			let db = BlockChainDatabase::persistent(TEST_DB.to_string(), 1).unwrap();
 			let block = db.block(BlockRef::Hash(b0.hash().clone())).unwrap();
 			assert_eq!(block, b0);
 		}
@@ -500,7 +541,8 @@ mod tests {
 			BlockMeta {
 				number: 0,
 				n_tx: 1,
-				n_chain_tx: 1
+				n_chain_tx: 1,
+				total_supply: 0
 			}
 		);
 

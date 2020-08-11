@@ -12,11 +12,19 @@ pub struct DbBlock {
 	pub txs: Vec<PRef>, // PRefs for DbTransaction
 }
 
+//todo constructors
+
 // Keyed by transaction hash.
 #[derive(Debug, Clone, Serializable, Deserializable)]
 pub struct DbTransaction {
-	pub transaction: PRef,
-	pub meta: PRef,
+	pub tx_pref: PRef,
+	pub meta_pref: PRef,
+}
+
+impl DbTransaction {
+	pub fn new(tx_pref: PRef, meta_pref: PRef) -> DbTransaction {
+		DbTransaction { tx_pref, meta_pref }
+	}
 }
 
 #[derive(Debug, Clone, Serializable, Deserializable)]

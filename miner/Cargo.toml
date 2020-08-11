@@ -10,7 +10,7 @@ heapsize = "0.4"
 bitcrypto = { path = "../crypto" }
 chain = { path = "../chain", features = ["test-helpers"] }
 storage = { path = "../storage" }
-db = { path = "../db" }
+db = { path = "../database" }
 network = { path = "../network" }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }

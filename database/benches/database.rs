@@ -72,7 +72,7 @@ pub fn write_heavy(c: &mut Criterion) {
 	c.bench_function("write_heavy", |b| {
 		b.iter(|| {
 			let _ = std::fs::remove_dir_all("testdb");
-			// let db = transient(10).unwrap();
+			// let store = BlockChainDatabase::transient().unwrap();
 			// let db = HamDb::persistent("bench", 8, 128).unwrap();
 			let store = BlockChainDatabase::persistent().unwrap();
 

@@ -10,10 +10,7 @@ use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WI
 use ser::{Deserializable, Error, Reader, Serializable, Stream};
 use std::io;
 
-/// Must be zero.
-const WITNESS_MARKER: u8 = 0;
-/// Must be nonzero.
-const WITNESS_FLAG: u8 = 1;
+const OPTIONAL_WITNESS_FLAG: [u8; 2] = [0, 1];
 
 #[derive(Debug, PartialEq, Eq, Clone, Default, Serializable, Deserializable, Hash)]
 pub struct OutPoint {
@@ -215,8 +212,8 @@ impl Serializable for Transaction {
 			true => {
 				stream
 					.append(&self.version)
-					.append(&WITNESS_MARKER)
-					.append(&WITNESS_FLAG)
+					.append(&OPTIONAL_WITNESS_FLAG[0])
+					.append(&OPTIONAL_WITNESS_FLAG[1])
 					.append_list(&self.inputs)
 					.append_list(&self.outputs);
 				for input in &self.inputs {
@@ -235,16 +232,19 @@ impl Deserializable for Transaction {
 		T: io::Read,
 	{
 		let version = reader.read()?;
-		let has_witness = if reader.peek()? == WITNESS_MARKER {
-			let _marker: u8 = reader.read()?;
-			let _flag: u8 = reader.read()?;
+
+		let buf = &mut [0u8; 2];
+		reader.peek(buf)?;
+		let has_witness = if buf == &OPTIONAL_WITNESS_FLAG {
+			let _: u8 = reader.read()?;
+			let _: u8 = reader.read()?;
 			true
 		} else {
 			false
 		};
 
 		let mut inputs: Vec<TransactionInput> = reader.read_list()?;
-		let outputs = reader.read_list()?;
+		let outputs: Vec<TransactionOutput> = reader.read_list()?;
 
 		if has_witness {
 			for input in inputs.iter_mut() {

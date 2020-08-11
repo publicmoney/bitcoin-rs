@@ -23,7 +23,7 @@ primitives = { path = "../primitives" }
 p2p = { path = "../p2p" }
 network = { path = "../network" }
 storage = { path = "../storage" }
-db = { path = "../db" }
+db = { path = "../database" }
 miner = { path = "../miner" }
 verification = { path = "../verification" }
 script = { path = "../script" }

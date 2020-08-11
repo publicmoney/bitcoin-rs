@@ -563,7 +563,7 @@ impl Chain {
 		self.verifying_transactions.insert(tx.hash.clone(), tx);
 	}
 
-	/// Remove verifying trasaction
+	/// Remove verifying transaction
 	pub fn forget_verifying_transaction(&mut self, hash: &SHA256D) -> bool {
 		self.verifying_transactions.remove(hash).is_some()
 	}
@@ -1110,7 +1110,10 @@ mod tests {
 		#[rustfmt::skip]
 		let b0 = test_data::block_builder()
 			.header().build()
-			.transaction().coinbase().output().value(100_000).build().build()
+				.transaction()
+					.coinbase()
+					.output().value(100_000).build()
+				.build()
 			.build();
 		let b1 = test_data::block_builder().header().nonce(1).parent(b0.hash()).build().build();
 		let b2 = test_data::block_builder().header().nonce(2).parent(b0.hash()).build().build();
@@ -1149,26 +1152,33 @@ mod tests {
 		let b0 = test_data::block_builder().header().parent(genesis.hash()).build().build(); // genesis -> b0
 		#[rustfmt::skip]
 		let b1 = test_data::block_builder().header().nonce(1).parent(b0.hash()).build()
-			.transaction().output().value(10).build().build()
+			.transaction()
+				.input().hash(input_tx.hash()).index(0).build()
+				.output().value(50).build().build()
 			.build(); // genesis -> b0 -> b1[tx1]
 		#[rustfmt::skip]
 		let b2 = test_data::block_builder().header().parent(b1.hash()).build()
-			.transaction().output().value(20).build().build()
+			.transaction()
+				.input().hash(b1.transactions[0].hash()).index(0).build()
+				.output().value(40).build().build()
 			.build(); // genesis -> b0 -> b1[tx1] -> b2[tx2]
 		#[rustfmt::skip]
 		let b3 = test_data::block_builder().header().nonce(2).parent(b0.hash()).build()
-			.transaction().input().hash(input_tx.hash()).index(0).build()
-			.output().value(50).build().build()
+			.transaction()
+				.input().hash(b2.transactions[0].hash()).index(0).build()
+				.output().value(30).build().build()
 			.build(); // genesis -> b0 -> b3[tx3]
 		#[rustfmt::skip]
 		let b4 = test_data::block_builder().header().parent(b3.hash()).build()
-			.transaction().input().hash(b3.transactions[0].hash()).index(0).build()
-				.output().value(40).build().build()
+			.transaction()
+				.input().hash(b3.transactions[0].hash()).index(0).build()
+				.output().value(20).build().build()
 			.build(); // genesis -> b0 -> b3[tx3] -> b4[tx4]
 		#[rustfmt::skip]
 		let b5 = test_data::block_builder().header().parent(b4.hash()).build()
-			.transaction().input().hash(b4.transactions[0].hash()).index(0).build()
-				.output().value(30).build().build()
+			.transaction()
+				.input().hash(b4.transactions[0].hash()).index(0).build()
+				.output().value(10).build().build()
 			.build(); // genesis -> b0 -> b3[tx3] -> b4[tx4] -> b5[tx5]
 
 		let tx1 = b1.transactions[0].clone();
@@ -1182,37 +1192,39 @@ mod tests {
 		let db = Arc::new(BlockChainDatabase::init_test_chain(vec![genesis.into()]));
 		let mut chain = Chain::new(db, Arc::new(RwLock::new(MemoryPool::new())));
 
+		chain.insert_verified_transaction(tx1.into());
+		chain.insert_verified_transaction(tx2.into());
 		chain.insert_verified_transaction(tx3.into());
 		chain.insert_verified_transaction(tx4.into());
 		chain.insert_verified_transaction(tx5.into());
 
 		assert_eq!(
-			chain.insert_best_block(b0.clone().into()).expect("block accepted"),
+			chain.insert_best_block(b0.clone().into()).expect("block rejected"),
 			BlockInsertionResult::with_canonized_blocks(vec![b0.hash()])
 		);
-		assert_eq!(chain.information().transactions.transactions_count, 3);
+		assert_eq!(chain.information().transactions.transactions_count, 5);
 		assert_eq!(
-			chain.insert_best_block(b1.clone().into()).expect("block accepted"),
+			chain.insert_best_block(b1.clone().into()).expect("block rejected"),
 			BlockInsertionResult::with_canonized_blocks(vec![b1.hash()])
 		);
-		assert_eq!(chain.information().transactions.transactions_count, 3);
+		assert_eq!(chain.information().transactions.transactions_count, 4);
 		assert_eq!(
-			chain.insert_best_block(b2.clone().into()).expect("block accepted"),
+			chain.insert_best_block(b2.clone().into()).expect("block rejected"),
 			BlockInsertionResult::with_canonized_blocks(vec![b2.hash()])
 		);
 		assert_eq!(chain.information().transactions.transactions_count, 3);
 		assert_eq!(
-			chain.insert_best_block(b3.clone().into()).expect("block accepted"),
+			chain.insert_best_block(b3.clone().into()).expect("block rejected"),
 			BlockInsertionResult::default()
 		);
 		assert_eq!(chain.information().transactions.transactions_count, 3);
 		assert_eq!(
-			chain.insert_best_block(b4.clone().into()).expect("block accepted"),
+			chain.insert_best_block(b4.clone().into()).expect("block rejected"),
 			BlockInsertionResult::default()
 		);
 		assert_eq!(chain.information().transactions.transactions_count, 3);
 		// order matters
-		let insert_result = chain.insert_best_block(b5.clone().into()).expect("block accepted");
+		let insert_result = chain.insert_best_block(b5.clone().into()).expect("block rejected");
 		let transactions_to_reverify_hashes: Vec<_> = insert_result.transactions_to_reverify.into_iter().map(|tx| tx.hash).collect();
 		assert_eq!(transactions_to_reverify_hashes, vec![tx1_hash, tx2_hash]);
 		assert_eq!(insert_result.canonized_blocks_hashes, vec![b3.hash(), b4.hash(), b5.hash()]);

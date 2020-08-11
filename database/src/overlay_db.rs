@@ -36,20 +36,17 @@ impl<'a, T: DbInterface> OverlayDatabase<'a, T> {
 impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 	fn insert_block(&self, block: IndexedBlock) -> Result<(), storage::Error> {
 		let mut db = self.mem_db.write();
-		db.block_metas.insert(
-			block.header.hash,
-			BlockMeta {
-				number: 0,
-				n_tx: block.transactions.len() as u32,
-				n_chain_tx: 0,
-			},
-		);
+
+		db.block_metas.insert(block.header.hash, BlockMeta::default());
+
 		let mut tx_hashes = Vec::new();
+
 		for tx in &block.transactions {
 			tx_hashes.push(tx.hash);
 			db.txs.insert(tx.hash, tx.clone());
 			db.tx_metas.insert(tx.hash, TransactionMeta::new(0, tx.raw.outputs.len()));
 		}
+
 		db.block_txs.insert(block.header.hash, tx_hashes);
 		db.block_headers.insert(block.header.hash, block.header);
 		Ok(())
@@ -188,9 +185,13 @@ impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 	}
 
 	fn flush(&self) -> Result<(), storage::Error> {
-		let mut db = self.mem_db.write();
-		for header in db.block_headers.values() {
+		let mut blocks = vec![];
+		for header in self.mem_db.read().block_headers.values() {
 			let block = self.fetch_block(&header.hash)?.unwrap();
+			blocks.push(block);
+		}
+		let mut db = self.mem_db.write();
+		for block in blocks {
 			self.ham_db.insert_block(block)?;
 		}
 		for (hash, block_meta) in db.block_metas.iter() {

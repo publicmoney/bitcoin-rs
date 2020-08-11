@@ -126,7 +126,8 @@ impl Stream {
 		T: Serializable,
 		K: Borrow<T>,
 	{
-		CompactInteger::from(t.len()).serialize(self);
+		let integer = CompactInteger::from(t.len());
+		integer.serialize(self);
 		for i in t {
 			i.borrow().serialize(self);
 		}
