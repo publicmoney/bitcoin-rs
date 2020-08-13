@@ -2573,51 +2573,56 @@ pub mod tests {
 
 	#[test]
 	fn when_transaction_double_spends_during_reorg() {
+		let b0 = test_data::genesis();
 		#[rustfmt::skip]
-		let b0 = test_data::block_builder().header().build()
+		let b1 = test_data::block_builder().header().build()
 			.transaction().coinbase()
 				.output().value(10).build()
 				.build()
 			.transaction()
+				.input().hash(b0.transactions[0].hash()).build()
 				.output().value(20).build()
 				.build()
 			.transaction()
+				.input().hash(b0.transactions[0].hash()).build()
 				.output().value(30).build()
 				.build()
 			.transaction()
+				.input().hash(b0.transactions[0].hash()).build()
 				.output().value(40).build()
 				.build()
 			.transaction()
+				.input().hash(b0.transactions[0].hash()).build()
 				.output().value(50).build()
 				.build()
 			.build();
 
-		// in-storage spends b0[1] && b0[2]
+		// in-storage spends b1[1] && b1[2]
 		#[rustfmt::skip]
-		let b1 = test_data::block_builder()
+		let b2 = test_data::block_builder()
 			.transaction().coinbase()
 				.output().value(50).build()
 				.build()
 			.transaction().version(10)
-				.input().hash(b0.transactions[1].hash()).index(0).build()
+				.input().hash(b1.transactions[1].hash()).index(0).build()
 				.output().value(10).build()
 				.build()
 			.transaction().version(40)
-				.input().hash(b0.transactions[2].hash()).index(0).build()
+				.input().hash(b1.transactions[2].hash()).index(0).build()
 				.output().value(10).build()
 				.build()
-			.merkled_header().parent(b0.hash()).build()
+			.merkled_header().parent(b1.hash()).build()
 			.build();
-		// in-memory spends b0[3]
-		// in-memory spends b0[4]
+		// in-memory spends b1[3]
+		// in-memory spends b1[4]
 		#[rustfmt::skip]
-		let future_block = test_data::block_builder().header().parent(b1.hash()).build()
+		let future_block = test_data::block_builder().header().parent(b2.hash()).build()
 			.transaction().version(40)
-				.input().hash(b0.transactions[3].hash()).index(0).build()
+				.input().hash(b1.transactions[3].hash()).index(0).build()
 				.output().value(10).build()
 				.build()
 			.transaction().version(50)
-				.input().hash(b0.transactions[4].hash()).index(0).build()
+				.input().hash(b1.transactions[4].hash()).index(0).build()
 				.output().value(10).build()
 				.build()
 			.build();
@@ -2626,55 +2631,57 @@ pub mod tests {
 
 		// in-storage [side] spends b0[3]
 		#[rustfmt::skip]
-		let b2 = test_data::block_builder().header().parent(b0.hash()).build()
-			.transaction().coinbase()
+		let b3 = test_data::block_builder().header().parent(b1.hash()).build()
+			.transaction()
+				.coinbase()
 				.output().value(5555).build()
 				.build()
 			.transaction().version(20)
-				.input().hash(b0.transactions[3].hash()).index(0).build()
+				.input().hash(b1.transactions[3].hash()).index(0).build()
 				.build()
-			.merkled_header().parent(b0.hash()).build()
+			.merkled_header().parent(b1.hash()).build()
 			.build();
 		// in-storage [causes reorg to b2 + b3] spends b0[1]
 		#[rustfmt::skip]
-		let b3 = test_data::block_builder()
-			.transaction().coinbase().version(40)
+		let b4 = test_data::block_builder()
+			.transaction()
+				.coinbase().version(40)
 				.output().value(50).build()
 				.build()
 			.transaction().version(30)
-				.input().hash(b0.transactions[1].hash()).index(0).build()
+				.input().hash(b1.transactions[1].hash()).index(0).build()
 				.output().value(10).build()
 				.build()
-			.merkled_header().parent(b2.hash()).build()
+			.merkled_header().parent(b3.hash()).build()
 			.build();
 
 		let mut dummy_verifier = DummyVerifier::default();
-		dummy_verifier.actual_check_when_verifying(b3.hash());
+		dummy_verifier.actual_check_when_verifying(b4.hash());
 
-		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![b0.into()]));
+		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![b0.into(), b1.into()]));
 
 		let (_, core, sync) = create_sync(Some(storage), Some(dummy_verifier));
-		sync.on_block(0, b1.clone().into());
+		sync.on_block(0, b2.clone().into());
 		sync.on_transaction(0, tx2.clone().into());
 		sync.on_transaction(0, tx3.clone().into());
-		assert_eq!(core.lock().information().chain.stored, 2); // b0 + b1
+		assert_eq!(core.lock().information().chain.stored, 3); // b0 + b1 + b2
 		assert_eq!(core.lock().information().chain.transactions.transactions_count, 2); // tx2 + tx3
 
-		// insert b2, which will make tx2 invalid, but not yet
-		sync.on_block(0, b2.clone().into());
-		assert_eq!(core.lock().information().chain.stored, 2); // b0 + b1
+		// insert b3, which will make tx2 invalid, but not yet
+		sync.on_block(0, b3.clone().into());
+		assert_eq!(core.lock().information().chain.stored, 3); // b0 + b1 + b2
 		assert_eq!(core.lock().information().chain.transactions.transactions_count, 2); // tx2 + tx3
 
-		// insert b3 => best chain is b0 + b2 + b3
-		// + transaction from b0 is reverified => ok
+		// insert b4 => best chain is b0 + b1 + b3 + b4
+		// + transaction from b1 is reverified => ok
 		// + tx2 will be reverified => fail
 		// + tx3 will be reverified => ok
-		sync.on_block(0, b3.clone().into());
-		assert_eq!(core.lock().information().chain.stored, 3); // b0 + b2 + b3
-		assert_eq!(core.lock().information().chain.transactions.transactions_count, 2); // b1[0] + tx3
+		sync.on_block(0, b4.clone().into());
+		assert_eq!(core.lock().information().chain.stored, 4); // b0 + b1 + b3 + b4
+		assert_eq!(core.lock().information().chain.transactions.transactions_count, 2); // b2[0] + tx3
 
 		let mempool = core.lock().chain().memory_pool();
-		assert!(mempool.write().remove_by_hash(&b1.transactions[2].hash()).is_some());
+		assert!(mempool.write().remove_by_hash(&b2.transactions[2].hash()).is_some());
 		assert!(mempool.write().remove_by_hash(&tx3.hash()).is_some());
 	}
 

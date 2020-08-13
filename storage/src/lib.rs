@@ -39,6 +39,6 @@ pub use block_provider::{BlockHeaderProvider, BlockProvider};
 pub use block_ref::BlockRef;
 pub use duplex_store::{DuplexTransactionOutputProvider, NoopStore};
 pub use error::Error;
-pub use store::{AsSubstore, CanonStore, ConfigStore, SharedStore, Store};
+pub use store::{AsSubstore, CanonStore, SharedStore, Store};
 pub use transaction_meta::TransactionMeta;
 pub use transaction_provider::{CachedTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider, TransactionProvider};

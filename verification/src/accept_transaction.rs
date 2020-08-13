@@ -1,5 +1,4 @@
 use crate::canon::CanonTransaction;
-use crate::constants::COINBASE_MATURITY;
 use crate::deployments::BlockDeployments;
 use crate::error::TransactionError;
 use crate::network::ConsensusParams;
@@ -40,7 +39,7 @@ impl<'a> TransactionAcceptor<'a> {
 			premature_witness: TransactionPrematureWitness::new(transaction, deployments),
 			bip30: TransactionBip30::new_for_sync(transaction, meta_store, consensus, block_hash, height),
 			missing_inputs: TransactionMissingInputs::new(transaction, output_store, transaction_index),
-			maturity: TransactionMaturity::new(transaction, meta_store, height),
+			maturity: TransactionMaturity::new(transaction, meta_store, height, consensus.coinbase_maturity),
 			overspent: TransactionOverspent::new(transaction, output_store),
 			double_spent: TransactionDoubleSpend::new(transaction, output_store),
 			eval: TransactionEval::new(transaction, output_store, consensus, verification_level, height, time, deployments),
@@ -84,7 +83,7 @@ impl<'a> MemoryPoolTransactionAcceptor<'a> {
 		let transaction_index = 0;
 		MemoryPoolTransactionAcceptor {
 			missing_inputs: TransactionMissingInputs::new(transaction, output_store, transaction_index),
-			maturity: TransactionMaturity::new(transaction, meta_store, height),
+			maturity: TransactionMaturity::new(transaction, meta_store, height, consensus.coinbase_maturity),
 			overspent: TransactionOverspent::new(transaction, output_store),
 			sigops: TransactionSigops::new(transaction, output_store, consensus, consensus.max_block_sigops, time),
 			double_spent: TransactionDoubleSpend::new(transaction, output_store),
@@ -189,14 +188,16 @@ pub struct TransactionMaturity<'a> {
 	transaction: CanonTransaction<'a>,
 	store: &'a dyn TransactionMetaProvider,
 	height: u32,
+	coinbase_maturity: u32,
 }
 
 impl<'a> TransactionMaturity<'a> {
-	fn new(transaction: CanonTransaction<'a>, store: &'a dyn TransactionMetaProvider, height: u32) -> Self {
+	fn new(transaction: CanonTransaction<'a>, store: &'a dyn TransactionMetaProvider, height: u32, coinbase_maturity: u32) -> Self {
 		TransactionMaturity {
 			transaction,
 			store,
 			height,
+			coinbase_maturity,
 		}
 	}
 
@@ -208,7 +209,7 @@ impl<'a> TransactionMaturity<'a> {
 				.inputs
 				.iter()
 				.any(|input| match self.store.transaction_meta(&input.previous_output.hash) {
-					Some(ref meta) if meta.is_coinbase() && self.height < meta.height() + COINBASE_MATURITY => true,
+					Some(ref meta) if meta.is_coinbase() && self.height < meta.height() + self.coinbase_maturity => true,
 					_ => false,
 				});
 

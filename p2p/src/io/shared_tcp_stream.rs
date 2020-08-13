@@ -95,13 +95,10 @@ impl SharedTcpStream {
 
 	pub async fn read_exact(&self, buf: &mut [u8]) -> Result<usize, io::Error> {
 		let mut read = self.read.lock().await;
-		println!("{:?}", read.get_ref());
 		if buf.len() > read.get_ref().len() {
 			return Err(io::Error::from(ErrorKind::UnexpectedEof));
 		}
 		std::io::Read::read(&mut *read, buf)?;
-
-		println!("buf {:?}", buf);
 
 		Ok(buf.len())
 	}

@@ -3,7 +3,7 @@ members = [
 	"bitcoin-rs",
 	"chain",
 	"crypto",
-	"db",
+	"database",
 	"hammersbald",
 	"import",
 	"keys",

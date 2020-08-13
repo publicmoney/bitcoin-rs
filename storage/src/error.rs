@@ -15,6 +15,9 @@ pub enum Error {
 	/// Ancient fork
 	#[display(fmt = "Fork is too long to proceed")]
 	AncientFork,
+	/// Inconsistent Data
+	#[display(fmt = "Database inconsistency detected")]
+	InconsistentData,
 }
 
 impl From<Error> for String {

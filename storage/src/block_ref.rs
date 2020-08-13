@@ -1,6 +1,6 @@
 use bitcrypto::SHA256D;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum BlockRef {
 	Number(u32),
 	Hash(SHA256D),

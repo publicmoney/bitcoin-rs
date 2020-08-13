@@ -5,13 +5,13 @@ extern crate test_data;
 
 use bitcrypto::SHA256D;
 use chain::IndexedBlock;
-use db::kv::{MemoryDatabase, SharedMemoryDatabase};
-use db::BlockChainDatabase;
+use db::blockchain_db::BlockChainDatabase;
+use db::ham_db::HamDb;
 use storage::{BlockProvider, ForkChain, SideChainOrigin};
 
 #[test]
 fn insert_block() {
-	let store = BlockChainDatabase::open(MemoryDatabase::default());
+	let store = BlockChainDatabase::transient().unwrap();
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
@@ -42,22 +42,23 @@ fn insert_block() {
 
 	assert_eq!(b0.hash(), &store.block_hash(0).unwrap());
 	assert_eq!(b1.hash(), &store.block_hash(1).unwrap());
-	assert!(store.block_hash(2).is_none());
+	// assert!(store.block_hash(2).is_none()); we don't delete anymore
 
 	assert_eq!(0, store.block_number(b0.hash()).unwrap());
 	assert_eq!(1, store.block_number(b1.hash()).unwrap());
-	assert!(store.block_number(b2.hash()).is_none());
+	// assert!(store.block_number(b2.hash()).is_none());
 }
 
 #[test]
 fn reopen_db() {
-	let shared_database = SharedMemoryDatabase::default();
+	let ham = HamDb::transient().unwrap();
+
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
 
 	{
-		let store = BlockChainDatabase::open(shared_database.clone());
+		let store = BlockChainDatabase::open(ham.clone()).unwrap();
 		store.insert(b0.clone()).unwrap();
 		store.insert(b1.clone()).unwrap();
 		store.insert(b2.clone()).unwrap();
@@ -67,9 +68,10 @@ fn reopen_db() {
 		store.canonize(b2.hash()).unwrap();
 
 		store.decanonize().unwrap();
+		assert_eq!(1, store.best_block().number);
 	}
 	{
-		let store = BlockChainDatabase::open(shared_database);
+		let store = BlockChainDatabase::open(ham).unwrap();
 		assert_eq!(b0.hash(), &store.block_hash(0).unwrap());
 		assert_eq!(1, store.best_block().number);
 		assert_eq!(b1.hash(), &store.best_block().hash);
@@ -78,7 +80,7 @@ fn reopen_db() {
 
 #[test]
 fn switch_to_simple_fork() {
-	let store = BlockChainDatabase::open(MemoryDatabase::default());
+	let store = BlockChainDatabase::transient().unwrap();
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();

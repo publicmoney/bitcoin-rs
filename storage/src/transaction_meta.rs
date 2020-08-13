@@ -6,14 +6,15 @@ use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
 use std::io;
 
 /// structure for indexing transaction info
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TransactionMeta {
-	block_height: u32,
+	pub block_height: u32,
 	/// first bit indicate if transaction is a coinbase transaction
 	/// next bits indicate if transaction has spend outputs
 	bits: BitVec,
 }
 
+// TODO remove de/serialize after db migration
 impl Serializable for TransactionMeta {
 	fn serialize(&self, stream: &mut Stream) {
 		stream.append(&self.block_height).append(&Bytes::from(self.bits.to_bytes()));
@@ -41,6 +42,10 @@ impl TransactionMeta {
 			block_height,
 			bits: BitVec::from_elem(outputs + 1, false),
 		}
+	}
+
+	pub fn from_raw(block_height: u32, bits: BitVec) -> Self {
+		TransactionMeta { block_height, bits }
 	}
 
 	/// New coinbase transaction
@@ -78,6 +83,10 @@ impl TransactionMeta {
 	pub fn is_fully_spent(&self) -> bool {
 		// skip coinbase bit, the rest needs to true
 		self.bits.iter().skip(1).all(|x| x)
+	}
+
+	pub fn set_coinbase(&mut self) {
+		self.bits.set(0, true);
 	}
 }
 

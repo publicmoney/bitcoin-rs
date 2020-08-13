@@ -883,12 +883,18 @@ pub mod tests {
 
 		let genesis = test_data::genesis();
 		#[rustfmt::skip]
-		let b1 = test_data::block_builder().header().parent(genesis.hash()).build()
-			.transaction().output().value(10).build().build()
+		let b1 = test_data::block_builder()
+			.header().parent(genesis.hash()).build()
+			.transaction()
+				.coinbase()
+				.output().value(10).build().build()
 			.build(); // genesis -> b1
 		#[rustfmt::skip]
-		let b2 = test_data::block_builder().header().parent(b1.hash()).build()
-			.transaction().output().value(20).build().build()
+		let b2 = test_data::block_builder()
+			.header().parent(b1.hash()).build()
+			.transaction()
+				.coinbase()
+				.output().value(20).build().build()
 			.build(); // genesis -> b1 -> b2
 		let tx1 = b1.transactions[0].clone();
 		let tx2 = b2.transactions[0].clone();
@@ -1025,8 +1031,11 @@ pub mod tests {
 
 		let genesis = test_data::genesis();
 		#[rustfmt::skip]
-		let b1 = test_data::block_builder().header().parent(genesis.hash()).build()
-			.transaction().output().value(10).build().build()
+		let b1 = test_data::block_builder()
+			.header().parent(genesis.hash()).build()
+			.transaction()
+				.coinbase()
+				.output().value(10).build().build()
 			.build(); // genesis -> b1
 		let b1_hash = b1.hash();
 

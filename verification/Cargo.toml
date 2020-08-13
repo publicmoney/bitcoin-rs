@@ -22,7 +22,7 @@ bitcrypto = { path = "../crypto" }
 byteorder = "1.0"
 criterion = "0.3"
 test-data = { path = "../test-data" }
-db = { path = "../db" }
+db = { path = "../database" }
 assert_matches = "1.3.0"
 chain = { path = "../chain", features = ["test-helpers"] }
 

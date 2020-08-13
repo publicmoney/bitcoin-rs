@@ -38,6 +38,8 @@ pub struct ConsensusParams {
 	pub max_block_sigops: usize,
 	pub max_block_sigops_cost: usize,
 	pub max_block_weight: usize,
+	/// Number of blocks after creation that a coinbase transaction becomes spendable
+	pub coinbase_maturity: u32,
 }
 
 impl ConsensusParams {
@@ -66,6 +68,7 @@ impl ConsensusParams {
 				max_block_weight: 4_000_000,
 				rule_change_activation_threshold: 1916, // 95%
 				miner_confirmation_window: 2016,
+				coinbase_maturity: 100, // 2 hours
 				csv_deployment: Some(Deployment {
 					name: "csv",
 					bit: 0,
@@ -97,6 +100,7 @@ impl ConsensusParams {
 				max_block_weight: 4_000_000,
 				rule_change_activation_threshold: 1512, // 75%
 				miner_confirmation_window: 2016,
+				coinbase_maturity: 100, // 2 hours
 				csv_deployment: Some(Deployment {
 					name: "csv",
 					bit: 0,
@@ -128,6 +132,7 @@ impl ConsensusParams {
 				max_block_weight: 4_000_000,
 				rule_change_activation_threshold: 108, // 75%
 				miner_confirmation_window: 144,
+				coinbase_maturity: 100,
 				csv_deployment: Some(Deployment {
 					name: "csv",
 					bit: 0,

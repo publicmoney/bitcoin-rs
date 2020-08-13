@@ -1,4 +1,5 @@
 use crate::compact_integer::CompactInteger;
+use std::cmp::min;
 use std::{io, marker};
 
 pub fn deserialize<R, T>(buffer: R) -> Result<T, Error>
@@ -34,6 +35,24 @@ pub enum Error {
 	UnreadData,
 }
 
+impl Error {
+	fn description(&self) -> &str {
+		match *self {
+			Error::MalformedData => "malformed data",
+			Error::UnexpectedEnd => "unexpected end",
+			Error::UnreadData => "unread data",
+		}
+	}
+}
+
+impl std::fmt::Display for Error {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Deserialisation error: {}", &self.description())
+	}
+}
+
+impl std::error::Error for Error {}
+
 impl From<io::Error> for Error {
 	fn from(_: io::Error) -> Self {
 		Error::UnexpectedEnd
@@ -51,13 +70,16 @@ pub trait Deserializable {
 #[derive(Debug)]
 pub struct Reader<T> {
 	buffer: T,
-	peeked: Option<u8>,
+	peeked: Vec<u8>,
 }
 
 impl<'a> Reader<&'a [u8]> {
 	/// Convenient way of creating for slice of bytes
 	pub fn new(buffer: &'a [u8]) -> Self {
-		Reader { buffer, peeked: None }
+		Reader {
+			buffer,
+			peeked: Vec::new(),
+		}
 	}
 }
 
@@ -66,19 +88,19 @@ where
 	T: io::Read,
 {
 	fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
-		// most of the times, there will be nothing in peeked,
-		// so to make it as efficient as possible, check it
-		// only once
-		match self.peeked.take() {
-			None => io::Read::read(&mut self.buffer, buf),
-			Some(peeked) if buf.is_empty() => {
-				self.peeked = Some(peeked);
-				Ok(0)
+		if buf.is_empty() {
+			Ok(0)
+		} else if self.peeked.is_empty() {
+			io::Read::read(&mut self.buffer, buf)
+		} else {
+			let mut wrote = min(buf.len(), self.peeked.len());
+			for i in 0..wrote {
+				buf[i] = self.peeked.remove(i);
 			}
-			Some(peeked) => {
-				buf[0] = peeked;
-				io::Read::read(&mut self.buffer, &mut buf[1..]).map(|x| x + 1)
+			if buf.len() > wrote {
+				wrote += io::Read::read(&mut self.buffer, &mut buf[wrote..])?;
 			}
+			Ok(wrote)
 		}
 	}
 }
@@ -90,7 +112,7 @@ where
 	pub fn from_read(read: R) -> Self {
 		Reader {
 			buffer: read,
-			peeked: None,
+			peeked: Vec::new(),
 		}
 	}
 
@@ -112,17 +134,18 @@ where
 
 	pub fn skip_while(&mut self, predicate: &dyn Fn(u8) -> bool) -> Result<(), Error> {
 		let mut next_buffer = [0u8];
+
 		loop {
-			let next = match self.peeked.take() {
-				Some(peeked) => peeked,
-				None => match self.buffer.read(&mut next_buffer)? {
+			let next = if self.peeked.is_empty() {
+				match self.buffer.read(&mut next_buffer)? {
 					0 => return Ok(()),
 					_ => next_buffer[0],
-				},
+				}
+			} else {
+				self.peeked.remove(0)
 			};
 
 			if !predicate(next) {
-				self.peeked = Some(next);
 				return Ok(());
 			}
 		}
@@ -164,31 +187,29 @@ where
 		Ok(result)
 	}
 
-	pub fn peek(&mut self) -> Result<u8, Error> {
-		if self.peeked.is_some() {
+	pub fn peek(&mut self, buf: &mut [u8]) -> Result<(), Error> {
+		if !self.peeked.is_empty() {
 			return Err(Error::UnreadData);
 		}
 
-		let peek: &mut [u8] = &mut [0u8];
-		match self.read_slice(peek) {
-			Ok(_) => {
-				self.peeked = Some(peek[0]);
-				Ok(peek[0])
-			}
-			Err(_) => Err(Error::UnexpectedEnd),
-		}
+		return if self.read_slice(buf).is_ok() {
+			self.peeked.extend_from_slice(buf);
+			Ok(())
+		} else {
+			Err(Error::UnexpectedEnd)
+		};
 	}
 
 	#[cfg_attr(feature = "cargo-clippy", allow(wrong_self_convention))]
 	pub fn is_finished(&mut self) -> bool {
-		if self.peeked.is_some() {
+		if !self.peeked.is_empty() {
 			return false;
 		}
 
-		let peek: &mut [u8] = &mut [0u8];
+		let peek = &mut [0u8; 1];
 		match self.read_slice(peek) {
 			Ok(_) => {
-				self.peeked = Some(peek[0]);
+				self.peeked = Vec::from(peek.as_ref());
 				false
 			}
 			Err(_) => true,
