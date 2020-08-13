@@ -18,10 +18,10 @@
 //! The writer of the log file.
 //!
 
-use error::Error;
-use page::Page;
-use pagedfile::{PagedFile, PagedFileIterator};
-use pref::PRef;
+use crate::error::Error;
+use crate::page::Page;
+use crate::pagedfile::{PagedFile, PagedFileIterator};
+use crate::pref::PRef;
 
 use std::collections::HashSet;
 

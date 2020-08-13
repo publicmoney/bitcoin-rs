@@ -17,7 +17,7 @@
 //! # Reference to persistent data
 //! allows reference of a data space of 2^48
 
-use page::PAGE_SIZE;
+use crate::page::PAGE_SIZE;
 
 use std::cmp::Ordering;
 use std::fmt;
@@ -148,5 +148,41 @@ impl PRef {
 	/// add n pages
 	pub fn add_pages(&self, n: usize) -> PRef {
 		PRef(self.0 + n as u64 * PAGE_SIZE as u64)
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use crate::page::PAGE_SIZE;
+	use crate::PRef;
+
+	#[test]
+	fn default_is_invalid() {
+		assert_eq!(PRef::default(), PRef::invalid())
+	}
+
+	#[test]
+	fn page_number() {
+		assert_eq!(PRef::from(0).page_number(), 0);
+		assert_eq!(PRef::from(PAGE_SIZE as u64).page_number(), 1);
+		assert_eq!(PRef::from(PAGE_SIZE as u64 * 5).page_number(), 5);
+	}
+
+	#[test]
+	fn this_page() {
+		assert_eq!(PRef::from(10).in_page_pos(), 10);
+		assert_eq!(PRef::from(PAGE_SIZE as u64 + 10).in_page_pos(), 10);
+		assert_eq!(PRef::from(PAGE_SIZE as u64 * 5 + 10).in_page_pos(), 10);
+	}
+
+	#[test]
+	fn next_page() {
+		assert_eq!(PRef::from(0).next_page(), PRef::from(PAGE_SIZE as u64));
+	}
+
+	#[test]
+	fn pages_until() {
+		assert_eq!(PRef::from(0).pages_until(PRef::from(PAGE_SIZE as u64 * 5)), 5);
+		assert_eq!(PRef::from(PAGE_SIZE as u64).pages_until(PRef::from(PAGE_SIZE as u64)), 0);
 	}
 }

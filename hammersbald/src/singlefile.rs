@@ -18,10 +18,10 @@
 //!
 //!
 
-use error::Error;
-use page::{Page, PAGE_SIZE};
-use pagedfile::PagedFile;
-use pref::PRef;
+use crate::error::Error;
+use crate::page::{Page, PAGE_SIZE};
+use crate::pagedfile::PagedFile;
+use crate::pref::PRef;
 
 use std::cmp::max;
 use std::fs::File;
@@ -98,11 +98,11 @@ impl PagedFile for SingleFile {
 	}
 
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
-		let o = page.pref().as_u64();
-		if o < self.base || o >= self.base + self.chunk_size {
+		let page_pos = page.pref().as_u64();
+		if page_pos < self.base || page_pos >= self.base + self.chunk_size {
 			return Err(Error::Corrupted("write to wrong file".to_string()));
 		}
-		let pos = o - self.base;
+		let pos = page_pos - self.base;
 
 		let mut file = self.file.lock().unwrap();
 		file.seek(SeekFrom::Start(pos))?;

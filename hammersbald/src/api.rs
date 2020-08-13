@@ -16,18 +16,17 @@
 //!
 //! # Hammersbald API
 //!
-use datafile::{DataFile, EnvelopeIterator};
-use error::Error;
-use format::{Envelope, Payload};
-use logfile::LogFile;
-use memtable::MemTable;
-use persistent::Persistent;
-use pref::PRef;
-use tablefile::TableFile;
-use transient::Transient;
+use crate::datafile::{DataFile, EnvelopeIterator};
+use crate::format::{Envelope, Payload};
+use crate::logfile::LogFile;
+use crate::memtable::MemTable;
+use crate::persistent::Persistent;
+use crate::tablefile::TableFile;
+use crate::transient::Transient;
+use crate::Error;
+use crate::{stats, PRef};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-
 use std::{
 	io,
 	io::{Cursor, Read, Write},
@@ -39,8 +38,8 @@ pub struct Hammersbald {
 }
 
 /// create or open a persistent db
-pub fn persistent(name: &str, cached_data_pages: usize, bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
-	Persistent::new_db(name, cached_data_pages, bucket_fill_target)
+pub fn persistent(name: &str, cache_size_mb: usize, bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
+	Persistent::new_db(name, cache_size_mb, bucket_fill_target)
 }
 
 /// create a transient db
@@ -72,6 +71,10 @@ pub trait HammersbaldAPI: Send + Sync {
 	/// returns (key, data)
 	fn get(&self, pref: PRef) -> Result<(Vec<u8>, Vec<u8>), Error>;
 
+	/// Update data at pref
+	/// returns same pref or error
+	fn set(&mut self, pref: PRef, data: &[u8]) -> Result<PRef, Error>;
+
 	/// a quick (in-memory) check if the db may have the key
 	/// this might return false positive, but if it is false key is definitely not used.
 	fn may_have_key(&self, key: &[u8]) -> Result<bool, Error>;
@@ -82,6 +85,9 @@ pub trait HammersbaldAPI: Send + Sync {
 
 	/// iterator of data
 	fn iter(&self) -> HammersbaldIterator;
+
+	/// print database stats
+	fn stats(&self);
 }
 
 /// A helper to build Hammersbald data elements
@@ -191,6 +197,10 @@ impl Hammersbald {
 }
 
 impl HammersbaldAPI for Hammersbald {
+	fn stats(&self) {
+		stats::stats(self)
+	}
+
 	fn batch(&mut self) -> Result<(), Error> {
 		self.mem.batch()
 	}
@@ -206,9 +216,20 @@ impl HammersbaldAPI for Hammersbald {
 				return Err(Error::KeyTooLong);
 			}
 		}
-		let data_offset = self.mem.append_data(key, data)?;
-		self.mem.put(key, data_offset)?;
-		Ok(data_offset)
+		if let Some((pref, current_data)) = self.mem.get(key)? {
+			if current_data.len() == data.len() {
+				self.mem.set(pref, data)?;
+				Ok(pref)
+			} else {
+				let data_offset = self.mem.append_data(key, data)?;
+				self.mem.update_key(key, data_offset)?;
+				Ok(data_offset)
+			}
+		} else {
+			let data_offset = self.mem.append_data(key, data)?;
+			self.mem.put(key, data_offset)?;
+			Ok(data_offset)
+		}
 	}
 
 	fn get_keyed(&self, key: &[u8]) -> Result<Option<(PRef, Vec<u8>)>, Error> {
@@ -217,6 +238,11 @@ impl HammersbaldAPI for Hammersbald {
 
 	fn put(&mut self, data: &[u8]) -> Result<PRef, Error> {
 		let data_offset = self.mem.append_referred(data)?;
+		Ok(data_offset)
+	}
+
+	fn set(&mut self, pref: PRef, data: &[u8]) -> Result<PRef, Error> {
+		let data_offset = self.mem.set(pref, data)?;
 		Ok(data_offset)
 	}
 
@@ -269,14 +295,14 @@ mod test {
 	extern crate hex;
 	extern crate rand;
 
-	use transient::Transient;
-
 	use self::rand::thread_rng;
-	use api::test::rand::RngCore;
+	use crate::transient::Transient;
+	use crate::Error;
+	use rand::RngCore;
 	use std::collections::HashMap;
 
 	#[test]
-	fn test_two_batches() {
+	fn test_two_batches_indexed() {
 		let mut db = Transient::new_db("first", 1, 1).unwrap();
 
 		let mut rng = thread_rng();
@@ -285,7 +311,15 @@ mod test {
 		let mut key = [0x0u8; 32];
 		let mut data = [0x0u8; 40];
 
-		for _ in 0..10000 {
+		for _ in 0..1 {
+			rng.fill_bytes(&mut key);
+			rng.fill_bytes(&mut data);
+			let pref = db.put_keyed(&key, &data).unwrap();
+			check.insert(key, (pref, data));
+		}
+		db.batch().unwrap();
+
+		for _ in 0..1 {
 			rng.fill_bytes(&mut key);
 			rng.fill_bytes(&mut data);
 			let pref = db.put_keyed(&key, &data).unwrap();
@@ -294,20 +328,104 @@ mod test {
 		db.batch().unwrap();
 
 		for (k, (o, v)) in check.iter() {
+			assert_eq!(db.get(o.clone()).unwrap(), (k.to_vec(), v.to_vec()));
 			assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*o, v.to_vec())));
 		}
 
-		for _ in 0..10000 {
-			rng.fill_bytes(&mut key);
-			rng.fill_bytes(&mut data);
-			let pref = db.put_keyed(&key, &data).unwrap();
-			check.insert(key, (pref, data));
-		}
-		db.batch().unwrap();
-
 		for (k, (o, v)) in check.iter() {
+			assert_eq!(db.get(o.clone()).unwrap(), (k.to_vec(), v.to_vec()));
 			assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*o, v.to_vec())));
 		}
 		db.shutdown();
+	}
+
+	#[test]
+	fn test_put_keyed_then_set_same_length() {
+		let mut db = Transient::new_db("first", 1, 1).unwrap();
+
+		let key = "abc";
+		let value = [1, 2, 3];
+		let new_value = [4, 5, 6];
+
+		let pref = db.put_keyed(key.as_ref(), &value).unwrap();
+		let result = db.set(pref, &new_value).unwrap();
+		db.batch().unwrap();
+
+		assert_eq!(result, pref);
+		assert_eq!(db.get(pref).unwrap().1, new_value);
+		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value)
+	}
+
+	#[test]
+	fn test_put_keyed_then_set_different_length_returns_error() {
+		let mut db = Transient::new_db("first", 1, 1).unwrap();
+		let key = "abc";
+		let value = [1, 2, 3];
+		let new_value = [4, 5, 6, 7];
+
+		let pref = db.put_keyed(key.as_ref(), &value).unwrap();
+		let result = db.set(pref, &new_value);
+		db.batch().unwrap();
+
+		assert_eq!(result.err().unwrap().to_string(), Error::ValueTooLong.to_string());
+	}
+
+	#[test]
+	fn test_put_then_set_different_length_returns_error() {
+		let mut db = Transient::new_db("first", 1, 1).unwrap();
+		let value = [1, 2, 3];
+		let new_value = [4, 5, 6, 7];
+
+		let pref = db.put(&value).unwrap();
+		let result = db.set(pref, &new_value);
+		db.batch().unwrap();
+
+		assert_eq!(result.err().unwrap().to_string(), Error::ValueTooLong.to_string());
+	}
+
+	#[test]
+	fn test_put_then_set() {
+		let mut db = Transient::new_db("first", 1, 1).unwrap();
+		let value = [1, 2, 3];
+		let new_value = [4, 5, 6];
+
+		let pref = db.put(&value).unwrap();
+		let result = db.set(pref, &new_value).unwrap();
+		db.batch().unwrap();
+
+		assert_eq!(db.get(result).unwrap().0, vec![]);
+		assert_eq!(db.get(result).unwrap().1, new_value);
+	}
+
+	#[test]
+	fn test_put_keyed_same_length() {
+		let mut db = Transient::new_db("first", 0, 1).unwrap();
+		let key = "abc";
+		let value = [1, 2, 3];
+		let new_value = [4, 5, 6];
+
+		let pref1 = db.put_keyed(key.as_ref(), &value).unwrap();
+		let pref2 = db.put_keyed(key.as_ref(), &new_value).unwrap();
+
+		assert_eq!(pref1, pref2);
+		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value);
+		db.batch().unwrap();
+		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value)
+	}
+
+	#[test]
+	fn test_put_keyed_different_length() {
+		let mut db = Transient::new_db("first", 0, 1).unwrap();
+		let key = "abc";
+		let value = [1, 2, 3];
+		let new_value = [4, 5, 6, 7];
+
+		let pref1 = db.put_keyed(key.as_ref(), &value).unwrap();
+		let pref2 = db.put_keyed(key.as_ref(), &new_value).unwrap();
+
+		assert_ne!(pref1, pref2);
+		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value);
+		db.batch().unwrap();
+		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value)
 	}
 }

@@ -17,10 +17,10 @@
 //! # read cached file
 //!
 
-use error::Error;
-use page::{Page, PAGE_SIZE};
-use pagedfile::PagedFile;
-use pref::PRef;
+use crate::error::Error;
+use crate::page::{Page, PAGE_SIZE};
+use crate::pagedfile::PagedFile;
+use crate::pref::PRef;
 
 use lru_cache::LruCache;
 
@@ -34,7 +34,8 @@ pub struct CachedFile {
 
 impl CachedFile {
 	/// create a read cached file with a page cache of given size
-	pub fn new(file: Box<dyn PagedFile>, pages: usize) -> Result<CachedFile, Error> {
+	pub fn new(file: Box<dyn PagedFile>, cache_size_mb: usize) -> Result<CachedFile, Error> {
+		let pages = cache_size_mb * 1_000_000 / PAGE_SIZE;
 		let len = file.len()?;
 		Ok(CachedFile {
 			file,
@@ -62,7 +63,7 @@ impl PagedFile for CachedFile {
 
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
 		self.cache.lock().unwrap().reset_len(new_len);
-		self.file.truncate(new_len)
+		Ok(())
 	}
 
 	fn sync(&self) -> Result<(), Error> {

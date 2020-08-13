@@ -18,15 +18,15 @@
 //! Specific implementation details to in-memory index of the db
 //!
 //!
-use datafile::{DataFile, EnvelopeIterator};
-use error::Error;
-use format::{Envelope, Link, Payload};
-use logfile::LogFile;
-use page::Page;
-use page::PAGE_SIZE;
-use pagedfile::PagedFile;
-use pref::PRef;
-use tablefile::{TableFile, BUCKETS_FIRST_PAGE, BUCKETS_PER_PAGE, BUCKET_SIZE, FIRST_PAGE_HEAD};
+use crate::datafile::{DataFile, EnvelopeIterator};
+use crate::error::Error;
+use crate::format::{Envelope, Link, Payload};
+use crate::logfile::LogFile;
+use crate::page::Page;
+use crate::page::PAGE_SIZE;
+use crate::pagedfile::PagedFile;
+use crate::pref::PRef;
+use crate::tablefile::{TableFile, BUCKETS_FIRST_PAGE, BUCKETS_PER_PAGE, BUCKET_SIZE, FIRST_PAGE_HEAD};
 
 use bitcoin_hashes::siphash24;
 use rand::{thread_rng, RngCore};
@@ -101,9 +101,9 @@ impl MemTable {
 		self.link_file.sync()?;
 		let link_len = self.link_file.len()?;
 
+		let data_len = self.data_file.len()?;
 		self.data_file.flush()?;
 		self.data_file.sync()?;
-		let data_len = self.data_file.len()?;
 
 		self.log_file.reset(table_len);
 		self.log_file.init(data_len, table_len, link_len)?;
@@ -269,11 +269,13 @@ impl MemTable {
 		self.data_file.get_envelope(pref)
 	}
 
+	pub fn set(&mut self, pref: PRef, data: &[u8]) -> Result<PRef, Error> {
+		self.data_file.set_data(pref, data)
+	}
+
 	pub fn put(&mut self, key: &[u8], data_offset: PRef) -> Result<(), Error> {
 		let hash = self.hash(key);
 		let bucket = self.bucket_for_hash(hash);
-
-		self.remove_duplicate(key, hash, bucket)?;
 
 		self.store_to_bucket(bucket, hash, data_offset)?;
 
@@ -410,6 +412,22 @@ impl MemTable {
 			return Err(Error::Corrupted(format!("bucket {} should exist", bucket_number)));
 		}
 		Ok(false)
+	}
+
+	pub fn update_key(&self, key: &[u8], pref: PRef) -> Result<(), Error> {
+		let hash = self.hash(key);
+		let bucket_number = self.bucket_for_hash(hash);
+		self.resolve_bucket(bucket_number)?;
+		if let Some(bucket) = self.buckets.write().unwrap().get_mut(bucket_number) {
+			if let Some(ref mut slots) = bucket.slots {
+				for (h, data) in slots {
+					if *h == hash {
+						*data = pref
+					}
+				}
+			}
+		}
+		Ok(())
 	}
 
 	// get the data last associated with the key
@@ -558,7 +576,7 @@ pub struct Bucket {
 mod test {
 	extern crate rand;
 
-	use transient::Transient;
+	use crate::transient::Transient;
 
 	use self::rand::thread_rng;
 	use self::rand::RngCore;

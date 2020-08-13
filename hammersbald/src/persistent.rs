@@ -18,14 +18,14 @@
 //!
 //! Implements persistent store
 
-use api::{Hammersbald, HammersbaldAPI};
-use asyncfile::AsyncFile;
-use cachedfile::CachedFile;
-use datafile::DataFile;
-use error::Error;
-use logfile::LogFile;
-use rolledfile::RolledFile;
-use tablefile::TableFile;
+use crate::api::{Hammersbald, HammersbaldAPI};
+use crate::asyncfile::AsyncFile;
+use crate::cachedfile::CachedFile;
+use crate::datafile::DataFile;
+use crate::error::Error;
+use crate::logfile::LogFile;
+use crate::rolledfile::RolledFile;
+use crate::tablefile::TableFile;
 
 const TABLE_CHUNK_SIZE: u64 = 1024 * 1024 * 1024;
 const DATA_CHUNK_SIZE: u64 = 1024 * 1024 * 1024;
@@ -36,15 +36,15 @@ pub struct Persistent {}
 
 impl Persistent {
 	/// create a new db
-	pub fn new_db(name: &str, cached_data_pages: usize, bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
+	pub fn new_db(name: &str, cache_size_mb: usize, bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
 		let data = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bc", true, DATA_CHUNK_SIZE)?))?),
-			cached_data_pages,
+			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bc", false, DATA_CHUNK_SIZE)?))?),
+			cache_size_mb,
 		)?))?;
 
 		let link = DataFile::new(Box::new(CachedFile::new(
 			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bl", true, DATA_CHUNK_SIZE)?))?),
-			cached_data_pages,
+			cache_size_mb,
 		)?))?;
 
 		let log = LogFile::new(Box::new(AsyncFile::new(Box::new(RolledFile::new(
@@ -56,9 +56,41 @@ impl Persistent {
 
 		let table = TableFile::new(Box::new(CachedFile::new(
 			Box::new(RolledFile::new(name, "tb", false, TABLE_CHUNK_SIZE)?),
-			cached_data_pages,
+			cache_size_mb,
 		)?))?;
 
 		Ok(Box::new(Hammersbald::new(log, table, data, link, bucket_fill_target)?))
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use crate::persistent::Persistent;
+	use crate::PRef;
+
+	#[test]
+	#[allow(unused_must_use)]
+	fn test_reopen_persistent() {
+		std::fs::remove_file("test.0.bc");
+		std::fs::remove_file("test.0.lg");
+		std::fs::remove_file("test.0.tb");
+
+		let expected_pref = PRef::from(0);
+		let value = [1, 2, 3];
+		let new_value = [4, 5, 6];
+		{
+			let mut db = Persistent::new_db("test", 1, 1).unwrap();
+			let pref = db.put(&value).unwrap();
+			assert_eq!(pref, expected_pref);
+			db.batch().unwrap();
+		}
+
+		let mut db = Persistent::new_db("test", 1, 1).unwrap();
+		let pref = db.set(expected_pref, &new_value).unwrap();
+		assert_eq!(pref, expected_pref);
+		db.batch().unwrap();
+
+		assert_eq!(db.get(expected_pref).unwrap().0, vec![]);
+		assert_eq!(db.get(expected_pref).unwrap().1, new_value);
 	}
 }

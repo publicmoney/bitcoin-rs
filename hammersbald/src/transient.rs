@@ -18,16 +18,16 @@
 //!
 //! Implements in-memory Read and Write for tests
 
-use api::{Hammersbald, HammersbaldAPI};
-use asyncfile::AsyncFile;
-use cachedfile::CachedFile;
-use datafile::DataFile;
-use error::Error;
-use logfile::LogFile;
-use page::{Page, PAGE_SIZE};
-use pagedfile::PagedFile;
-use pref::PRef;
-use tablefile::TableFile;
+use crate::api::{Hammersbald, HammersbaldAPI};
+use crate::asyncfile::AsyncFile;
+use crate::cachedfile::CachedFile;
+use crate::datafile::DataFile;
+use crate::error::Error;
+use crate::logfile::LogFile;
+use crate::page::{Page, PAGE_SIZE};
+use crate::pagedfile::PagedFile;
+use crate::pref::PRef;
+use crate::tablefile::TableFile;
 
 use std::cmp::min;
 use std::io;
@@ -110,12 +110,14 @@ impl PagedFile for Transient {
 
 	fn append_page(&mut self, page: Page) -> Result<(), Error> {
 		let mut inner = self.inner.lock().unwrap();
+		inner.append = true;
 		inner.write(&page.clone().into_buf())?;
 		Ok(())
 	}
 
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
 		let mut inner = self.inner.lock().unwrap();
+		inner.append = false;
 		inner.seek(SeekFrom::Start(page.pref().as_u64()))?;
 		inner.write(&page.into_buf())?;
 		Ok(inner.data.len() as u64)

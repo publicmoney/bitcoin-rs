@@ -42,9 +42,11 @@ pub enum Error {
 	Poisoned(String),
 	/// Queue error
 	Queue(String),
+	/// Value does not fit in given space
+	ValueTooLong,
 }
 
-impl std::error::Error for Error {
+impl Error {
 	fn description(&self) -> &str {
 		match *self {
 			Error::InvalidOffset => "invalid pref",
@@ -55,9 +57,12 @@ impl std::error::Error for Error {
 			Error::BitcoinSerialize(_) => "Bitcoin Serialize Error",
 			Error::Poisoned(ref s) => s.as_str(),
 			Error::Queue(ref s) => s.as_str(),
+			Error::ValueTooLong => "value too long",
 		}
 	}
+}
 
+impl std::error::Error for Error {
 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
 		match *self {
 			Error::InvalidOffset => None,
@@ -68,6 +73,7 @@ impl std::error::Error for Error {
 			Error::BitcoinSerialize(ref e) => Some(e),
 			Error::Poisoned(_) => None,
 			Error::Queue(_) => None,
+			Error::ValueTooLong => None,
 		}
 	}
 }

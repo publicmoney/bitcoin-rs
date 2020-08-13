@@ -20,8 +20,8 @@
 //!
 //!
 
+use crate::pref::PRef;
 use byteorder::{BigEndian, ByteOrder};
-use pref::PRef;
 
 pub const PAGE_SIZE: usize = 4096;
 pub const PAGE_PAYLOAD_SIZE: usize = 4090;

@@ -17,8 +17,8 @@
 //! # Statistics for a Hammersbald db
 //!
 //!
-use api::Hammersbald;
-use format::Payload;
+use crate::api::Hammersbald;
+use crate::format::Payload;
 
 use bitcoin_hashes::siphash24;
 
@@ -26,7 +26,7 @@ use std::collections::{HashMap, HashSet};
 
 /// print some statistics on a db
 #[allow(unused)]
-fn stats(db: &Hammersbald) {
+pub fn stats(db: &Hammersbald) {
 	let (step, log_mod, blen, tlen, dlen, llen, sip0, sip1) = db.params();
 	println!(
 		"File sizes: table: {}, data: {}, links: {}\nHash table: buckets: {}, log_mod: {}, step: {}",

@@ -17,9 +17,9 @@
 //! # a file that is read and wrote by pages
 //!
 
-use error::Error;
-use page::{Page, PAGE_SIZE};
-use pref::PRef;
+use crate::error::Error;
+use crate::page::{Page, PAGE_PAYLOAD_SIZE, PAGE_SIZE};
+use crate::pref::PRef;
 
 use std::cmp::min;
 use std::io::{self, ErrorKind};
@@ -75,32 +75,62 @@ impl PagedFileAppender {
 		let mut wrote = 0;
 		while wrote < buf.len() {
 			if self.page.is_none() {
-				self.page = Some(Page::new());
+				let current_page = self.read_page(self.pos.this_page())?;
+				self.page = Some(current_page.unwrap_or(Page::new_table_page(self.pos.this_page())));
 			}
 			if let Some(ref mut page) = self.page {
-				let space = min(PAGE_SIZE - self.pos.in_page_pos(), buf.len() - wrote);
+				let space = min(PAGE_PAYLOAD_SIZE - self.pos.in_page_pos(), buf.len() - wrote);
 				page.write(self.pos.in_page_pos(), &buf[wrote..wrote + space]);
 				wrote += space;
-				if self.pos.in_page_pos() + space == PAGE_SIZE {
-					self.file.append_page(page.clone())?;
+				if self.pos.in_page_pos() + space == PAGE_PAYLOAD_SIZE {
+					if self.pos.page_number() <= PRef::from(self.file.len()?).page_number() {
+						self.file.update_page(page.clone())?;
+					} else {
+						self.file.append_page(page.clone())?;
+					}
 				}
 				self.pos += space as u64;
 			}
-			if self.pos.in_page_pos() == 0 {
+			if self.pos.in_page_pos() == PAGE_PAYLOAD_SIZE {
 				self.page = None;
+				self.pos += 6; // todo no magic
 			}
 		}
 		Ok(self.pos)
 	}
 
+	pub fn update(&mut self, mut pos: PRef, buf: &[u8]) -> Result<(), Error> {
+		let mut wrote = 0;
+		while wrote < buf.len() {
+			if let Some(ref mut page) = self.read_page(pos.this_page())? {
+				let space = min(PAGE_PAYLOAD_SIZE - pos.in_page_pos(), buf.len() - wrote);
+				page.write(pos.in_page_pos(), &buf[wrote..wrote + space]);
+				wrote += space;
+
+				pos += space as u64;
+
+				self.update_page(page.clone())?;
+
+				if pos.in_page_pos() == PAGE_PAYLOAD_SIZE {
+					pos += 6;
+				}
+			}
+		}
+		Ok(())
+	}
+	// todo pos doesnt need to be mutable? just return new pos
 	pub fn read(&self, mut pos: PRef, buf: &mut [u8], len: usize) -> Result<PRef, Error> {
 		let mut read = 0;
+
 		while read < len {
 			if let Some(ref page) = self.read_page(pos.this_page())? {
-				let have = min(PAGE_SIZE - pos.in_page_pos(), len - read);
+				let have = min(PAGE_PAYLOAD_SIZE - pos.in_page_pos(), len - read);
 				page.read(pos.in_page_pos(), &mut buf[read..read + have]);
 				read += have;
 				pos += have as u64;
+				if pos.in_page_pos() == PAGE_PAYLOAD_SIZE {
+					pos += 6;
+				}
 			} else {
 				return Err(Error::IO(io::Error::from(ErrorKind::UnexpectedEof)));
 			}
@@ -120,7 +150,7 @@ impl PagedFile for PagedFileAppender {
 	}
 
 	fn len(&self) -> Result<u64, Error> {
-		self.file.len()
+		Ok(self.pos.as_u64())
 	}
 
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
@@ -140,15 +170,26 @@ impl PagedFile for PagedFileAppender {
 		self.file.append_page(page)
 	}
 
-	fn update_page(&mut self, _: Page) -> Result<u64, Error> {
-		unimplemented!()
+	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
+		if let Some(current_page) = &self.page {
+			if page.pref().this_page() == current_page.pref().this_page() {
+				self.page = Some(page.clone())
+			}
+		}
+		self.file.update_page(page)
 	}
 
 	fn flush(&mut self) -> Result<(), Error> {
 		if let Some(ref mut page) = self.page {
 			if self.pos.in_page_pos() > 0 {
-				self.file.append_page(page.clone())?;
-				self.pos += PAGE_SIZE as u64 - self.pos.in_page_pos() as u64;
+				let i = self.pos.page_number();
+				let i1 = self.file.len()?;
+				let i2 = PRef::from(i1).page_number();
+				if i <= i2 {
+					self.file.update_page(page.clone())?;
+				} else {
+					self.file.append_page(page.clone())?;
+				}
 			}
 		}
 		self.page = None;

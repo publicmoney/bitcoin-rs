@@ -16,14 +16,15 @@
 //!
 //! # Content types
 //!
-use error::Error;
-use pref::PRef;
+use crate::error::Error;
+use crate::pref::PRef;
 
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
 use std::io::Write;
 
 /// Content envelope wrapping in data file
+#[derive(Debug)]
 pub struct Envelope {
 	buffer: Vec<u8>,
 }
@@ -32,6 +33,12 @@ impl Envelope {
 	/// create a new envelope
 	pub fn new(payload: &[u8]) -> Envelope {
 		Envelope { buffer: payload.to_vec() }
+	}
+
+	pub fn from_payload(payload: Payload) -> Envelope {
+		let mut buffer = vec![];
+		payload.serialize(&mut buffer);
+		Envelope { buffer }
 	}
 
 	/// envelope payload

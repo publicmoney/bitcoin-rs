@@ -18,11 +18,11 @@
 //! Specific implementation details to data file
 //!
 
-use error::Error;
-use format::{Data, Envelope, IndexedData, Link, Payload};
-use page::PAGE_SIZE;
-use pagedfile::{PagedFile, PagedFileAppender};
-use pref::PRef;
+use crate::error::Error;
+use crate::format::{Data, Envelope, IndexedData, Link, Payload};
+use crate::page::{PAGE_PAYLOAD_SIZE, PAGE_SIZE};
+use crate::pagedfile::{PagedFile, PagedFileAppender};
+use crate::pref::PRef;
 
 use byteorder::{BigEndian, ByteOrder};
 
@@ -63,12 +63,12 @@ impl DataFile {
 		let mut len = [0u8; 3];
 		pref = self.appender.read(pref, &mut len, 3)?;
 		let blen = BigEndian::read_u24(&len) as usize;
-		if blen >= PAGE_SIZE {
+		if blen >= PAGE_PAYLOAD_SIZE {
 			let mut buf = vec![0u8; blen];
 			self.appender.read(pref, &mut buf, blen)?;
 			Ok(Envelope::deseralize(buf))
 		} else {
-			let mut buf = [0u8; PAGE_SIZE];
+			let mut buf = [0u8; PAGE_PAYLOAD_SIZE]; // TODO why read so much by default? rather than just the length?
 			self.appender.read(pref, &mut buf, blen)?;
 			Ok(Envelope::deseralize(buf[0..blen].to_vec()))
 		}
@@ -112,6 +112,34 @@ impl DataFile {
 		Ok(me)
 	}
 
+	pub fn set_data(&mut self, pref: PRef, data: &[u8]) -> Result<PRef, Error> {
+		let envelope = self.get_envelope(pref)?;
+
+		let new_payload = match Payload::deserialize(envelope.payload())? {
+			Payload::Indexed(mut p) => {
+				p.data.data = data;
+				Payload::Indexed(p)
+			}
+			Payload::Referred(mut p) => {
+				p.data = data;
+				Payload::Referred(p)
+			}
+			_ => panic!("Links should not be updated"),
+		};
+
+		let new_envelope = Envelope::from_payload(new_payload);
+
+		if envelope.payload().len() != new_envelope.payload().len() {
+			return Err(Error::ValueTooLong);
+		}
+
+		let mut store = vec![];
+		new_envelope.serialize(&mut store);
+
+		self.appender.update(pref, &store)?;
+		Ok(pref)
+	}
+
 	/// truncate file
 	pub fn truncate(&mut self, pref: u64) -> Result<(), Error> {
 		self.appender.truncate(pref)
@@ -119,16 +147,6 @@ impl DataFile {
 
 	/// flush buffers
 	pub fn flush(&mut self) -> Result<(), Error> {
-		let pos = self.appender.position();
-		if pos.in_page_pos() > 0 {
-			if PAGE_SIZE - pos.in_page_pos() >= 7 {
-				let padding = vec![0u8; PAGE_SIZE - pos.in_page_pos() - 7];
-				self.append_referred(padding.as_slice())?;
-			} else {
-				let padding = vec![0u8; 2 * PAGE_SIZE - pos.in_page_pos() - 7];
-				self.append_referred(padding.as_slice())?;
-			}
-		}
 		self.appender.flush()
 	}
 

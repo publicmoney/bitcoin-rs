@@ -4,6 +4,7 @@ members = [
 	"chain",
 	"crypto",
 	"db",
+	"hammersbald",
 	"import",
 	"keys",
 	"logs",

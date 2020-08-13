@@ -20,11 +20,11 @@
 
 use std::cmp::max;
 
-use error::Error;
-use memtable::MemTable;
-use page::{Page, PAGE_PAYLOAD_SIZE, PAGE_SIZE};
-use pagedfile::PagedFile;
-use pref::PRef;
+use crate::error::Error;
+use crate::memtable::MemTable;
+use crate::page::{Page, PAGE_PAYLOAD_SIZE, PAGE_SIZE};
+use crate::pagedfile::PagedFile;
+use crate::pref::PRef;
 
 pub const FIRST_PAGE_HEAD: usize = 28;
 pub const BUCKET_SIZE: usize = 6;

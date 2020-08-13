@@ -9,7 +9,7 @@ pub fn rollback(cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 
 	let block_ref = matches.value_of("BLOCK").expect("BLOCK is required in cli.yml; qed");
 	let block_ref = if block_ref.len() == 64 {
-		BlockRef::Hash({ block_ref.parse().map_err(|e| format!("Invalid block number: {}", e))? })
+		BlockRef::Hash(block_ref.parse().map_err(|e| format!("Invalid block number: {}", e))?)
 	} else {
 		BlockRef::Number(block_ref.parse().map_err(|e| format!("Invalid block hash: {}", e))?)
 	};

@@ -17,13 +17,9 @@
 //! # Asynchronous file
 //! an append only file written in background
 //!
-
-use page::Page;
-use pagedfile::PagedFile;
-
-use error::Error;
-use pref::PRef;
-
+use crate::page::Page;
+use crate::pagedfile::PagedFile;
+use crate::{Error, PRef};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -32,12 +28,18 @@ pub struct AsyncFile {
 	inner: Arc<AsyncFileInner>,
 }
 
+#[derive(Clone)]
+enum Operation {
+	Append(Page),
+	Update(Page),
+}
+
 struct AsyncFileInner {
 	file: Mutex<Box<dyn PagedFile + Send + Sync>>,
 	work: Condvar,
 	flushed: Condvar,
 	run: AtomicBool,
-	queue: Mutex<Vec<Page>>,
+	queue: Mutex<Vec<Operation>>,
 }
 
 impl AsyncFileInner {
@@ -70,8 +72,13 @@ impl AsyncFile {
 				queue = inner.work.wait(queue).expect("page queue lock poisoned");
 			}
 			let mut file = inner.file.lock().expect("file lock poisoned");
-			for page in queue.iter() {
-				file.append_page(page.clone()).expect("can not write in background");
+			for operation in queue.iter() {
+				match operation {
+					Operation::Append(page) => file.append_page(page.clone()).expect("can not write in background"),
+					Operation::Update(page) => {
+						file.update_page(page.clone()).expect("can not write in background");
+					}
+				}
 			}
 			queue.clear();
 			inner.flushed.notify_all();
@@ -81,13 +88,15 @@ impl AsyncFile {
 	fn read_in_queue(&self, pref: PRef) -> Result<Option<Page>, Error> {
 		let queue = self.inner.queue.lock().expect("page queue lock poisoned");
 		if queue.len() > 0 {
-			let file = self.inner.file.lock().expect("file lock poisoned");
-			let len = PRef::from(file.len()?);
-			if pref >= len {
-				let index = len.pages_until(pref);
-				if index < queue.len() {
-					let page = queue[index].clone();
-					return Ok(Some(page));
+			let mut rev_q = queue.clone();
+			rev_q.reverse();
+			for operation in rev_q.iter() {
+				let page = match operation {
+					Operation::Update(p) => p,
+					Operation::Append(p) => p,
+				};
+				if page.pref() == pref {
+					return Ok(Some(page.clone()));
 				}
 			}
 		}
@@ -129,13 +138,16 @@ impl PagedFile for AsyncFile {
 
 	fn append_page(&mut self, page: Page) -> Result<(), Error> {
 		let mut queue = self.inner.queue.lock().unwrap();
-		queue.push(page.clone());
+		queue.push(Operation::Append(page));
 		self.inner.work.notify_one();
 		Ok(())
 	}
 
-	fn update_page(&mut self, _: Page) -> Result<u64, Error> {
-		unimplemented!()
+	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
+		let mut queue = self.inner.queue.lock().unwrap();
+		queue.push(Operation::Update(page));
+		self.inner.work.notify_one();
+		Ok(0)
 	}
 
 	fn flush(&mut self) -> Result<(), Error> {

@@ -18,11 +18,11 @@
 //!
 //! A file that is split into chunks
 //!
-use error::Error;
-use page::{Page, PAGE_SIZE};
-use pagedfile::PagedFile;
-use pref::PRef;
-use singlefile::SingleFile;
+use crate::error::Error;
+use crate::page::{Page, PAGE_SIZE};
+use crate::pagedfile::PagedFile;
+use crate::pref::PRef;
+use crate::singlefile::SingleFile;
 
 use std::cmp::max;
 use std::collections::HashMap;
