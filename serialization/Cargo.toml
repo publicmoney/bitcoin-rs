@@ -7,6 +7,6 @@ edition = "2018"
 [dependencies]
 bit-vec = "0.6"
 byteorder = "1.0"
-hammersbald = { path = "../../../rust-bitcoin/hammersbald" }
+hammersbald = { path = "../hammersbald" }
 primitives = { path = "../primitives" }
 bitcrypto = { path = "../crypto" }

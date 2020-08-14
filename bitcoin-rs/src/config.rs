@@ -1,14 +1,12 @@
 use crate::rpc::HttpConfiguration as RpcHttpConfig;
 use crate::rpc_apis::ApiSet;
 use crate::seednodes::{mainnet_seednodes, testnet_seednodes};
-use crate::util::open_db;
 use crate::{REGTEST_USER_AGENT, USER_AGENT, USER_AGENT_VERSION};
 use clap;
 use message::Services;
 use network::{ConsensusParams, Network};
 use p2p::InternetProtocol;
 use std::net;
-use storage;
 use sync::VerificationParameters;
 use verification::VerificationLevel;
 
@@ -30,7 +28,6 @@ pub struct Config {
 	pub rpc_config: RpcHttpConfig,
 	pub block_notify_command: Option<String>,
 	pub verification_params: VerificationParameters,
-	pub db: storage::SharedStore,
 }
 
 pub const DEFAULT_DB_CACHE: usize = 512;
@@ -45,8 +42,6 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 		Some(s) => Some(s.parse().map_err(|_| "Invalid data-dir".to_owned())?),
 		None => None,
 	};
-
-	let db = open_db(&data_dir, db_cache);
 
 	let quiet = matches.is_present("quiet");
 	let network = match (matches.is_present("testnet"), matches.is_present("regtest")) {
@@ -149,7 +144,6 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 			verification_level,
 			verification_edge,
 		},
-		db,
 	};
 
 	Ok(config)

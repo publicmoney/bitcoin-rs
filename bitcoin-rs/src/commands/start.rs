@@ -1,16 +1,14 @@
 use super::super::rpc;
-use crate::util::{db_path, init_db, node_table_path};
+use crate::util::{db_path, node_table_path};
 use crate::{config, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use bitcrypto::SHA256D;
-use p2p::LocalSyncNodeRef;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
-use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, LocalNodeRef, SyncListener};
-use tokio::runtime;
-use tokio::runtime::Runtime;
+use storage::SharedStore;
+use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, SyncListener};
 
 enum BlockNotifierTask {
 	NewBlock(SHA256D),
@@ -86,13 +84,11 @@ impl Drop for BlockNotifier {
 }
 
 /// Setup functions in here spawn new threads (which should be done off the main thread).
-pub fn start(cfg: config::Config) -> Result<(), String> {
-	init_db(&cfg)?;
-
+pub async fn start(db: SharedStore, cfg: config::Config) -> Result<(), String> {
 	let sync_peers = create_sync_peers();
 	let local_sync_node = create_local_sync_node(
 		cfg.consensus.clone(),
-		cfg.db.clone(),
+		db.clone(),
 		sync_peers.clone(),
 		cfg.verification_params.clone(),
 	);
@@ -102,22 +98,6 @@ pub fn start(cfg: config::Config) -> Result<(), String> {
 		local_sync_node.install_sync_listener(Box::new(BlockNotifier::new(block_notify_command)));
 	}
 
-	let mut threaded_rt: Runtime = runtime::Builder::new()
-		.threaded_scheduler()
-		.enable_io()
-		.enable_time()
-		.build()
-		.expect("Unable to create tokio runtime");
-
-	threaded_rt.block_on(start_async(cfg, sync_connection_factory, local_sync_node))
-}
-
-/// All work that happens in here is handled by the Tokio runtime.
-pub async fn start_async(
-	cfg: config::Config,
-	sync_connection_factory: LocalSyncNodeRef,
-	local_sync_node: LocalNodeRef,
-) -> Result<(), String> {
 	let p2p_cfg = p2p::Config {
 		inbound_connections: cfg.inbound_connections,
 		outbound_connections: cfg.outbound_connections,
@@ -142,7 +122,7 @@ pub async fn start_async(
 	let rpc_deps = rpc::Dependencies {
 		db_path: db_path(&cfg.data_dir),
 		network: cfg.network,
-		storage: cfg.db,
+		storage: db,
 		local_sync_node,
 		p2p_context: p2p.context().clone(),
 	};

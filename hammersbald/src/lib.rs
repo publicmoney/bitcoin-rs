@@ -27,45 +27,29 @@
 #![deny(unused_must_use)]
 #![forbid(unsafe_code)]
 
-#[cfg(feature="bitcoin_support")]extern crate bitcoin;
-#[cfg(feature="bitcoin_support")]extern crate serde;
-#[cfg(feature="bitcoin_support")]extern crate serde_cbor;
 extern crate bitcoin_hashes;
-extern crate rand;
 extern crate byteorder;
 extern crate lru_cache;
+extern crate rand;
 
+mod api;
+mod asyncfile;
+mod cachedfile;
+mod datafile;
+mod error;
+mod format;
+mod logfile;
+mod memtable;
 mod page;
 mod pagedfile;
-mod logfile;
-mod tablefile;
-mod cachedfile;
-mod singlefile;
-mod rolledfile;
-mod asyncfile;
-mod memtable;
-mod format;
-mod datafile;
-mod pref;
-mod transient;
 mod persistent;
-mod error;
+mod pref;
+mod rolledfile;
+mod singlefile;
 mod stats;
-mod api;
+mod tablefile;
+mod transient;
 
-pub use pref::PRef;
+pub use api::{persistent, transient, HammersbaldAPI, HammersbaldDataReader, HammersbaldDataWriter, HammersbaldIterator};
 pub use error::Error;
-pub use api::{
-    HammersbaldAPI,
-    HammersbaldDataWriter,
-    HammersbaldDataReader,
-    HammersbaldIterator,
-    persistent,
-    transient
-};
-
-#[cfg(feature="bitcoin_support")]
-mod bitcoin_adaptor;
-
-#[cfg(feature="bitcoin_support")]
-pub use bitcoin_adaptor::BitcoinAdaptor;
+pub use pref::PRef;

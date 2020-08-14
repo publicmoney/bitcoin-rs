@@ -6,6 +6,7 @@ license = "Apache-2.0"
 description = "Hammersbald - fast persistent store for a blockchain"
 keywords = [ "blockchain", "bitcoin", "hammersbald" ]
 readme = "README.md"
+edition = "2018"
 
 [lib]
 name = "hammersbald"

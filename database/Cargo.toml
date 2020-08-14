@@ -9,7 +9,7 @@ edition = "2018"
 bit-vec = "0.6"
 log = "0.4"
 parking_lot = "0.11"
-hammersbald = { path = "../../../rust-bitcoin/hammersbald" }
+hammersbald = { path = "../hammersbald" }
 chain = { path = "../chain" }
 storage = { path = "../storage" }
 bitcrypto = { path = "../crypto" }

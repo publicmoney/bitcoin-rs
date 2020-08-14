@@ -5,7 +5,7 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-tokio = { version = "0.2.11", features = ["full"] }
+tokio = "0.2"
 parking_lot = "0.10"
 futures = "0.3"
 time = "0.1"

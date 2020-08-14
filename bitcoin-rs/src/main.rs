@@ -15,7 +15,12 @@ mod rpc_apis;
 mod seednodes;
 mod util;
 
+use crate::config::Config;
+use crate::util::open_db;
 use app_dirs::AppInfo;
+use clap::ArgMatches;
+use tokio::runtime;
+use tokio::runtime::Runtime;
 
 // TODO make user agent configurable? Should look like bitcoin-core by default for privacy?
 pub const USER_AGENT: &'static str = env!("CARGO_PKG_NAME");
@@ -54,9 +59,22 @@ fn run() -> Result<(), String> {
 		env_logger::init();
 	}
 
+	let mut threaded_rt: Runtime = runtime::Builder::new()
+		.threaded_scheduler()
+		.enable_io()
+		.enable_time()
+		.build()
+		.expect("Failure starting Tokio runtime");
+
+	threaded_rt.block_on(run_async(cfg, &matches))
+}
+
+async fn run_async(cfg: Config, matches: &ArgMatches<'_>) -> Result<(), String> {
+	let db = open_db(&cfg).expect("Failed to open database");
+
 	match matches.subcommand() {
-		("import", Some(import_matches)) => commands::import(cfg, import_matches),
-		("rollback", Some(rollback_matches)) => commands::rollback(cfg, rollback_matches),
-		_ => commands::start(cfg),
+		("import", Some(import_matches)) => commands::import(db, cfg, import_matches).await,
+		("rollback", Some(rollback_matches)) => commands::rollback(db, cfg, rollback_matches).await,
+		_ => commands::start(db, cfg).await,
 	}
 }
