@@ -15,12 +15,11 @@ mod rpc_apis;
 mod seednodes;
 mod util;
 
-use crate::config::Config;
 use crate::util::open_db;
 use app_dirs::AppInfo;
-use clap::ArgMatches;
 use tokio::runtime;
 use tokio::runtime::Runtime;
+use tokio::time::Duration;
 
 // TODO make user agent configurable? Should look like bitcoin-core by default for privacy?
 pub const USER_AGENT: &'static str = env!("CARGO_PKG_NAME");
@@ -40,7 +39,7 @@ fn main() {
 	::std::env::set_var("RUST_BACKTRACE", "1");
 
 	if let Err(err) = run() {
-		println!("{}", err);
+		error!("{}", err);
 	}
 }
 
@@ -59,6 +58,8 @@ fn run() -> Result<(), String> {
 		env_logger::init();
 	}
 
+	let db = open_db(&cfg).expect("Failed to open database");
+
 	let mut threaded_rt: Runtime = runtime::Builder::new()
 		.threaded_scheduler()
 		.enable_io()
@@ -66,15 +67,16 @@ fn run() -> Result<(), String> {
 		.build()
 		.expect("Failure starting Tokio runtime");
 
-	threaded_rt.block_on(run_async(cfg, &matches))
-}
-
-async fn run_async(cfg: Config, matches: &ArgMatches<'_>) -> Result<(), String> {
-	let db = open_db(&cfg).expect("Failed to open database");
-
 	match matches.subcommand() {
-		("import", Some(import_matches)) => commands::import(db, cfg, import_matches).await,
-		("rollback", Some(rollback_matches)) => commands::rollback(db, cfg, rollback_matches).await,
-		_ => commands::start(db, cfg).await,
-	}
+		("import", Some(import_matches)) => commands::import(db.clone(), cfg, import_matches),
+		("rollback", Some(rollback_matches)) => commands::rollback(db.clone(), cfg, rollback_matches),
+		_ => commands::start(&threaded_rt, db.clone(), cfg),
+	}?;
+
+	threaded_rt.block_on(tokio::signal::ctrl_c()).expect("Runtime error");
+
+	info!("Shutting down...");
+	db.shutdown();
+	threaded_rt.shutdown_timeout(Duration::from_secs(10));
+	Ok(())
 }

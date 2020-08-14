@@ -426,6 +426,11 @@ where
 	fn difficulty(&self) -> f64 {
 		self.best_header().raw.bits.to_f64()
 	}
+
+	fn shutdown(&self) {
+		self.flush().expect("Error shutting down database");
+		debug!("Database shutdown");
+	}
 }
 
 impl<T> TransactionMetaProvider for BlockChainDatabase<T>

@@ -4,6 +4,10 @@
 node_modules/
 dist/
 testdb
+*.tb
+*.bc
+*.bl
+*.lg
 *.swp
 *.swo
 *.swn

@@ -4,7 +4,7 @@ use import::open_blk_dir;
 use storage::SharedStore;
 use sync::{create_sync_blocks_writer, Error};
 
-pub async fn import(db: SharedStore, cfg: Config, matches: &ArgMatches<'_>) -> Result<(), String> {
+pub fn import(db: SharedStore, cfg: Config, matches: &ArgMatches) -> Result<(), String> {
 	let blk_path = matches.value_of("PATH").expect("PATH is required in cli.yml; qed");
 	let blk_dir = open_blk_dir(blk_path).map_err(|err| format!("Failed to open import directory: {}", err))?;
 

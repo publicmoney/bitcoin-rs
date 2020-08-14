@@ -74,23 +74,21 @@ mod test {
 		std::fs::remove_file("test.0.bc");
 		std::fs::remove_file("test.0.lg");
 		std::fs::remove_file("test.0.tb");
+		std::fs::remove_file("test.0.bl");
 
+		let key = "abc".as_bytes();
 		let expected_pref = PRef::from(0);
 		let value = [1, 2, 3];
-		let new_value = [4, 5, 6];
 		{
 			let mut db = Persistent::new_db("test", 1, 1).unwrap();
-			let pref = db.put(&value).unwrap();
+			let pref = db.put_keyed(key, &value).unwrap();
 			assert_eq!(pref, expected_pref);
 			db.batch().unwrap();
 		}
 
-		let mut db = Persistent::new_db("test", 1, 1).unwrap();
-		let pref = db.set(expected_pref, &new_value).unwrap();
+		let db = Persistent::new_db("test", 1, 1).unwrap();
+		let (pref, result) = db.get_keyed(key).unwrap().unwrap();
 		assert_eq!(pref, expected_pref);
-		db.batch().unwrap();
-
-		assert_eq!(db.get(expected_pref).unwrap().0, vec![]);
-		assert_eq!(db.get(expected_pref).unwrap().1, new_value);
+		assert_eq!(value, result.as_slice());
 	}
 }

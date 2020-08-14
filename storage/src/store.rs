@@ -8,15 +8,6 @@ use std::sync::Arc;
 pub trait CanonStore: Store + Forkable {
 	fn as_store(&self) -> &dyn Store;
 }
-//
-// /// Configuration storage interface
-// pub trait ConfigStore {
-// 	/// get consensus_fork this database is configured for
-// 	fn consensus_fork(&self) -> Result<Option<String>, Error>;
-//
-// 	/// set consensus_fork this database is configured for
-// 	fn set_consensus_fork(&self, consensus_fork: &str) -> Result<(), Error>;
-// }
 
 /// Blockchain storage interface
 pub trait Store: AsSubstore {
@@ -28,6 +19,8 @@ pub trait Store: AsSubstore {
 
 	/// get blockchain difficulty
 	fn difficulty(&self) -> f64;
+
+	fn shutdown(&self);
 }
 
 /// Allows casting Arc<Store> to reference to any substore type

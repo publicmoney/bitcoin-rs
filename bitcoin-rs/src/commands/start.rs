@@ -2,13 +2,15 @@ use super::super::rpc;
 use crate::util::{db_path, node_table_path};
 use crate::{config, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use bitcrypto::SHA256D;
+use p2p::LocalSyncNodeRef;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use storage::SharedStore;
-use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, SyncListener};
+use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, LocalNodeRef, SyncListener};
+use tokio::runtime::Runtime;
 
 enum BlockNotifierTask {
 	NewBlock(SHA256D),
@@ -84,7 +86,7 @@ impl Drop for BlockNotifier {
 }
 
 /// Setup functions in here spawn new threads (which should be done off the main thread).
-pub async fn start(db: SharedStore, cfg: config::Config) -> Result<(), String> {
+pub fn start(runtime: &Runtime, db: SharedStore, cfg: config::Config) -> Result<(), String> {
 	let sync_peers = create_sync_peers();
 	let local_sync_node = create_local_sync_node(
 		cfg.consensus.clone(),
@@ -98,6 +100,17 @@ pub async fn start(db: SharedStore, cfg: config::Config) -> Result<(), String> {
 		local_sync_node.install_sync_listener(Box::new(BlockNotifier::new(block_notify_command)));
 	}
 
+	runtime.spawn(start_async(cfg, db, sync_connection_factory, local_sync_node));
+	Ok(())
+}
+
+/// All work that happens in here is handled by the Tokio runtime.
+pub async fn start_async(
+	cfg: config::Config,
+	db: SharedStore,
+	sync_connection_factory: LocalSyncNodeRef,
+	local_sync_node: LocalNodeRef,
+) -> Result<(), String> {
 	let p2p_cfg = p2p::Config {
 		inbound_connections: cfg.inbound_connections,
 		outbound_connections: cfg.outbound_connections,

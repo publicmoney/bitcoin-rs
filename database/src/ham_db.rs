@@ -23,7 +23,7 @@ impl HamDb {
 			std::fs::create_dir(&db_path).unwrap();
 		}
 		let full_path = format!("{}/bitcoin-rs", db_path);
-		Ok(Self::new(persistent(&full_path, db_cache_size_mb, 1).map_err(from_ham)?))
+		Ok(Self::new(persistent(&full_path, db_cache_size_mb, 128).map_err(from_ham)?))
 	}
 
 	fn new(hammersbald: Box<dyn HammersbaldAPI>) -> HamDb {
@@ -130,6 +130,7 @@ impl DbInterface for HamDb {
 
 		debug!("Inserting db_block: {} {:?}", block.header.hash, db_block);
 		self.put_keyed(&serialize(&block.header.hash), &serialize(&db_block))?;
+		self.flush()?;
 		Ok(())
 	}
 
