@@ -101,9 +101,9 @@ impl MemTable {
 		self.link_file.sync()?;
 		let link_len = self.link_file.len()?;
 
-		let data_len = self.data_file.len()?;
 		self.data_file.flush()?;
 		self.data_file.sync()?;
+		let data_len = self.data_file.len()?;
 
 		self.log_file.reset(table_len);
 		self.log_file.init(data_len, table_len, link_len)?;
@@ -114,11 +114,11 @@ impl MemTable {
 	}
 
 	/// stop background writer
-	pub fn shutdown(&mut self) {
-		self.data_file.shutdown();
-		self.link_file.shutdown();
-		self.table_file.shutdown();
-		self.log_file.shutdown();
+	pub fn shutdown(&mut self) -> Result<(), Error> {
+		self.data_file.shutdown()?;
+		self.link_file.shutdown()?;
+		self.table_file.shutdown()?;
+		self.log_file.shutdown()
 	}
 
 	pub fn recover(&mut self) -> Result<(), Error> {
@@ -634,6 +634,6 @@ mod test {
 			assert!(db.get_keyed(&k[..]).unwrap().is_none());
 		}
 
-		db.shutdown();
+		db.shutdown().unwrap();
 	}
 }

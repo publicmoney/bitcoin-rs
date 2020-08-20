@@ -106,7 +106,6 @@ where
 		}
 
 		self.db.insert_block(block)?;
-		// self.db.flush()
 		Ok(())
 	}
 
@@ -223,10 +222,6 @@ where
 					}
 				}
 			}
-
-			for output in &tx.raw.outputs {
-				best_block_meta.total_supply += output.value;
-			}
 		}
 
 		self.db.set_block_by_number(&block_hash, best_block_meta.number)?;
@@ -235,7 +230,7 @@ where
 		for (tx_hash, meta) in metas {
 			self.db.update_transaction_meta(&tx_hash, meta)?;
 		}
-		// self.db.flush()?;
+
 		debug!("Canonized block number: {:?}, hash: {:?}", best_block_meta.number, block_hash);
 
 		*best_height = BlockHeight {
@@ -263,7 +258,7 @@ where
 			number: if best_height.number > 0 { best_height.number - 1 } else { 0 },
 		};
 
-		trace!(target: "db", "decanonize, new best: {:?}", new_best_block);
+		debug!(target: "db", "decanonize, new best: {:?}", new_best_block);
 
 		self.db.set_best(&best_block.header.raw.previous_header_hash)?;
 
@@ -300,7 +295,6 @@ where
 			self.db.update_transaction_meta(&hash, meta)?;
 		}
 
-		// self.db.flush()?;
 		*best = new_best_block;
 
 		Ok(best_height.hash)
@@ -416,20 +410,19 @@ where
 		self.best_block()
 	}
 
-	/// get best header
 	fn best_header(&self) -> IndexedBlockHeader {
 		self.block_header(self.best_block().hash.into())
 			.expect("best block header should be in db; qed")
 	}
 
-	/// get blockchain difficulty
 	fn difficulty(&self) -> f64 {
 		self.best_header().raw.bits.to_f64()
 	}
 
 	fn shutdown(&self) {
-		self.flush().expect("Error shutting down database");
-		debug!("Database shutdown");
+		self.db.flush().expect("Error flushing database");
+		self.db.shutdown().expect("Error shutting down database");
+		info!("Database shutdown");
 	}
 }
 

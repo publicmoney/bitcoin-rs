@@ -53,7 +53,7 @@ pub trait HammersbaldAPI: Send + Sync {
 	fn batch(&mut self) -> Result<(), Error>;
 
 	/// stop background writer
-	fn shutdown(&mut self);
+	fn shutdown(&mut self) -> Result<(), Error>;
 
 	/// store data accessible with key
 	/// returns a persistent reference to stored data
@@ -205,7 +205,7 @@ impl HammersbaldAPI for Hammersbald {
 		self.mem.batch()
 	}
 
-	fn shutdown(&mut self) {
+	fn shutdown(&mut self) -> Result<(), Error> {
 		self.mem.shutdown()
 	}
 
@@ -336,7 +336,7 @@ mod test {
 			assert_eq!(db.get(o.clone()).unwrap(), (k.to_vec(), v.to_vec()));
 			assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*o, v.to_vec())));
 		}
-		db.shutdown();
+		db.shutdown().unwrap();
 	}
 
 	#[test]

@@ -76,7 +76,7 @@ fn run() -> Result<(), String> {
 	threaded_rt.block_on(tokio::signal::ctrl_c()).expect("Runtime error");
 
 	info!("Shutting down...");
+	threaded_rt.shutdown_timeout(Duration::from_secs(3));
 	db.shutdown();
-	threaded_rt.shutdown_timeout(Duration::from_secs(10));
 	Ok(())
 }

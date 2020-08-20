@@ -7,7 +7,9 @@ use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use db::blockchain_db::BlockChainDatabase;
 use db::ham_db::HamDb;
-use storage::{BlockProvider, ForkChain, SideChainOrigin};
+use storage::{BlockProvider, ForkChain, SideChainOrigin, Store};
+
+const TEST_DB: &'static str = "testdb";
 
 #[test]
 fn insert_block() {
@@ -42,22 +44,20 @@ fn insert_block() {
 
 	assert_eq!(b0.hash(), &store.block_hash(0).unwrap());
 	assert_eq!(b1.hash(), &store.block_hash(1).unwrap());
-	// assert!(store.block_hash(2).is_none()); we don't delete anymore
 
 	assert_eq!(0, store.block_number(b0.hash()).unwrap());
 	assert_eq!(1, store.block_number(b1.hash()).unwrap());
-	// assert!(store.block_number(b2.hash()).is_none());
 }
 
 #[test]
 fn reopen_db() {
-	let ham = HamDb::transient().unwrap();
+	std::fs::remove_dir_all(TEST_DB).unwrap_or_default();
 
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
-
 	{
+		let ham = HamDb::persistent(TEST_DB.to_string(), 100).unwrap();
 		let store = BlockChainDatabase::open(ham.clone()).unwrap();
 		store.insert(b0.clone()).unwrap();
 		store.insert(b1.clone()).unwrap();
@@ -68,9 +68,13 @@ fn reopen_db() {
 		store.canonize(b2.hash()).unwrap();
 
 		store.decanonize().unwrap();
+		store.flush().unwrap();
+		store.shutdown();
+
 		assert_eq!(1, store.best_block().number);
 	}
 	{
+		let ham = HamDb::persistent(TEST_DB.to_string(), 100).unwrap();
 		let store = BlockChainDatabase::open(ham).unwrap();
 		assert_eq!(b0.hash(), &store.block_hash(0).unwrap());
 		assert_eq!(1, store.best_block().number);

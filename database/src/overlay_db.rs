@@ -210,4 +210,8 @@ impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 		*db = MemoryDatabase::default();
 		self.ham_db.flush()
 	}
+
+	fn shutdown(&self) -> Result<(), Error> {
+		unreachable!()
+	}
 }

@@ -77,7 +77,9 @@ impl PagedFile for TableFile {
 		self.file.sync()
 	}
 
-	fn shutdown(&mut self) {}
+	fn shutdown(&mut self) -> Result<(), Error> {
+		Ok(())
+	}
 
 	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
 		let result = self.file.read_page(pref)?;

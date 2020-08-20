@@ -20,7 +20,7 @@
 
 use crate::error::Error;
 use crate::format::{Data, Envelope, IndexedData, Link, Payload};
-use crate::page::{PAGE_PAYLOAD_SIZE, PAGE_SIZE};
+use crate::page::PAGE_SIZE;
 use crate::pagedfile::{PagedFile, PagedFileAppender};
 use crate::pref::PRef;
 
@@ -54,7 +54,7 @@ impl DataFile {
 	}
 
 	/// shutdown
-	pub fn shutdown(&mut self) {
+	pub fn shutdown(&mut self) -> Result<(), Error> {
 		self.appender.shutdown()
 	}
 
@@ -63,12 +63,12 @@ impl DataFile {
 		let mut len = [0u8; 3];
 		pref = self.appender.read(pref, &mut len, 3)?;
 		let blen = BigEndian::read_u24(&len) as usize;
-		if blen >= PAGE_PAYLOAD_SIZE {
+		if blen >= PAGE_SIZE {
 			let mut buf = vec![0u8; blen];
 			self.appender.read(pref, &mut buf, blen)?;
 			Ok(Envelope::deseralize(buf))
 		} else {
-			let mut buf = [0u8; PAGE_PAYLOAD_SIZE]; // TODO why read so much by default? rather than just the length?
+			let mut buf = [0u8; PAGE_SIZE];
 			self.appender.read(pref, &mut buf, blen)?;
 			Ok(Envelope::deseralize(buf[0..blen].to_vec()))
 		}

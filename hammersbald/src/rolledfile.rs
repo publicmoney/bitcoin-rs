@@ -158,7 +158,9 @@ impl PagedFile for RolledFile {
 		Ok(())
 	}
 
-	fn shutdown(&mut self) {}
+	fn shutdown(&mut self) -> Result<(), Error> {
+		Ok(())
+	}
 
 	fn append_page(&mut self, page: Page) -> Result<(), Error> {
 		let chunk = (self.len / self.chunk_size) as u16;

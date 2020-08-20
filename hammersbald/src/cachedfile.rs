@@ -70,7 +70,7 @@ impl PagedFile for CachedFile {
 		self.file.sync()
 	}
 
-	fn shutdown(&mut self) {
+	fn shutdown(&mut self) -> Result<(), Error> {
 		self.file.shutdown()
 	}
 

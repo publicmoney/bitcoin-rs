@@ -106,7 +106,9 @@ impl PagedFile for Transient {
 		Ok(())
 	}
 
-	fn shutdown(&mut self) {}
+	fn shutdown(&mut self) -> Result<(), Error> {
+		Ok(())
+	}
 
 	fn append_page(&mut self, page: Page) -> Result<(), Error> {
 		let mut inner = self.inner.lock().unwrap();

@@ -88,7 +88,9 @@ impl PagedFile for LogFile {
 		self.file.sync()
 	}
 
-	fn shutdown(&mut self) {}
+	fn shutdown(&mut self) -> Result<(), Error> {
+		Ok(())
+	}
 
 	fn append_page(&mut self, page: Page) -> Result<(), Error> {
 		self.file.append_page(page)

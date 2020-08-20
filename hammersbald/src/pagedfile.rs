@@ -35,7 +35,7 @@ pub trait PagedFile: Send + Sync {
 	/// tell OS to flush buffers to disk
 	fn sync(&self) -> Result<(), Error>;
 	/// shutdown async write
-	fn shutdown(&mut self);
+	fn shutdown(&mut self) -> Result<(), Error>;
 	/// append pages
 	fn append_page(&mut self, page: Page) -> Result<(), Error>;
 	/// write a page at its position
@@ -162,7 +162,7 @@ impl PagedFile for PagedFileAppender {
 		self.file.sync()
 	}
 
-	fn shutdown(&mut self) {
+	fn shutdown(&mut self) -> Result<(), Error> {
 		self.file.shutdown()
 	}
 
@@ -182,10 +182,7 @@ impl PagedFile for PagedFileAppender {
 	fn flush(&mut self) -> Result<(), Error> {
 		if let Some(ref mut page) = self.page {
 			if self.pos.in_page_pos() > 0 {
-				let i = self.pos.page_number();
-				let i1 = self.file.len()?;
-				let i2 = PRef::from(i1).page_number();
-				if i <= i2 {
+				if self.pos.page_number() <= PRef::from(self.file.len()?).page_number() {
 					self.file.update_page(page.clone())?;
 				} else {
 					self.file.append_page(page.clone())?;

@@ -88,7 +88,9 @@ impl PagedFile for SingleFile {
 		Ok(self.file.lock().unwrap().sync_data()?)
 	}
 
-	fn shutdown(&mut self) {}
+	fn shutdown(&mut self) -> Result<(), Error> {
+		Ok(())
+	}
 
 	fn append_page(&mut self, page: Page) -> Result<(), Error> {
 		let mut file = self.file.lock().unwrap();

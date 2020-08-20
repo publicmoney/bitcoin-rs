@@ -9,6 +9,7 @@ pub struct BlockMeta {
 	pub n_chain_tx: u32,
 	// Total difficulty so far
 	// pub cumulative_difficulty: Compact
+	// pub total_size
 	// Total supply
 	pub total_supply: u64,
 }

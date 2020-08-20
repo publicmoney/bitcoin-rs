@@ -125,15 +125,10 @@ impl PagedFile for AsyncFile {
 		self.inner.file.lock().unwrap().sync()
 	}
 
-	fn shutdown(&mut self) {
-		let mut queue = self.inner.queue.lock().unwrap();
-		self.inner.work.notify_one();
-		while !queue.is_empty() {
-			queue = self.inner.flushed.wait(queue).unwrap();
-		}
-		let mut file = self.inner.file.lock().unwrap();
-		file.flush().unwrap();
-		self.inner.run.store(false, Ordering::Release)
+	fn shutdown(&mut self) -> Result<(), Error> {
+		self.flush()?;
+		self.inner.run.store(false, Ordering::Release);
+		Ok(())
 	}
 
 	fn append_page(&mut self, page: Page) -> Result<(), Error> {

@@ -32,4 +32,6 @@ pub trait DbInterface: Send + Sync {
 	fn set_best(&self, block_hash: &SHA256D) -> Result<(), storage::Error>;
 
 	fn flush(&self) -> Result<(), storage::Error>;
+
+	fn shutdown(&self) -> Result<(), storage::Error>;
 }

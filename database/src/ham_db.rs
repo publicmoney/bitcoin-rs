@@ -22,7 +22,7 @@ impl HamDb {
 		if !Path::new(&db_path).exists() {
 			std::fs::create_dir(&db_path).unwrap();
 		}
-		let full_path = format!("{}/bitcoin-rs", db_path);
+		let full_path = format!("{}/blockchain", db_path);
 		Ok(Self::new(persistent(&full_path, db_cache_size_mb, 128).map_err(from_ham)?))
 	}
 
@@ -130,7 +130,6 @@ impl DbInterface for HamDb {
 
 		debug!("Inserting db_block: {} {:?}", block.header.hash, db_block);
 		self.put_keyed(&serialize(&block.header.hash), &serialize(&db_block))?;
-		self.flush()?;
 		Ok(())
 	}
 
@@ -152,9 +151,7 @@ impl DbInterface for HamDb {
 
 	fn fetch_block_meta(&self, block_hash: &SHA256D) -> Result<Option<BlockMeta>, storage::Error> {
 		if let Some((_, db_block)) = self.get_keyed_type::<DbBlock>(block_hash)? {
-			let result = self.get_type::<BlockMeta>(db_block.meta);
-			debug!("fetched meta: {:?} {:?}", block_hash, result);
-			return result;
+			return self.get_type::<BlockMeta>(db_block.meta);
 		}
 		Ok(None)
 	}
@@ -277,6 +274,10 @@ impl DbInterface for HamDb {
 
 	fn flush(&self) -> Result<(), storage::Error> {
 		self.hammersbald.write().batch().map_err(from_ham)
+	}
+
+	fn shutdown(&self) -> Result<(), storage::Error> {
+		self.hammersbald.write().shutdown().map_err(from_ham)
 	}
 }
 
