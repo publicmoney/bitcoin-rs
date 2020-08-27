@@ -1,5 +1,5 @@
 use crate::v1::helpers::errors::{
-	block_at_height_not_found, block_not_found, transaction_not_found, transaction_of_side_branch, transaction_output_not_found,
+	block_at_height_not_found, block_not_found, transaction_not_found, transaction_of_side_branch, transaction_output_not_found, unknown,
 };
 use crate::v1::traits::BlockChain;
 use crate::v1::types::ChainTxStats;
@@ -17,6 +17,7 @@ use ser::serialize;
 use std::collections::HashMap;
 use std::fs;
 use storage;
+use storage::{BlockMeta, BlockRef};
 use verification;
 use verification::constants::TARGET_SPACING_SECONDS;
 
@@ -35,6 +36,7 @@ pub trait BlockChainClientCoreApi: Send + Sync + 'static {
 	fn block_hash(&self, height: u32) -> Option<SHA256D>;
 	fn difficulty(&self) -> f64;
 	fn median_time(&self) -> u32;
+	fn block_meta(&self, hash: SHA256D) -> Option<BlockMeta>;
 	fn raw_block(&self, hash: SHA256D) -> Option<RawBlock>;
 	fn verbose_block(&self, hash: SHA256D) -> Option<VerboseBlock>;
 	fn verbose_transaction_out(&self, prev_out: OutPoint) -> Result<GetTxOutResponse, Error>;
@@ -145,6 +147,10 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 		})
 	}
 
+	fn block_meta(&self, hash: SHA256D) -> Option<BlockMeta> {
+		self.storage.block_meta(BlockRef::Hash(hash))
+	}
+
 	fn verbose_transaction_out(&self, prev_out: OutPoint) -> Result<GetTxOutResponse, Error> {
 		let transaction = match self.storage.transaction(&prev_out.hash) {
 			Some(transaction) => transaction,
@@ -206,6 +212,7 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 			coinbase: transaction.raw.is_coinbase(),
 		})
 	}
+
 	fn chain_tx_stats(&self, nblocks: Option<usize>, _blockhash: Option<String>) -> Result<ChainTxStats, Error> {
 		let one_month_blocks = 30 * 24 * 60 * 60 / TARGET_SPACING_SECONDS;
 		let nblocks = nblocks.unwrap_or(one_month_blocks as usize) as u32;
@@ -305,17 +312,7 @@ where
 	fn block(&self, hash: SHA256D, verbose: Option<bool>) -> Result<GetBlockResponse, Error> {
 		let global_hash: SHA256D = hash.clone().into();
 		if verbose.unwrap_or_default() {
-			let verbose_block = self.core.verbose_block(global_hash);
-			if let Some(mut verbose_block) = verbose_block {
-				verbose_block.previousblockhash = verbose_block.previousblockhash.map(|h| h);
-				verbose_block.nextblockhash = verbose_block.nextblockhash.map(|h| h);
-				verbose_block.hash = verbose_block.hash;
-				verbose_block.merkleroot = verbose_block.merkleroot;
-				verbose_block.tx = verbose_block.tx.into_iter().map(|h| h).collect();
-				Some(GetBlockResponse::Verbose(verbose_block))
-			} else {
-				None
-			}
+			self.core.verbose_block(global_hash).map(|block| GetBlockResponse::Verbose(block))
 		} else {
 			self.core.raw_block(global_hash).map(|block| GetBlockResponse::Raw(block))
 		}
@@ -342,7 +339,20 @@ where
 	}
 
 	fn transaction_out_set_info(&self) -> Result<GetTxOutSetInfoResponse, Error> {
-		rpc_unimplemented!()
+		let best = self.core.best_block_hash();
+		self.core
+			.block_meta(best)
+			.map(|meta| GetTxOutSetInfoResponse {
+				bestblock: best,
+				height: meta.number,
+				disk_size: meta.total_size,
+				total_amount: meta.total_supply as f64,
+				transactions: meta.n_chain_tx,
+				txouts: meta.n_tx_with_utxos,
+				bogosize: 0,
+				hash_serialized_2: SHA256D::default(),
+			})
+			.ok_or(unknown())
 	}
 
 	fn chain_tx_stats(&self, nblocks: Option<usize>, blockhash: Option<String>) -> Result<ChainTxStats, Error> {
@@ -414,6 +424,10 @@ pub mod tests {
 
 		fn median_time(&self) -> u32 {
 			3919284
+		}
+
+		fn block_meta(&self, _hash: SHA256D) -> Option<BlockMeta> {
+			Some(BlockMeta::default())
 		}
 
 		fn raw_block(&self, _hash: SHA256D) -> Option<RawBlock> {
@@ -529,6 +543,10 @@ pub mod tests {
 
 		fn chain_tx_stats(&self, nblocks: Option<usize>, _blockhash: Option<String>) -> Result<ChainTxStats, Error> {
 			Err(block_not_found(nblocks))
+		}
+
+		fn block_meta(&self, _hash: SHA256D) -> Option<BlockMeta> {
+			None
 		}
 	}
 

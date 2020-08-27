@@ -917,7 +917,7 @@ where
 			if timestamp_diff >= 60.0 || blocks_diff >= 1000 {
 				self.state = State::Synchronizing(precise_time_s(), new_num_of_blocks);
 				let blocks_speed = blocks_diff as f64 / timestamp_diff;
-				info!(target: "sync", "Processed {} blocks in {:.2} seconds ({:.2} blk/s).\tPeers: {:?}.\tChain: {:?}"
+				info!(target: "sync", "Processed {} blocks in {:.2} seconds ({:.2} blk/s). Peers: {:?}. Chain: {:?}"
 					, blocks_diff
 					, timestamp_diff
 					, blocks_speed

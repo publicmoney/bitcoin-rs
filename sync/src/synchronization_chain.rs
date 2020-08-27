@@ -715,7 +715,7 @@ impl fmt::Debug for Information {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
-			"[sch:{} -> req:{} -> vfy:{} -> stored: {}]",
+			"[scheduled: {} -> requested: {} -> verifying: {} -> stored: {}]",
 			self.scheduled, self.requested, self.verifying, self.stored
 		)
 	}

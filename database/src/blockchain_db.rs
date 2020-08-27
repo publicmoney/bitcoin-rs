@@ -175,15 +175,22 @@ where
 		};
 
 		let mut best_block_meta = self.db.fetch_block_meta(&block_hash)?.unwrap();
+		let mut total_supply = 0;
+		let mut new_supply = 0;
 
 		if best_height.hash == SHA256D::default() {
 			// genesis block
 			best_block_meta.number = 0;
-			best_block_meta.n_chain_tx = new_best_block.transactions.len() as u32;
+			best_block_meta.n_chain_tx = new_best_block.transactions.len() as u64;
+			best_block_meta.total_size = new_best_block.weight() as u64;
+			best_block_meta.n_tx_with_utxos = 0;
 		} else {
 			let current_db_block = self.db.fetch_block_meta(&best_height.hash)?.unwrap();
 			best_block_meta.number = current_db_block.number + 1;
-			best_block_meta.n_chain_tx = current_db_block.n_chain_tx + new_best_block.transactions.len() as u32;
+			best_block_meta.n_chain_tx = current_db_block.n_chain_tx + new_best_block.transactions.len() as u64;
+			best_block_meta.total_size = current_db_block.total_size + new_best_block.weight() as u64;
+			best_block_meta.n_tx_with_utxos = current_db_block.n_tx_with_utxos;
+			total_supply += current_db_block.total_supply;
 		}
 
 		let mut metas: HashMap<SHA256D, TransactionMeta> = HashMap::new();
@@ -192,6 +199,10 @@ where
 			let mut meta = TransactionMeta::new(best_block_meta.number, tx.raw.outputs.len());
 			meta.set_coinbase();
 			metas.insert(tx.hash, meta);
+			if let Some(reward) = tx.raw.outputs.get(0) {
+				new_supply += reward.value
+			}
+			best_block_meta.n_tx_with_utxos += tx.raw.outputs.len() as u64;
 		}
 
 		for tx in new_best_block.transactions.iter().skip(1) {
@@ -222,8 +233,18 @@ where
 					}
 				}
 			}
+
+			for output in &tx.raw.outputs {
+				// Coinbase subsidies and rewards aren't always claimed.
+				if new_supply >= output.value {
+					new_supply -= output.value;
+				}
+			}
+			best_block_meta.n_tx_with_utxos += tx.raw.outputs.len() as u64;
+			best_block_meta.n_tx_with_utxos -= tx.raw.inputs.len() as u64;
 		}
 
+		best_block_meta.total_supply = total_supply + new_supply;
 		self.db.set_block_by_number(&block_hash, best_block_meta.number)?;
 		self.db.set_best(&block_hash)?;
 		self.db.update_block_meta(&block_hash, &best_block_meta)?;
@@ -540,7 +561,9 @@ mod tests {
 				number: 0,
 				n_tx: 1,
 				n_chain_tx: 1,
-				total_supply: 0
+				n_tx_with_utxos: 1,
+				total_supply: 5000000000,
+				total_size: 1140
 			}
 		);
 

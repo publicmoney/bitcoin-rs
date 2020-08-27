@@ -15,6 +15,7 @@ mod codes {
 use jsonrpc_core::{Error, ErrorCode, Value};
 use std::fmt;
 
+#[allow(unused_macros)]
 macro_rules! rpc_unimplemented {
 	() => {
 		Err(crate::v1::helpers::errors::unimplemented(None))

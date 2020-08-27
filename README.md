@@ -210,10 +210,3 @@ It's also possible to start logging from multiple modules in the same time:
 ```
 RUST_LOG=sync=trace,p2p=trace,verification=trace,db=trace ./target/release/bitcoin-rs
 ```
-
-## Internal documentation
-```
-cd bitcoin-rs
-./tools/doc.sh
-open target/doc/bitcoin-rs/index.html
-```

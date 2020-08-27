@@ -394,7 +394,11 @@ impl PeerStats {
 
 impl fmt::Debug for Information {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{} (act: {}, idl: {}, bad: {})", self.all, self.active, self.idle, self.unuseful)
+		write!(
+			f,
+			"{} (active: {}, idle: {}, bad: {})",
+			self.all, self.active, self.idle, self.unuseful
+		)
 	}
 }
 
