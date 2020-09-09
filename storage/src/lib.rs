@@ -2,8 +2,6 @@ extern crate bit_vec;
 extern crate elastic_array;
 extern crate lru_cache;
 extern crate parking_lot;
-#[macro_use]
-extern crate display_derive;
 
 extern crate chain;
 extern crate network;

@@ -107,3 +107,5 @@ subcommands:
             - BLOCK:
                 required: true
                 help: Either block hash, or block number.
+    - verify:
+        about: Re-verify the blockchain database stored on disk

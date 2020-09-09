@@ -33,5 +33,7 @@ pub trait DbInterface: Send + Sync {
 
 	fn flush(&self) -> Result<(), storage::Error>;
 
+	fn info(&self) -> Result<(), storage::Error>;
+
 	fn shutdown(&self) -> Result<(), storage::Error>;
 }

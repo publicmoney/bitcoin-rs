@@ -211,6 +211,10 @@ impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 		self.ham_db.flush()
 	}
 
+	fn info(&self) -> Result<(), Error> {
+		unreachable!()
+	}
+
 	fn shutdown(&self) -> Result<(), Error> {
 		unreachable!()
 	}

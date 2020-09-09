@@ -70,6 +70,7 @@ fn run() -> Result<(), String> {
 	match matches.subcommand() {
 		("import", Some(import_matches)) => commands::import(db.clone(), cfg, import_matches),
 		("rollback", Some(rollback_matches)) => commands::rollback(db.clone(), cfg, rollback_matches),
+		("verify", None) => commands::verify(db.clone(), cfg),
 		_ => commands::start(&threaded_rt, db.clone(), cfg),
 	}?;
 

@@ -6,7 +6,7 @@ use crate::deployments::BlockDeployments;
 use crate::error::Error;
 use crate::network::ConsensusParams;
 use crate::storage::{BlockHeaderProvider, DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
-use crate::VerificationLevel;
+use crate::verification_level::VerificationLevel;
 use rayon::prelude::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 pub struct ChainAcceptor<'a> {

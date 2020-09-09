@@ -178,7 +178,7 @@ where
 		let mut total_supply = 0;
 		let mut new_supply = 0;
 
-		if best_height.hash == SHA256D::default() {
+		if *best_height == BlockHeight::default() {
 			// genesis block
 			best_block_meta.number = 0;
 			best_block_meta.n_chain_tx = new_best_block.transactions.len() as u64;
@@ -258,6 +258,10 @@ where
 			hash: *block_hash,
 			number: best_block_meta.number,
 		};
+
+		if best_height.number % 100 == 0 {
+			self.db.flush()?;
+		}
 
 		Ok(())
 	}

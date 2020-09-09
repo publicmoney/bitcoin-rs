@@ -118,7 +118,7 @@ pub async fn start_async(
 			protocol_version: PROTOCOL_VERSION,
 			protocol_minimum: PROTOCOL_MINIMUM,
 			magic: cfg.consensus.magic(),
-			local_address: SocketAddr::new(cfg.host, cfg.port),
+			local_address: SocketAddr::new(cfg.host.unwrap(), cfg.port),
 			services: cfg.services,
 			user_agent: cfg.user_agent,
 			start_height: 0,

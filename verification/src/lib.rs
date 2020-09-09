@@ -73,6 +73,7 @@ mod deployments;
 mod error;
 mod sigops;
 mod timestamp;
+mod verification_level;
 mod work;
 
 // pre-verification
@@ -108,18 +109,8 @@ pub use deployments::Deployments;
 pub use error::{Error, TransactionError};
 pub use sigops::transaction_sigops;
 pub use timestamp::{median_timestamp, median_timestamp_inclusive};
+pub use verification_level::VerificationLevel;
 pub use work::{block_reward_satoshi, is_valid_proof_of_work, is_valid_proof_of_work_hash, work_required};
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-/// Blocks verification level.
-pub enum VerificationLevel {
-	/// Full verification.
-	Full,
-	/// Transaction scripts are not checked.
-	Header,
-	/// No verification at all.
-	NoVerification,
-}
 
 /// Interface for block verification
 pub trait Verify: Send + Sync {

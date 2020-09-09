@@ -5,7 +5,7 @@ use crate::network::ConsensusParams;
 use crate::script::{verify_script, Script, SignatureVersion, TransactionInputSigner, TransactionSignatureChecker, VerificationFlags};
 use crate::sigops::transaction_sigops;
 use crate::storage::{DuplexTransactionOutputProvider, TransactionMetaProvider, TransactionOutputProvider};
-use crate::VerificationLevel;
+use crate::verification_level::VerificationLevel;
 use bitcrypto::SHA256D;
 
 pub struct TransactionAcceptor<'a> {

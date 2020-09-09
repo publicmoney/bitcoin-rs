@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use serialization::{deserialize, serialize, Deserializable, Serializable};
 use std::path::Path;
 use std::sync::Arc;
-use storage::{BlockHeight, BlockMeta, TransactionMeta};
+use storage::{BlockHeight, BlockMeta, Error, TransactionMeta};
 
 pub struct HamDb {
 	hammersbald: Arc<RwLock<Box<dyn HammersbaldAPI>>>,
@@ -15,7 +15,7 @@ pub struct HamDb {
 
 impl HamDb {
 	pub fn transient() -> Result<HamDb, storage::Error> {
-		Ok(Self::new(transient(1).map_err(from_ham)?))
+		Ok(Self::new(transient().map_err(from_ham)?))
 	}
 
 	pub fn persistent(db_path: String, db_cache_size_mb: usize) -> Result<HamDb, storage::Error> {
@@ -23,7 +23,7 @@ impl HamDb {
 			std::fs::create_dir(&db_path).unwrap();
 		}
 		let full_path = format!("{}/blockchain", db_path);
-		Ok(Self::new(persistent(&full_path, db_cache_size_mb, 128).map_err(from_ham)?))
+		Ok(Self::new(persistent(&full_path, db_cache_size_mb).map_err(from_ham)?))
 	}
 
 	fn new(hammersbald: Box<dyn HammersbaldAPI>) -> HamDb {
@@ -283,6 +283,11 @@ impl DbInterface for HamDb {
 
 	fn flush(&self) -> Result<(), storage::Error> {
 		self.hammersbald.write().batch().map_err(from_ham)
+	}
+
+	fn info(&self) -> Result<(), Error> {
+		self.hammersbald.read().stats();
+		Ok(())
 	}
 
 	fn shutdown(&self) -> Result<(), storage::Error> {

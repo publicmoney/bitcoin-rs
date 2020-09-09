@@ -68,7 +68,6 @@ fn reopen_db() {
 		store.canonize(b2.hash()).unwrap();
 
 		store.decanonize().unwrap();
-		store.flush().unwrap();
 		store.shutdown();
 
 		assert_eq!(1, store.best_block().number);

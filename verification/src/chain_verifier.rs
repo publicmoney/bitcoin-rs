@@ -11,10 +11,11 @@ use crate::storage::{
 	BlockHeaderProvider, BlockOrigin, CachedTransactionOutputProvider, DuplexTransactionOutputProvider, NoopStore, SharedStore,
 	TransactionOutputProvider,
 };
+use crate::verification_level::VerificationLevel;
 use crate::verify_chain::ChainVerifier;
 use crate::verify_header::HeaderVerifier;
 use crate::verify_transaction::MemoryPoolTransactionVerifier;
-use crate::{VerificationLevel, Verify};
+use crate::Verify;
 use bitcrypto::SHA256D;
 
 pub struct BackwardsCompatibleChainVerifier {

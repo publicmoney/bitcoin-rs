@@ -16,7 +16,7 @@ pub struct Dependencies {
 	pub p2p_context: Arc<p2p::Context>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq)]
 pub struct HttpConfiguration {
 	pub enabled: bool,
 	pub interface: String,

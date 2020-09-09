@@ -10,13 +10,14 @@ use std::net;
 use sync::VerificationParameters;
 use verification::VerificationLevel;
 
+#[derive(Default)]
 pub struct Config {
 	pub network: Network,
 	pub consensus: ConsensusParams,
 	pub services: Services,
 	pub port: u16,
 	pub connect: Option<net::SocketAddr>,
-	pub host: net::IpAddr,
+	pub host: Option<net::IpAddr>,
 	pub seednodes: Vec<String>,
 	pub quiet: bool,
 	pub inbound_connections: u32,
@@ -94,10 +95,10 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 	};
 
 	let host = match matches.value_of("host") {
-		Some(s) => s.parse::<net::IpAddr>().map_err(|_| "Invalid host".to_owned())?,
+		Some(s) => Some(s.parse::<net::IpAddr>().map_err(|_| "Invalid host".to_owned())?),
 		None => match only_net {
-			InternetProtocol::IpV6 => "::".parse().unwrap(),
-			_ => "0.0.0.0".parse().unwrap(),
+			InternetProtocol::IpV6 => Some("::".parse().unwrap()),
+			_ => Some("0.0.0.0".parse().unwrap()),
 		},
 	};
 

@@ -1,27 +1,24 @@
-#[derive(Debug, PartialEq, Display)]
+use std::fmt;
+
+#[derive(Debug, PartialEq)]
 pub enum Error {
-	/// Low level database error
-	#[display(fmt = "Database error: {}", _0)]
 	DatabaseError(String),
-	/// Cannot canonize block
-	#[display(fmt = "Cannot canonize block")]
 	CannotCanonize,
-	/// Cannot decanonize block
-	#[display(fmt = "Cannot decanonize block")]
 	CannotDecanonize,
-	/// Unknown parent
-	#[display(fmt = "Block parent is unknown")]
 	UnknownParent,
-	/// Ancient fork
-	#[display(fmt = "Fork is too long to proceed")]
 	AncientFork,
-	/// Inconsistent Data
-	#[display(fmt = "Database inconsistency detected")]
 	InconsistentData,
 }
 
-impl From<Error> for String {
-	fn from(e: Error) -> String {
-		format!("{}", e)
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Error::DatabaseError(s) => write!(f, "Database error: {}", s),
+			Error::CannotCanonize => write!(f, "Cannot canonize block"),
+			Error::CannotDecanonize => write!(f, "Cannot decanonize block"),
+			Error::UnknownParent => write!(f, "Block parent is unknown"),
+			Error::AncientFork => write!(f, "Fork is too long to proceed"),
+			Error::InconsistentData => write!(f, "Database inconsistency detected"),
+		}
 	}
 }

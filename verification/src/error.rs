@@ -1,6 +1,7 @@
 use crate::compact::Compact;
 use bitcrypto::SHA256D;
 use script::Error as SignatureError;
+use std::fmt::{Display, Formatter, Result};
 use storage::Error as DBError;
 
 #[derive(Debug, PartialEq)]
@@ -61,6 +62,12 @@ pub enum Error {
 	NonCanonicalTransactionOrdering,
 	/// Database error
 	Database(DBError),
+}
+
+impl Display for Error {
+	fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+		write!(f, "{:?}", self)
+	}
 }
 
 impl From<DBError> for Error {

@@ -169,6 +169,12 @@ impl ConsensusParams {
 	}
 }
 
+impl Default for ConsensusParams {
+	fn default() -> Self {
+		ConsensusParams::new(Network::default())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::super::Network;

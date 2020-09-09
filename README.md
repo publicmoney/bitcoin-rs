@@ -68,44 +68,14 @@ cargo build -p bitcoin-rs --release
 
 `bitcoin-rs` is now available at either `./target/debug/bitcoin-rs` or `./target/release/bitcoin-rs`.
 
-## Running tests
-
-`bitcoin-rs` has internal unit tests and it conforms to external integration tests.
+## Running tests.
 
 #### Running unit tests
 
-Assuming that repository is already cloned, we can run unit tests with this command:
+Assuming that repository is already cloned, we can run the fast tests with this command:
 
 ```
 cargo test --all
-```
-
-#### Running external integration tests
-
-Running integration tests is automated, as the regtests repository is one of the submodules. Let's download it first:
-
-```
-git submodule update --init
-```
-
-Now we can run them using the command:
-
-```
-./tools/regtests.sh
-```
-
-It is also possible to run regtests manually:
-
-```
-# let's start bitcoin-rs in regtest compatible mode
-./target/release/bitcoin-rs --regtest
-
-# now in second shell window
-cd $HOME
-git clone https://github.com/TheBlueMatt/test-scripts
-cd test-scripts
-java -jar pull-tests-f56eec3.jar
-
 ```
 
 ## Going online

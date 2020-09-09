@@ -25,6 +25,7 @@ import = { path = "../import" }
 logs = { path = "../logs" }
 rpc = { path = "../rpc" }
 primitives = { path = "../primitives" }
+test-data = { path = "../test-data" }
 
 [build-dependencies]
 built = "0.3"
