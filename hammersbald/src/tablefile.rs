@@ -60,8 +60,17 @@ impl TableFile {
 }
 
 impl PagedFile for TableFile {
-	fn flush(&mut self) -> Result<(), Error> {
-		self.file.flush()
+	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
+		let result = self.file.read_page(pref)?;
+		if let Some(ref page) = result {
+			if page.pref() != pref {
+				return Err(Error::Corrupted(format!(
+					"table page {} does not have the pref of its position",
+					pref
+				)));
+			}
+		}
+		Ok(result)
 	}
 
 	fn len(&self) -> Result<u64, Error> {
@@ -81,32 +90,19 @@ impl PagedFile for TableFile {
 		Ok(())
 	}
 
-	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
-		let result = self.file.read_page(pref)?;
-		if let Some(ref page) = result {
-			if page.pref() != pref {
-				return Err(Error::Corrupted(format!(
-					"table page {} does not have the pref of its position",
-					pref
-				)));
-			}
-		}
-		Ok(result)
-	}
-
-	fn append_page(&mut self, _: Page) -> Result<(), Error> {
-		unimplemented!()
-	}
-
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
 		if page.pref().as_u64() >= self.len()? {
 			while page.pref() > self.initialized_until {
 				self.file.update_page(MemTable::invalid_offsets_page(self.initialized_until))?;
-				self.initialized_until = self.initialized_until.add_pages(1);
+				self.initialized_until = self.initialized_until.next_page();
 			}
 		}
-		self.initialized_until = max(self.initialized_until, page.pref().add_pages(1));
+		self.initialized_until = max(self.initialized_until, page.pref().next_page());
 		self.file.update_page(page)
+	}
+
+	fn flush(&mut self) -> Result<(), Error> {
+		self.file.flush()
 	}
 }
 

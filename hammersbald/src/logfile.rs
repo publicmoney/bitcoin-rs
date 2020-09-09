@@ -21,7 +21,7 @@
 use crate::error::Error;
 use crate::page::Page;
 use crate::pagedfile::{PagedFile, PagedFileIterator};
-use crate::pref::PRef;
+use crate::pref::{PRef, PREF_SIZE};
 
 use std::collections::HashSet;
 
@@ -44,10 +44,10 @@ impl LogFile {
 		self.truncate(0)?;
 		let mut first = Page::new();
 		first.write_pref(0, PRef::from(data_len));
-		first.write_pref(6, PRef::from(table_len));
-		first.write_pref(12, PRef::from(link_len));
+		first.write_pref(PREF_SIZE, PRef::from(table_len));
+		first.write_pref(PREF_SIZE * 2, PRef::from(link_len));
 
-		self.append_page(first)?;
+		self.file.update_page(first)?;
 		self.flush()?;
 		Ok(())
 	}
@@ -59,7 +59,7 @@ impl LogFile {
 	pub fn log_page(&mut self, pref: PRef, source: &dyn PagedFile) -> Result<(), Error> {
 		if pref.as_u64() < self.source_len && self.logged.insert(pref) {
 			if let Some(page) = source.read_page(pref)? {
-				self.append_page(page)?;
+				self.file.update_page(page)?;
 			}
 		}
 		Ok(())
@@ -92,12 +92,8 @@ impl PagedFile for LogFile {
 		Ok(())
 	}
 
-	fn append_page(&mut self, page: Page) -> Result<(), Error> {
-		self.file.append_page(page)
-	}
-
 	fn update_page(&mut self, _: Page) -> Result<u64, Error> {
-		unimplemented!()
+		unreachable!()
 	}
 
 	fn flush(&mut self) -> Result<(), Error> {

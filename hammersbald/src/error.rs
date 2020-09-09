@@ -17,9 +17,6 @@
 //! # Error type
 //!
 //!
-#[cfg(feature = "bitcoin_support")]
-use bitcoin::consensus::encode;
-
 use std::convert;
 use std::fmt;
 use std::io;
@@ -35,9 +32,6 @@ pub enum Error {
 	KeyTooLong,
 	/// wrapped IO error
 	IO(io::Error),
-	/// Wrapped bitcoin util error
-	#[cfg(feature = "bitcoin_support")]
-	BitcoinSerialize(encode::Error),
 	/// Lock poisoned
 	Poisoned(String),
 	/// Queue error
@@ -47,17 +41,15 @@ pub enum Error {
 }
 
 impl Error {
-	fn description(&self) -> &str {
+	fn description(&self) -> String {
 		match *self {
-			Error::InvalidOffset => "invalid pref",
-			Error::KeyTooLong => "key too long",
-			Error::Corrupted(ref s) => s.as_str(),
-			Error::IO(_) => "IO Error",
-			#[cfg(feature = "bitcoin_support")]
-			Error::BitcoinSerialize(_) => "Bitcoin Serialize Error",
-			Error::Poisoned(ref s) => s.as_str(),
-			Error::Queue(ref s) => s.as_str(),
-			Error::ValueTooLong => "value too long",
+			Error::InvalidOffset => "Invalid PRef".to_string(),
+			Error::KeyTooLong => "Key too long".to_string(),
+			Error::Corrupted(ref s) => format!("Corrupted: {}", s),
+			Error::IO(_) => "IO Error".to_string(),
+			Error::Poisoned(ref s) => format!("Poisoned: {}", s),
+			Error::Queue(ref s) => format!("Queue: {}", s),
+			Error::ValueTooLong => "Value too long".to_string(),
 		}
 	}
 }
@@ -69,8 +61,6 @@ impl std::error::Error for Error {
 			Error::KeyTooLong => None,
 			Error::Corrupted(_) => None,
 			Error::IO(ref e) => Some(e),
-			#[cfg(feature = "bitcoin_support")]
-			Error::BitcoinSerialize(ref e) => Some(e),
 			Error::Poisoned(_) => None,
 			Error::Queue(_) => None,
 			Error::ValueTooLong => None,

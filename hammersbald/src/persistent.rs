@@ -24,26 +24,27 @@ use crate::cachedfile::CachedFile;
 use crate::datafile::DataFile;
 use crate::error::Error;
 use crate::logfile::LogFile;
+use crate::page::PAGE_SIZE;
 use crate::rolledfile::RolledFile;
 use crate::tablefile::TableFile;
 
-const TABLE_CHUNK_SIZE: u64 = 1024 * 1024 * 1024;
-const DATA_CHUNK_SIZE: u64 = 1024 * 1024 * 1024;
-const LOG_CHUNK_SIZE: u64 = 1024 * 1024 * 1024;
+const TABLE_FILE_SIZE: u64 = 256 * PAGE_SIZE as u64;
+const DATA_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
+const LOG_FILE_SIZE: u64 = 256 * PAGE_SIZE as u64;
 
 /// Implements persistent storage
 pub struct Persistent {}
 
 impl Persistent {
 	/// create a new db
-	pub fn new_db(name: &str, cache_size_mb: usize, bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
+	pub fn new_db(name: &str, cache_size_mb: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
 		let data = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bc", false, DATA_CHUNK_SIZE)?))?),
+			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bc", false, DATA_FILE_SIZE)?))?),
 			cache_size_mb,
 		)?))?;
 
 		let link = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bl", true, DATA_CHUNK_SIZE)?))?),
+			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bl", false, DATA_FILE_SIZE)?))?),
 			cache_size_mb,
 		)?))?;
 
@@ -51,15 +52,15 @@ impl Persistent {
 			name,
 			"lg",
 			true,
-			LOG_CHUNK_SIZE,
+			LOG_FILE_SIZE,
 		)?))?));
 
 		let table = TableFile::new(Box::new(CachedFile::new(
-			Box::new(RolledFile::new(name, "tb", false, TABLE_CHUNK_SIZE)?),
+			Box::new(RolledFile::new(name, "tb", false, TABLE_FILE_SIZE)?),
 			cache_size_mb,
 		)?))?;
 
-		Ok(Box::new(Hammersbald::new(log, table, data, link, bucket_fill_target)?))
+		Ok(Box::new(Hammersbald::new(log, table, data, link)?))
 	}
 }
 
@@ -80,13 +81,13 @@ mod test {
 		let expected_pref = PRef::from(0);
 		let value = [1, 2, 3];
 		{
-			let mut db = Persistent::new_db("test", 1, 1).unwrap();
+			let mut db = Persistent::new_db("test", 1).unwrap();
 			let pref = db.put_keyed(key, &value).unwrap();
 			assert_eq!(pref, expected_pref);
 			db.batch().unwrap();
 		}
 
-		let db = Persistent::new_db("test", 1, 1).unwrap();
+		let db = Persistent::new_db("test", 1).unwrap();
 		let (pref, result) = db.get_keyed(key).unwrap().unwrap();
 		assert_eq!(pref, expected_pref);
 		assert_eq!(value, result.as_slice());

@@ -19,9 +19,8 @@
 use crate::error::Error;
 use crate::pref::PRef;
 
+use crate::memtable::BUCKET_FILL_TARGET;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-
-use std::io::Write;
 
 /// Content envelope wrapping in data file
 #[derive(Debug)]
@@ -30,31 +29,31 @@ pub struct Envelope {
 }
 
 impl Envelope {
-	/// create a new envelope
-	pub fn new(payload: &[u8]) -> Envelope {
-		Envelope { buffer: payload.to_vec() }
-	}
-
 	pub fn from_payload(payload: Payload) -> Envelope {
-		let mut buffer = vec![];
-		payload.serialize(&mut buffer);
-		Envelope { buffer }
+		Envelope {
+			buffer: payload.serialize(),
+		}
 	}
 
 	/// envelope payload
-	pub fn payload(&self) -> &[u8] {
-		self.buffer.as_slice()
+	pub fn payload(&self) -> Result<Payload, Error> {
+		Payload::deserialize(self.buffer.as_slice())
 	}
 
-	/// serialize for storage
-	pub fn serialize(&self, result: &mut dyn Write) {
-		result.write_u24::<BigEndian>(self.buffer.len() as u32).unwrap();
-		result.write(self.buffer.as_slice()).unwrap();
+	pub fn serialize(&self) -> Vec<u8> {
+		let mut v = vec![];
+		v.write_u24::<BigEndian>(self.buffer.len() as u32).unwrap();
+		v.extend_from_slice(self.buffer.as_slice());
+		v
 	}
 
 	/// deserialize for storage
 	pub fn deseralize(buffer: Vec<u8>) -> Envelope {
 		Envelope { buffer }
+	}
+
+	pub fn len(&self) -> usize {
+		self.buffer.len()
 	}
 }
 
@@ -70,21 +69,23 @@ pub enum Payload<'e> {
 
 impl<'e> Payload<'e> {
 	/// serialize for storage
-	pub fn serialize(&self, result: &mut dyn Write) {
+	pub fn serialize(&self) -> Vec<u8> {
+		let mut result = vec![];
 		match self {
 			Payload::Indexed(indexed) => {
-				result.write_u8(0).unwrap();
-				indexed.serialize(result);
+				result.push(0);
+				result.extend_from_slice(indexed.serialize().as_slice());
 			}
 			Payload::Referred(referred) => {
-				result.write_u8(1).unwrap();
-				referred.serialize(result);
+				result.push(1);
+				result.extend_from_slice(referred.serialize().as_slice());
 			}
 			Payload::Link(link) => {
-				result.write_u8(2).unwrap();
-				link.serialize(result);
+				result.push(2);
+				result.extend_from_slice(link.serialize().as_slice());
 			}
-		}
+		};
+		result
 	}
 
 	/// deserialize from storage
@@ -93,9 +94,24 @@ impl<'e> Payload<'e> {
 			0 => Ok(Payload::Indexed(IndexedData::deserialize(&slice[1..]))),
 			1 => Ok(Payload::Referred(Data::deserialize(&slice[1..]))),
 			2 => Ok(Payload::Link(Link::deserialize(&slice[1..]))),
-			// Link and Table are not serialized with a type
 			_ => Err(Error::Corrupted("unknown payload type".to_string())),
 		}
+	}
+
+	pub fn set_data(&mut self, data: &'e [u8]) {
+		match self {
+			Payload::Indexed(indexed) => {
+				indexed.data.data = data;
+			}
+			Payload::Referred(referred) => {
+				referred.data = data;
+			}
+			_ => panic!("Links should not be updated"),
+		};
+	}
+
+	pub fn into_envelope(self) -> Envelope {
+		Envelope::from_payload(self)
 	}
 }
 
@@ -112,9 +128,11 @@ impl<'e> Data<'e> {
 	}
 
 	/// serialize for storage
-	pub fn serialize(&self, result: &mut dyn Write) {
+	pub fn serialize(&self) -> Vec<u8> {
+		let mut result = vec![];
 		result.write_u24::<BigEndian>(self.data.len() as u32).unwrap();
-		result.write(self.data).unwrap();
+		result.extend_from_slice(self.data);
+		result
 	}
 
 	/// deserialize from storage
@@ -122,6 +140,10 @@ impl<'e> Data<'e> {
 		let data_len = BigEndian::read_u24(&slice[0..3]) as usize;
 		let data = &slice[3..3 + data_len];
 		Data { data }
+	}
+
+	pub fn into_payload(self) -> Payload<'e> {
+		Payload::Referred(self)
 	}
 }
 
@@ -140,10 +162,12 @@ impl<'e> IndexedData<'e> {
 	}
 
 	/// serialize for storage
-	pub fn serialize(&self, result: &mut dyn Write) {
-		result.write_u8(self.key.len() as u8).unwrap();
-		result.write(self.key).unwrap();
-		self.data.serialize(result);
+	pub fn serialize(&self) -> Vec<u8> {
+		let mut result = vec![];
+		result.push(self.key.len() as u8);
+		result.extend_from_slice(self.key);
+		result.extend_from_slice(self.data.serialize().as_slice());
+		result
 	}
 
 	/// deserialize from storage
@@ -152,6 +176,10 @@ impl<'e> IndexedData<'e> {
 		let key = &slice[1..key_len + 1];
 		let data = Data::deserialize(&slice[key_len + 1..]);
 		IndexedData { key, data }
+	}
+
+	pub fn to_payload(self) -> Payload<'e> {
+		Payload::Indexed(self)
 	}
 }
 
@@ -164,7 +192,8 @@ pub struct Link<'e> {
 impl<'e> Link<'e> {
 	/// serialize slots
 	pub fn from_slots(slots: &[(u32, PRef)]) -> Vec<u8> {
-		let mut links = vec![0u8; 10 * slots.len()];
+		// Make the vec max size it will need to be so that it can be updated and not get overwritten.
+		let mut links = vec![0u8; 10 * BUCKET_FILL_TARGET * 2];
 		for (i, slot) in slots.iter().enumerate() {
 			BigEndian::write_u32(&mut links[i * 10..i * 10 + 4], slot.0);
 			BigEndian::write_u48(&mut links[i * 10 + 4..i * 10 + 10], slot.1.as_u64());
@@ -178,18 +207,24 @@ impl<'e> Link<'e> {
 		for i in 0..self.links.len() / 10 {
 			let hash = BigEndian::read_u32(&self.links[i * 10..i * 10 + 4]);
 			let pref = PRef::from(BigEndian::read_u48(&self.links[i * 10 + 4..i * 10 + 10]));
-			slots.push((hash, pref));
+			if hash > 0 && pref != PRef::invalid() {
+				slots.push((hash, pref));
+			}
 		}
 		slots
 	}
 
 	/// serialize for storage
-	pub fn serialize(&self, write: &mut dyn Write) {
-		write.write(&self.links).unwrap();
+	pub fn serialize(&self) -> Vec<u8> {
+		self.links.to_vec()
 	}
 
 	/// deserialize from storage
 	pub fn deserialize(slice: &'e [u8]) -> Link<'e> {
 		Link { links: slice }
+	}
+
+	pub fn to_payload(self) -> Payload<'e> {
+		Payload::Link(self)
 	}
 }

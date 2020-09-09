@@ -45,33 +45,28 @@ pub struct Transient {
 struct Inner {
 	data: Vec<u8>,
 	pos: usize,
-	append: bool,
 }
 
 impl Transient {
 	/// create a new file
-	fn new(append: bool) -> Transient {
+	fn new() -> Transient {
 		Transient {
-			inner: Mutex::new(Inner {
-				data: Vec::new(),
-				pos: 0,
-				append,
-			}),
+			inner: Mutex::new(Inner { data: Vec::new(), pos: 0 }),
 		}
 	}
 
-	pub fn new_db(_name: &str, cached_data_pages: usize, bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
-		let log = LogFile::new(Box::new(AsyncFile::new(Box::new(Transient::new(true)))?));
-		let table = TableFile::new(Box::new(CachedFile::new(Box::new(Transient::new(false)), cached_data_pages)?))?;
+	pub fn new_db(cached_data_pages: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
+		let log = LogFile::new(Box::new(AsyncFile::new(Box::new(Transient::new()))?));
+		let table = TableFile::new(Box::new(CachedFile::new(Box::new(Transient::new()), cached_data_pages)?))?;
 		let data = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(Transient::new(true)))?),
+			Box::new(AsyncFile::new(Box::new(Transient::new()))?),
 			cached_data_pages,
 		)?))?;
 		let link = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(Transient::new(true)))?),
+			Box::new(AsyncFile::new(Box::new(Transient::new()))?),
 			cached_data_pages,
 		)?))?;
-		Ok(Box::new(Hammersbald::new(log, table, data, link, bucket_fill_target)?))
+		Ok(Box::new(Hammersbald::new(log, table, data, link)?))
 	}
 }
 
@@ -94,9 +89,6 @@ impl PagedFile for Transient {
 	}
 
 	fn truncate(&mut self, len: u64) -> Result<(), Error> {
-		if len % PAGE_SIZE as u64 != 0 {
-			return Err(Error::Corrupted(format!("truncate not to page boundary {}", len)));
-		}
 		let mut inner = self.inner.lock().unwrap();
 		inner.data.truncate(len as usize);
 		Ok(())
@@ -110,17 +102,11 @@ impl PagedFile for Transient {
 		Ok(())
 	}
 
-	fn append_page(&mut self, page: Page) -> Result<(), Error> {
-		let mut inner = self.inner.lock().unwrap();
-		inner.append = true;
-		inner.write(&page.clone().into_buf())?;
-		Ok(())
-	}
-
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
 		let mut inner = self.inner.lock().unwrap();
-		inner.append = false;
-		inner.seek(SeekFrom::Start(page.pref().as_u64()))?;
+		if page.pref().as_u64() <= inner.data.len() as u64 {
+			inner.seek(SeekFrom::Start(page.pref().as_u64()))?;
+		}
 		inner.write(&page.into_buf())?;
 		Ok(inner.data.len() as u64)
 	}
@@ -145,18 +131,14 @@ impl Read for Inner {
 impl Write for Inner {
 	fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
 		let buflen = buf.len();
-		if self.append {
-			self.data.extend_from_slice(buf);
-		} else {
-			let len = self.data.len();
-			let pos = self.pos;
-			let have = min(buflen, len - pos);
-			self.data.as_mut_slice()[pos..pos + have].copy_from_slice(&buf[0..have]);
-			if buflen > have {
-				self.data.extend_from_slice(&buf[have..buflen]);
-			}
+
+		let len = self.data.len();
+		let pos = self.pos;
+		let have = min(buflen, len - pos);
+		self.data.as_mut_slice()[pos..pos + have].copy_from_slice(&buf[0..have]);
+		if buflen > have {
+			self.data.extend_from_slice(&buf[have..buflen]);
 		}
-		self.pos += buflen;
 		Ok(self.pos)
 	}
 

@@ -38,13 +38,13 @@ pub struct Hammersbald {
 }
 
 /// create or open a persistent db
-pub fn persistent(name: &str, cache_size_mb: usize, bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
-	Persistent::new_db(name, cache_size_mb, bucket_fill_target)
+pub fn persistent(name: &str, cache_size_mb: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
+	Persistent::new_db(name, cache_size_mb)
 }
 
 /// create a transient db
-pub fn transient(bucket_fill_target: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
-	Transient::new_db("", 0, bucket_fill_target)
+pub fn transient() -> Result<Box<dyn HammersbaldAPI>, Error> {
+	Transient::new_db(0)
 }
 
 /// public API to Hammersbald
@@ -152,8 +152,8 @@ impl<'a> Read for HammersbaldDataReader<'a> {
 
 impl Hammersbald {
 	/// create a new db with key and data file
-	pub fn new(log: LogFile, table: TableFile, data: DataFile, link: DataFile, bucket_fill_target: usize) -> Result<Hammersbald, Error> {
-		let mem = MemTable::new(log, table, data, link, bucket_fill_target);
+	pub fn new(log: LogFile, table: TableFile, data: DataFile, link: DataFile) -> Result<Hammersbald, Error> {
+		let mem = MemTable::new(log, table, data, link);
 		let mut db = Hammersbald { mem };
 		db.recover()?;
 		db.load()?;
@@ -247,8 +247,7 @@ impl HammersbaldAPI for Hammersbald {
 	}
 
 	fn get(&self, pref: PRef) -> Result<(Vec<u8>, Vec<u8>), Error> {
-		let envelope = self.mem.get_envelope(pref)?;
-		match Payload::deserialize(envelope.payload())? {
+		match self.mem.get_envelope(pref)?.payload()? {
 			Payload::Referred(referred) => return Ok((vec![], referred.data.to_vec())),
 			Payload::Indexed(indexed) => return Ok((indexed.key.to_vec(), indexed.data.data.to_vec())),
 			_ => Err(Error::Corrupted("referred should point to data".to_string())),
@@ -280,152 +279,12 @@ impl<'a> Iterator for HammersbaldIterator<'a> {
 
 	fn next(&mut self) -> Option<<Self as Iterator>::Item> {
 		if let Some((pref, envelope)) = self.ei.next() {
-			match Payload::deserialize(envelope.payload()).unwrap() {
+			match envelope.payload().unwrap() {
 				Payload::Indexed(indexed) => return Some((pref, indexed.key.to_vec(), indexed.data.data.to_vec())),
 				Payload::Referred(referred) => return Some((pref, vec![], referred.data.to_vec())),
 				_ => return None,
 			}
 		}
 		None
-	}
-}
-
-#[cfg(test)]
-mod test {
-	extern crate hex;
-	extern crate rand;
-
-	use self::rand::thread_rng;
-	use crate::transient::Transient;
-	use crate::Error;
-	use rand::RngCore;
-	use std::collections::HashMap;
-
-	#[test]
-	fn test_two_batches_indexed() {
-		let mut db = Transient::new_db("first", 1, 1).unwrap();
-
-		let mut rng = thread_rng();
-
-		let mut check = HashMap::new();
-		let mut key = [0x0u8; 32];
-		let mut data = [0x0u8; 40];
-
-		for _ in 0..1 {
-			rng.fill_bytes(&mut key);
-			rng.fill_bytes(&mut data);
-			let pref = db.put_keyed(&key, &data).unwrap();
-			check.insert(key, (pref, data));
-		}
-		db.batch().unwrap();
-
-		for _ in 0..1 {
-			rng.fill_bytes(&mut key);
-			rng.fill_bytes(&mut data);
-			let pref = db.put_keyed(&key, &data).unwrap();
-			check.insert(key, (pref, data));
-		}
-		db.batch().unwrap();
-
-		for (k, (o, v)) in check.iter() {
-			assert_eq!(db.get(o.clone()).unwrap(), (k.to_vec(), v.to_vec()));
-			assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*o, v.to_vec())));
-		}
-
-		for (k, (o, v)) in check.iter() {
-			assert_eq!(db.get(o.clone()).unwrap(), (k.to_vec(), v.to_vec()));
-			assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*o, v.to_vec())));
-		}
-		db.shutdown().unwrap();
-	}
-
-	#[test]
-	fn test_put_keyed_then_set_same_length() {
-		let mut db = Transient::new_db("first", 1, 1).unwrap();
-
-		let key = "abc";
-		let value = [1, 2, 3];
-		let new_value = [4, 5, 6];
-
-		let pref = db.put_keyed(key.as_ref(), &value).unwrap();
-		let result = db.set(pref, &new_value).unwrap();
-		db.batch().unwrap();
-
-		assert_eq!(result, pref);
-		assert_eq!(db.get(pref).unwrap().1, new_value);
-		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value)
-	}
-
-	#[test]
-	fn test_put_keyed_then_set_different_length_returns_error() {
-		let mut db = Transient::new_db("first", 1, 1).unwrap();
-		let key = "abc";
-		let value = [1, 2, 3];
-		let new_value = [4, 5, 6, 7];
-
-		let pref = db.put_keyed(key.as_ref(), &value).unwrap();
-		let result = db.set(pref, &new_value);
-		db.batch().unwrap();
-
-		assert_eq!(result.err().unwrap().to_string(), Error::ValueTooLong.to_string());
-	}
-
-	#[test]
-	fn test_put_then_set_different_length_returns_error() {
-		let mut db = Transient::new_db("first", 1, 1).unwrap();
-		let value = [1, 2, 3];
-		let new_value = [4, 5, 6, 7];
-
-		let pref = db.put(&value).unwrap();
-		let result = db.set(pref, &new_value);
-		db.batch().unwrap();
-
-		assert_eq!(result.err().unwrap().to_string(), Error::ValueTooLong.to_string());
-	}
-
-	#[test]
-	fn test_put_then_set() {
-		let mut db = Transient::new_db("first", 1, 1).unwrap();
-		let value = [1, 2, 3];
-		let new_value = [4, 5, 6];
-
-		let pref = db.put(&value).unwrap();
-		let result = db.set(pref, &new_value).unwrap();
-		db.batch().unwrap();
-
-		assert_eq!(db.get(result).unwrap().0, vec![]);
-		assert_eq!(db.get(result).unwrap().1, new_value);
-	}
-
-	#[test]
-	fn test_put_keyed_same_length() {
-		let mut db = Transient::new_db("first", 0, 1).unwrap();
-		let key = "abc";
-		let value = [1, 2, 3];
-		let new_value = [4, 5, 6];
-
-		let pref1 = db.put_keyed(key.as_ref(), &value).unwrap();
-		let pref2 = db.put_keyed(key.as_ref(), &new_value).unwrap();
-
-		assert_eq!(pref1, pref2);
-		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value);
-		db.batch().unwrap();
-		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value)
-	}
-
-	#[test]
-	fn test_put_keyed_different_length() {
-		let mut db = Transient::new_db("first", 0, 1).unwrap();
-		let key = "abc";
-		let value = [1, 2, 3];
-		let new_value = [4, 5, 6, 7];
-
-		let pref1 = db.put_keyed(key.as_ref(), &value).unwrap();
-		let pref2 = db.put_keyed(key.as_ref(), &new_value).unwrap();
-
-		assert_ne!(pref1, pref2);
-		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value);
-		db.batch().unwrap();
-		assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value)
 	}
 }

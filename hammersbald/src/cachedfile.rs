@@ -74,12 +74,6 @@ impl PagedFile for CachedFile {
 		self.file.shutdown()
 	}
 
-	fn append_page(&mut self, page: Page) -> Result<(), Error> {
-		let mut cache = self.cache.lock().unwrap();
-		cache.append(page.clone());
-		self.file.append_page(page)
-	}
-
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
 		let mut cache = self.cache.lock().unwrap();
 		cache.update(page.clone());
@@ -111,14 +105,6 @@ impl Cache {
 
 	pub fn clear(&mut self) {
 		self.reads.clear();
-	}
-
-	pub fn append(&mut self, page: Page) -> u64 {
-		let pref = PRef::from(self.len);
-		let page = Arc::new(page);
-		self.cache(pref, page);
-		self.len = max(self.len, pref.as_u64() + PAGE_SIZE as u64);
-		self.len
 	}
 
 	pub fn update(&mut self, page: Page) -> u64 {

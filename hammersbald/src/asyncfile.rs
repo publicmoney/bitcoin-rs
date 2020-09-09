@@ -28,18 +28,12 @@ pub struct AsyncFile {
 	inner: Arc<AsyncFileInner>,
 }
 
-#[derive(Clone)]
-enum Operation {
-	Append(Page),
-	Update(Page),
-}
-
 struct AsyncFileInner {
 	file: Mutex<Box<dyn PagedFile + Send + Sync>>,
 	work: Condvar,
 	flushed: Condvar,
 	run: AtomicBool,
-	queue: Mutex<Vec<Operation>>,
+	queue: Mutex<Vec<Page>>,
 }
 
 impl AsyncFileInner {
@@ -72,13 +66,9 @@ impl AsyncFile {
 				queue = inner.work.wait(queue).expect("page queue lock poisoned");
 			}
 			let mut file = inner.file.lock().expect("file lock poisoned");
-			for operation in queue.iter() {
-				match operation {
-					Operation::Append(page) => file.append_page(page.clone()).expect("can not write in background"),
-					Operation::Update(page) => {
-						file.update_page(page.clone()).expect("can not write in background");
-					}
-				}
+
+			for page in queue.iter() {
+				file.update_page(page.clone()).expect("error in async file writer");
 			}
 			queue.clear();
 			inner.flushed.notify_all();
@@ -87,20 +77,13 @@ impl AsyncFile {
 
 	fn read_in_queue(&self, pref: PRef) -> Result<Option<Page>, Error> {
 		let queue = self.inner.queue.lock().expect("page queue lock poisoned");
-		if queue.len() > 0 {
-			let mut rev_q = queue.clone();
-			rev_q.reverse();
-			for operation in rev_q.iter() {
-				let page = match operation {
-					Operation::Update(p) => p,
-					Operation::Append(p) => p,
-				};
-				if page.pref() == pref {
-					return Ok(Some(page.clone()));
-				}
+		let mut result = None;
+		for page in queue.iter() {
+			if page.pref() == pref.this_page() {
+				result = Some(page);
 			}
 		}
-		Ok(None)
+		Ok(result.cloned())
 	}
 }
 
@@ -131,16 +114,9 @@ impl PagedFile for AsyncFile {
 		Ok(())
 	}
 
-	fn append_page(&mut self, page: Page) -> Result<(), Error> {
-		let mut queue = self.inner.queue.lock().unwrap();
-		queue.push(Operation::Append(page));
-		self.inner.work.notify_one();
-		Ok(())
-	}
-
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
 		let mut queue = self.inner.queue.lock().unwrap();
-		queue.push(Operation::Update(page));
+		queue.push(page);
 		self.inner.work.notify_one();
 		Ok(0)
 	}
@@ -151,7 +127,6 @@ impl PagedFile for AsyncFile {
 		while !queue.is_empty() {
 			queue = self.inner.flushed.wait(queue).unwrap();
 		}
-		let mut file = self.inner.file.lock().unwrap();
-		file.flush()
+		self.inner.file.lock().unwrap().flush()
 	}
 }

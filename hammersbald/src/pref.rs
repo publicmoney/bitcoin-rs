@@ -23,6 +23,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::ops;
 
+pub const PREF_SIZE: usize = 6;
 const INVALID: u64 = 0xffffffffffff;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
@@ -153,7 +154,7 @@ impl PRef {
 
 #[cfg(test)]
 mod test {
-	use crate::page::PAGE_SIZE;
+	use crate::page::{PAGE_PAYLOAD_SIZE, PAGE_SIZE};
 	use crate::PRef;
 
 	#[test]
@@ -169,10 +170,20 @@ mod test {
 	}
 
 	#[test]
-	fn this_page() {
+	fn page_pos() {
 		assert_eq!(PRef::from(10).in_page_pos(), 10);
 		assert_eq!(PRef::from(PAGE_SIZE as u64 + 10).in_page_pos(), 10);
 		assert_eq!(PRef::from(PAGE_SIZE as u64 * 5 + 10).in_page_pos(), 10);
+	}
+
+	#[test]
+	fn this_page() {
+		assert_eq!(PRef::from(0).this_page(), PRef::from(0));
+		assert_eq!(PRef::from(10).this_page(), PRef::from(0));
+		assert_eq!(PRef::from(PAGE_PAYLOAD_SIZE as u64).this_page(), PRef::from(0));
+		assert_eq!(PRef::from(PAGE_SIZE as u64).this_page(), PRef::from(PAGE_SIZE as u64));
+		assert_eq!(PRef::from(PAGE_SIZE as u64 + 10).this_page(), PRef::from(PAGE_SIZE as u64));
+		assert_eq!(PRef::from(PAGE_SIZE as u64 * 5 + 10).this_page(), PRef::from(PAGE_SIZE as u64 * 5));
 	}
 
 	#[test]

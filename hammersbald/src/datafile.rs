@@ -19,7 +19,7 @@
 //!
 
 use crate::error::Error;
-use crate::format::{Data, Envelope, IndexedData, Link, Payload};
+use crate::format::{Envelope, Payload};
 use crate::page::PAGE_SIZE;
 use crate::pagedfile::{PagedFile, PagedFileAppender};
 use crate::pref::PRef;
@@ -35,21 +35,18 @@ impl DataFile {
 	/// create new file
 	pub fn new(file: Box<dyn PagedFile>) -> Result<DataFile, Error> {
 		let len = file.len()?;
-		if len % PAGE_SIZE as u64 != 0 {
-			return Err(Error::Corrupted("data file does not end at page boundary".to_string()));
-		}
 		if len >= PAGE_SIZE as u64 {
-			return Ok(DataFile {
+			Ok(DataFile {
 				appender: PagedFileAppender::new(file, PRef::from(len)),
-			});
+			})
 		} else {
 			let appender = PagedFileAppender::new(file, PRef::from(0));
-			return Ok(DataFile { appender });
+			Ok(DataFile { appender })
 		}
 	}
 
 	/// return an iterator of all payloads
-	pub fn envelopes<'a>(&'a self) -> EnvelopeIterator<'a> {
+	pub fn envelopes(&self) -> EnvelopeIterator {
 		EnvelopeIterator::new(&self.appender)
 	}
 
@@ -61,82 +58,41 @@ impl DataFile {
 	/// get a stored content at pref
 	pub fn get_envelope(&self, mut pref: PRef) -> Result<Envelope, Error> {
 		let mut len = [0u8; 3];
-		pref = self.appender.read(pref, &mut len, 3)?;
-		let blen = BigEndian::read_u24(&len) as usize;
-		if blen >= PAGE_SIZE {
-			let mut buf = vec![0u8; blen];
-			self.appender.read(pref, &mut buf, blen)?;
-			Ok(Envelope::deseralize(buf))
-		} else {
-			let mut buf = [0u8; PAGE_SIZE];
-			self.appender.read(pref, &mut buf, blen)?;
-			Ok(Envelope::deseralize(buf[0..blen].to_vec()))
-		}
+		pref = self.appender.read(pref, &mut len)?;
+		let len = BigEndian::read_u24(&len) as usize;
+		let mut buf = vec![0u8; len];
+		self.appender.read(pref, &mut buf)?;
+		Ok(Envelope::deseralize(buf.to_vec()))
 	}
 
-	/// append link
-	pub fn append_link(&mut self, link: Link) -> Result<PRef, Error> {
-		let mut payload = vec![];
-		Payload::Link(link).serialize(&mut payload);
-		let envelope = Envelope::new(payload.as_slice());
-		let mut store = vec![];
-		envelope.serialize(&mut store);
+	pub fn append(&mut self, payload: Payload) -> Result<PRef, Error> {
+		let env = payload.into_envelope();
+		let data = env.serialize();
 		let me = self.appender.position();
-		self.appender.append(store.as_slice())?;
+		self.appender.append(data.as_slice())?;
 		Ok(me)
 	}
 
-	/// append indexed data
-	pub fn append_data(&mut self, key: &[u8], data: &[u8]) -> Result<PRef, Error> {
-		let indexed = IndexedData::new(key, Data::new(data));
-		let mut payload = vec![];
-		Payload::Indexed(indexed).serialize(&mut payload);
-		let envelope = Envelope::new(payload.as_slice());
-		let mut store = vec![];
-		envelope.serialize(&mut store);
+	pub fn update(&mut self, pref: PRef, payload: Payload) -> Result<PRef, Error> {
+		let env = payload.into_envelope();
+		let data = env.serialize();
 		let me = self.appender.position();
-		self.appender.append(store.as_slice())?;
-		Ok(me)
-	}
-
-	/// append referred data
-	pub fn append_referred(&mut self, data: &[u8]) -> Result<PRef, Error> {
-		let data = Data::new(data);
-		let mut payload = vec![];
-		Payload::Referred(data).serialize(&mut payload);
-		let envelope = Envelope::new(payload.as_slice());
-		let mut store = vec![];
-		envelope.serialize(&mut store);
-		let me = self.appender.position();
-		self.appender.append(store.as_slice())?;
+		self.appender.update(pref, data.as_slice())?;
 		Ok(me)
 	}
 
 	pub fn set_data(&mut self, pref: PRef, data: &[u8]) -> Result<PRef, Error> {
 		let envelope = self.get_envelope(pref)?;
 
-		let new_payload = match Payload::deserialize(envelope.payload())? {
-			Payload::Indexed(mut p) => {
-				p.data.data = data;
-				Payload::Indexed(p)
-			}
-			Payload::Referred(mut p) => {
-				p.data = data;
-				Payload::Referred(p)
-			}
-			_ => panic!("Links should not be updated"),
-		};
+		let mut payload = envelope.payload()?;
+		payload.set_data(data);
+		let new_envelope = payload.into_envelope();
 
-		let new_envelope = Envelope::from_payload(new_payload);
-
-		if envelope.payload().len() != new_envelope.payload().len() {
+		if envelope.len() != new_envelope.len() {
 			return Err(Error::ValueTooLong);
 		}
 
-		let mut store = vec![];
-		new_envelope.serialize(&mut store);
-
-		self.appender.update(pref, &store)?;
+		self.appender.update(pref, &new_envelope.serialize())?;
 		Ok(pref)
 	}
 
@@ -181,11 +137,11 @@ impl<'f> Iterator for EnvelopeIterator<'f> {
 		if self.pos.is_valid() {
 			let start = self.pos;
 			let mut len = [0u8; 3];
-			if let Ok(pos) = self.file.read(start, &mut len, 3) {
+			if let Ok(pos) = self.file.read(start, &mut len) {
 				let length = BigEndian::read_u24(&len) as usize;
 				if length > 0 {
 					let mut buf = vec![0u8; length];
-					self.pos = self.file.read(pos, &mut buf, length).unwrap();
+					self.pos = self.file.read(pos, &mut buf).unwrap();
 					let envelope = Envelope::deseralize(buf);
 					return Some((start, envelope));
 				}

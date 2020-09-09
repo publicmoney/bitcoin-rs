@@ -64,37 +64,6 @@ else {
 
 db.shutdown();
 ````
-### Optional Bitcoin API
-A bitcoin adaptor is available if compiled with the bitcoin_support future.
-Example use:
-````$Rust
-        // create a transient hammersbald
-        let db = transient(1).unwrap();
-        // promote to a bitcoin adapter
-        let mut bdb = BitcoinAdaptor::new(db);
-
-        // example transaction
-        let tx = decode::<Transaction> (hex::decode("02000000000101ed30ca30ee83f13579da294e15c9d339b35d33c5e76d2fda68990107d30ff00700000000006db7b08002360b0000000000001600148154619cb0e7513fcdb1eb90cc9f86f3793b9d8ec382ff000000000022002027a5000c7917f785d8fc6e5a55adfca8717ecb973ebb7743849ff956d896a7ed04004730440220503890e657773607fb05c9ef4c4e73b0ab847497ee67b3b8cefb3688a73333180220066db0ca943a5932f309ac9d4f191300711a5fc206d7c3babd85f025eac30bca01473044022055f05c3072dfd389104af1f5ccd56fb5433efc602694f1f384aab703c77ac78002203c1133981d66dc48183e72a19cc0974b93002d35ad7d6ee4278d46b4e96f871a0147522102989711912d88acf5a4a18081104f99c2f8680a7de23f829f28db31fdb45b7a7a2102f0406fa1b49a9bb10c191fd83e2359867ecdace5ea990ce63d11478ed5877f1852ae81534220").unwrap()).unwrap();
-
-        // store the transaction without associating a key
-        let txref = bdb.put_encodable(&tx).unwrap();
-        // retrieve by direct reference
-        let (key, tx2) = bdb.get_decodable::<Transaction>(txref).unwrap();
-        assert_eq!(tx, tx2);
-        assert_eq!(key, tx.bitcoin_hash()[..].to_vec());
-
-        // store the transaction with its hash as key
-        let txref2 = bdb.put_hash_keyed(&tx).unwrap();
-        // retrieve by hash
-        if let Some((pref, tx3)) = bdb.get_hash_keyed::<Transaction>(&tx.bitcoin_hash()).unwrap() {
-            assert_eq!(pref, txref2);
-            assert_eq!(tx3, tx);
-        }
-        else {
-            panic!("can not find tx");
-        }
-        bdb.batch().unwrap();
-````
 
 ## Implementation
 The persistent storage should be opened by only one process. 
