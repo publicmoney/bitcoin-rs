@@ -5,10 +5,10 @@ use message::{Error as MessageError, Message};
 use network::Magic;
 use std::cmp;
 
-pub async fn handshake(a: &SharedTcpStream, magic: Magic, version: Version, min_version: u32) -> Result<HandshakeResult, Error> {
-	write_message(a, version_message(magic, &version)).await?;
+pub async fn handshake(stream: &SharedTcpStream, magic: Magic, version: Version, min_version: u32) -> Result<HandshakeResult, Error> {
+	write_message(stream, version_message(magic, &version)).await?;
 
-	let peer_version: Version = read_message(a, magic, 0).await?;
+	let peer_version: Version = read_message(stream, magic, 0).await?;
 
 	if peer_version.version() < min_version {
 		return Err(MessageError::InvalidVersion.into());
@@ -18,9 +18,9 @@ pub async fn handshake(a: &SharedTcpStream, magic: Magic, version: Version, min_
 			return Err(MessageError::InvalidVersion.into());
 		}
 	}
-	write_message(a, verack_message(magic)).await?;
+	write_message(stream, verack_message(magic)).await?;
 
-	let _: Verack = read_message(a, magic, 0).await?;
+	let _: Verack = read_message(stream, magic, 0).await?;
 
 	Ok(HandshakeResult {
 		negotiated_version: negotiate_version(version.version(), peer_version.version()),

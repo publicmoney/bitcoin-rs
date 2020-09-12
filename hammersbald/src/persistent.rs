@@ -28,9 +28,9 @@ use crate::page::PAGE_SIZE;
 use crate::rolledfile::RolledFile;
 use crate::tablefile::TableFile;
 
-const TABLE_FILE_SIZE: u64 = 256 * PAGE_SIZE as u64;
+const TABLE_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
 const DATA_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
-const LOG_FILE_SIZE: u64 = 256 * PAGE_SIZE as u64;
+const LOG_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
 
 /// Implements persistent storage
 pub struct Persistent {}

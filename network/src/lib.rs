@@ -6,7 +6,7 @@ extern crate primitives;
 
 mod consensus;
 mod deployments;
-mod network;
+pub mod network;
 
 pub use primitives::{compact, hash};
 

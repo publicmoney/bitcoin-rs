@@ -58,12 +58,12 @@ cd bitcoin-rs
 
 ```
 # builds bitcoin-rs in debug mode
-cargo build -p bitcoin-rs
+cargo build
 ```
 
 ```
 # builds bitcoin-rs in release mode
-cargo build -p bitcoin-rs --release
+cargo build --release
 ```
 
 `bitcoin-rs` is now available at either `./target/debug/bitcoin-rs` or `./target/release/bitcoin-rs`.

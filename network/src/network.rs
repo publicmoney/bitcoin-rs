@@ -7,6 +7,12 @@ use chain::IndexedBlock;
 use primitives::bigint::U256;
 use std::fmt;
 
+pub const USER_AGENT: &'static str = env!("CARGO_PKG_NAME");
+pub const USER_AGENT_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+pub const PROTOCOL_VERSION: u32 = 70_014;
+pub const PROTOCOL_MINIMUM: u32 = 70_001;
+pub const REGTEST_USER_AGENT: &'static str = "/Satoshi:0.12.1/";
+
 const MAGIC_MAINNET: u32 = 0xD9B4BEF9;
 const MAGIC_TESTNET: u32 = 0x0709110B;
 const MAGIC_REGTEST: u32 = 0xDAB5BFFA;

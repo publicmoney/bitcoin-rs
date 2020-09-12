@@ -24,7 +24,9 @@ pub use primitives::{bytes, hash};
 
 pub use crate::p2p::{Context, P2P};
 pub use config::Config;
+pub use io::read_any_message;
 pub use net::Config as NetConfig;
+pub use net::{connect, Connection};
 pub use protocol::{
 	InboundSyncConnection, InboundSyncConnectionRef, InboundSyncConnectionState, InboundSyncConnectionStateRef, LocalSyncNode,
 	LocalSyncNodeRef, OutboundSyncConnection, OutboundSyncConnectionRef,

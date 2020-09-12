@@ -1,7 +1,8 @@
 use super::super::rpc;
+use crate::config;
 use crate::util::{db_path, node_table_path};
-use crate::{config, PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use bitcrypto::SHA256D;
+use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use p2p::LocalSyncNodeRef;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};

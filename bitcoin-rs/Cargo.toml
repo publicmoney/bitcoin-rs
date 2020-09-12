@@ -2,7 +2,7 @@
 name = "bitcoin-rs"
 version = "0.1.0"
 license = "GPL-3.0"
-description = "Bitcoin Rust"
+description = "Rust implementation of the Bitcoin protocol"
 build = "src/build.rs"
 edition = "2018"
 
@@ -28,7 +28,7 @@ primitives = { path = "../primitives" }
 test-data = { path = "../test-data" }
 
 [build-dependencies]
-built = "0.3"
+built = "0.4"
 
 [[bin]]
 name = "bitcoin-rs"

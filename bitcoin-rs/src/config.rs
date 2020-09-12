@@ -1,9 +1,9 @@
 use crate::rpc::HttpConfiguration as RpcHttpConfig;
 use crate::rpc_apis::ApiSet;
 use crate::seednodes::{mainnet_seednodes, testnet_seednodes};
-use crate::{REGTEST_USER_AGENT, USER_AGENT, USER_AGENT_VERSION};
 use clap;
 use message::Services;
+use network::network::{REGTEST_USER_AGENT, USER_AGENT, USER_AGENT_VERSION};
 use network::{ConsensusParams, Network};
 use p2p::InternetProtocol;
 use std::net;
