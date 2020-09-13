@@ -34,18 +34,16 @@ pub struct RolledFile {
 	extension: String,
 	files: HashMap<u16, SingleFile>,
 	len: u64,
-	append_only: bool,
 	file_size: u64,
 }
 
 impl RolledFile {
-	pub fn new(name: &str, extension: &str, append_only: bool, file_size: u64) -> Result<RolledFile, Error> {
+	pub fn new(name: &str, extension: &str, file_size: u64) -> Result<RolledFile, Error> {
 		let mut rolled = RolledFile {
 			name: name.to_string(),
 			extension: extension.to_string(),
 			files: HashMap::new(),
 			len: 0,
-			append_only,
 			file_size,
 		};
 		rolled.open()?;
@@ -78,7 +76,7 @@ impl RolledFile {
 											if let Some(index) = ni.extension() {
 												if let Ok(number) = index.to_string_lossy().parse::<u16>() {
 													let filename = path.clone().to_string_lossy().to_string();
-													let file = Self::open_file(self.append_only, filename)?;
+													let file = Self::open_file(filename)?;
 													self.files.insert(
 														number,
 														SingleFile::new(file, number as u64 * self.file_size, self.file_size)?,
@@ -107,14 +105,9 @@ impl RolledFile {
 		Ok(())
 	}
 
-	fn open_file(append: bool, path: String) -> Result<File, Error> {
+	fn open_file(path: String) -> Result<File, Error> {
 		let mut open_mode = OpenOptions::new();
-
-		if append {
-			open_mode.read(true).append(true).create(true);
-		} else {
-			open_mode.read(true).write(true).create(true);
-		};
+		open_mode.read(true).write(true).create(true);
 		Ok(open_mode.open(path)?)
 	}
 }
@@ -165,10 +158,7 @@ impl PagedFile for RolledFile {
 		let file_index = (n_offset / self.file_size) as u16;
 
 		if !self.files.contains_key(&file_index) {
-			let file = Self::open_file(
-				self.append_only,
-				(((self.name.clone() + ".") + file_index.to_string().as_str()) + ".") + self.extension.as_str(),
-			)?;
+			let file = Self::open_file((((self.name.clone() + ".") + file_index.to_string().as_str()) + ".") + self.extension.as_str())?;
 			self.files.insert(
 				file_index,
 				SingleFile::new(file, (n_offset / self.file_size) * self.file_size, self.file_size)?,
@@ -205,7 +195,7 @@ mod tests {
 		fs::remove_file("rolled-test.0.bc");
 		fs::remove_file("rolled-test.1.bc");
 
-		let mut rolled_file = RolledFile::new("rolled-test", "bc", false, PAGE_SIZE as u64).unwrap();
+		let mut rolled_file = RolledFile::new("rolled-test", "bc", PAGE_SIZE as u64).unwrap();
 
 		let page_one_pref = PRef::from(0);
 		let mut page_one = Page::new_page_with_position(page_one_pref);

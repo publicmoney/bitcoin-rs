@@ -1,4 +1,3 @@
-extern crate hex;
 extern crate rand;
 
 use self::rand::thread_rng;

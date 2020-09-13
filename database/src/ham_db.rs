@@ -303,6 +303,12 @@ fn from_serial(e: serialization::Error) -> storage::Error {
 	storage::Error::DatabaseError(e.to_string())
 }
 
+impl Drop for HamDb {
+	fn drop(&mut self) {
+		self.shutdown().unwrap_or_default();
+	}
+}
+
 impl Clone for HamDb {
 	fn clone(&self) -> Self {
 		HamDb {

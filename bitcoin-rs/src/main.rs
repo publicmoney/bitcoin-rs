@@ -15,9 +15,9 @@ mod rpc_apis;
 mod seednodes;
 mod util;
 
+use crate::config::USER_AGENT;
 use crate::util::open_db;
 use app_dirs::AppInfo;
-use network::network::USER_AGENT;
 use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::time::Duration;

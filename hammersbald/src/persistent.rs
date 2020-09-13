@@ -39,24 +39,19 @@ impl Persistent {
 	/// create a new db
 	pub fn new_db(name: &str, cache_size_mb: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
 		let data = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bc", false, DATA_FILE_SIZE)?))?),
+			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bc", DATA_FILE_SIZE)?))?),
 			cache_size_mb,
 		)?))?;
 
 		let link = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bl", false, DATA_FILE_SIZE)?))?),
+			Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "bl", DATA_FILE_SIZE)?))?),
 			cache_size_mb,
 		)?))?;
 
-		let log = LogFile::new(Box::new(AsyncFile::new(Box::new(RolledFile::new(
-			name,
-			"lg",
-			true,
-			LOG_FILE_SIZE,
-		)?))?));
+		let log = LogFile::new(Box::new(AsyncFile::new(Box::new(RolledFile::new(name, "lg", LOG_FILE_SIZE)?))?));
 
 		let table = TableFile::new(Box::new(CachedFile::new(
-			Box::new(RolledFile::new(name, "tb", false, TABLE_FILE_SIZE)?),
+			Box::new(RolledFile::new(name, "tb", TABLE_FILE_SIZE)?),
 			cache_size_mb,
 		)?))?;
 

@@ -21,14 +21,14 @@ use crate::api::Hammersbald;
 use crate::format::Payload;
 
 use bitcoin_hashes::siphash24;
-
+use log::info;
 use std::collections::{HashMap, HashSet};
 
 /// print some statistics on a db
 pub fn stats(db: &Hammersbald) {
 	let (step, log_mod, blen, tlen, dlen, llen, sip0, sip1) = db.params();
-	println!("File sizes: table: {}, data: {}, links: {}", tlen, dlen, llen);
-	println!("Hash table: buckets: {}, log_mod: {}, step: {}", blen, log_mod, step);
+	info!("File sizes: table: {}, data: {}, links: {}", tlen, dlen, llen);
+	info!("Hash table: buckets: {}, log_mod: {}, step: {}", blen, log_mod, step);
 
 	let mut pointers = HashSet::new();
 	for bucket in db.buckets() {
@@ -63,13 +63,13 @@ pub fn stats(db: &Hammersbald) {
 			roots.entry(slot.1).or_insert(Vec::new()).push(slot.0);
 		}
 	}
-	println!(
+	info!(
 		"Used buckets: {}. {:.1}% average filled. Slots per bucket: {:.1}",
 		used_buckets,
 		100.0 * (used_buckets as f32 / blen as f32),
 		n_slots as f32 / used_buckets as f32
 	);
-	println!(
+	info!(
 		"Data: indexed: {}, hash collisions {:.2} %",
 		n_slots,
 		(1.0 - (roots.len() as f32) / (n_slots as f32)) * 100.0
@@ -98,10 +98,10 @@ pub fn stats(db: &Hammersbald) {
 		}
 	}
 	if !roots.is_empty() {
-		println!("ERROR {} roots point to non-existent data", roots.len());
+		panic!("ERROR {} roots point to non-existent data", roots.len());
 	}
-	println!("Referred: {}", referred);
-	println!(
+	info!("Referred: {}", referred);
+	info!(
 		"Garbage: indexed: {}, referred: {}, links: {}",
 		indexed_garbage,
 		referred_garbage,

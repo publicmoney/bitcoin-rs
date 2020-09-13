@@ -22,6 +22,7 @@ impl NodeManager {
 			.arg("--regtest")
 			.args(&["--data-dir", "testdb"])
 			.stdout(Stdio::null())
+			.stderr(Stdio::null())
 			.spawn()
 			.expect("failed to start bitcoin-rs");
 

@@ -182,11 +182,10 @@ mod tests {
 	use std::fs;
 
 	#[test]
-	#[allow(unused_must_use)]
 	fn test_append() {
-		fs::remove_file("paged-test.0.bc");
+		fs::remove_file("paged-test.0.bc").unwrap_or_default();
 
-		let rolled_file = RolledFile::new("paged-test", "bc", false, PAGE_SIZE as u64).unwrap();
+		let rolled_file = RolledFile::new("paged-test", "bc", PAGE_SIZE as u64).unwrap();
 		let mut appender = PagedFileAppender::new(Box::new(rolled_file), PRef::from(0));
 
 		let value = [1, 2, 3];
@@ -199,7 +198,7 @@ mod tests {
 		assert_eq!(3, appender.len().unwrap());
 		assert_eq!(value, res);
 
-		appender.update(PRef::from(2), &[5]);
+		appender.update(PRef::from(2), &[5]).unwrap();
 		let result = appender.read_page(PRef::from(0)).unwrap().unwrap();
 		let mut res = [0u8; 3];
 		result.read(0, &mut res);
@@ -207,19 +206,18 @@ mod tests {
 	}
 
 	#[test]
-	#[allow(unused_must_use)]
 	fn test_big() {
-		fs::remove_file("paged-test-big.0.bc");
-		fs::remove_file("paged-test-big.1.bc");
+		fs::remove_file("paged-test-big.0.bc").unwrap_or_default();
+		fs::remove_file("paged-test-big.1.bc").unwrap_or_default();
 
-		let rolled_file = RolledFile::new("paged-test-big", "bc", false, PAGE_SIZE as u64).unwrap();
+		let rolled_file = RolledFile::new("paged-test-big", "bc", PAGE_SIZE as u64).unwrap();
 		let mut appender = PagedFileAppender::new(Box::new(rolled_file), PRef::from(0));
 
 		let value = [1u8; 5000];
 		appender.append(&value).unwrap();
 
 		let mut res = [0u8; 5000];
-		appender.read(PRef::from(0), &mut res);
+		appender.read(PRef::from(0), &mut res).unwrap();
 
 		assert_eq!(5000 + PREF_SIZE as u64, appender.len().unwrap());
 		for i in 0..500 {
