@@ -44,7 +44,7 @@ cargo test --all
 
 For a full list of CLI options run `bitcoin-rs --help`  
 
-By default bitcoin-rs connects to bitcoin-core seednodes. Full list is available [here](bitcoin-rs/seednodes.rs).
+By default bitcoin-rs connects to bitcoin-core seednodes. Full list is available [here](bitcoin-rs/src/seednodes.rs).
 
 To start syncing the main network, just start the client. For example:
 
