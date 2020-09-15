@@ -66,6 +66,10 @@ where
 {
 	pub fn open(db: T) -> Result<BlockChainDatabase<T>, storage::Error> {
 		let best_block = db.best_block()?;
+		info!(
+			"Opened database with best block number: {} hash: {}",
+			best_block.number, best_block.hash
+		);
 		Ok(BlockChainDatabase {
 			db,
 			best_block: RwLock::new(best_block),
@@ -246,7 +250,7 @@ where
 
 		best_block_meta.total_supply = total_supply + new_supply;
 		self.db.set_block_by_number(&block_hash, best_block_meta.number)?;
-		self.db.set_best(&block_hash)?;
+		self.db.set_best(best_block_meta.number)?;
 		self.db.update_block_meta(&block_hash, &best_block_meta)?;
 		for (tx_hash, meta) in metas {
 			self.db.update_transaction_meta(&tx_hash, meta)?;
@@ -285,7 +289,7 @@ where
 
 		debug!(target: "db", "decanonize, new best: {:?}", new_best_block);
 
-		self.db.set_best(&best_block.header.raw.previous_header_hash)?;
+		self.db.set_best(new_best_block.number)?;
 
 		let mut metas: HashMap<SHA256D, TransactionMeta> = HashMap::new();
 

@@ -13,7 +13,7 @@ struct MemoryDatabase {
 	txs: HashMap<SHA256D, IndexedTransaction>,
 	tx_metas: HashMap<SHA256D, TransactionMeta>,
 	block_numbers: HashMap<u32, SHA256D>,
-	best_block: Option<SHA256D>,
+	best_block: Option<u32>,
 }
 
 pub struct OverlayDatabase<'a, H>
@@ -168,19 +168,19 @@ impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 			.mem_db
 			.read()
 			.best_block
-			.and_then(|hash| {
+			.and_then(|number| {
 				self.mem_db
 					.read()
-					.block_metas
-					.get(&hash)
-					.and_then(|meta| Some(BlockHeight { number: meta.number, hash }))
+					.block_numbers
+					.get(&number)
+					.and_then(|hash| Some(BlockHeight { number, hash: *hash }))
 			})
 			.or(Some(self.ham_db.best_block()?))
 			.unwrap_or_default())
 	}
 
-	fn set_best(&self, block_hash: &SHA256D) -> Result<(), storage::Error> {
-		self.mem_db.write().best_block = Some(*block_hash);
+	fn set_best(&self, block_number: u32) -> Result<(), storage::Error> {
+		self.mem_db.write().best_block = Some(block_number);
 		Ok(())
 	}
 
@@ -204,7 +204,7 @@ impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 			self.ham_db.set_block_by_number(hash, *number)?;
 		}
 		if db.best_block.is_some() {
-			self.ham_db.set_best(&db.best_block.unwrap())?;
+			self.ham_db.set_best(db.best_block.unwrap())?;
 		}
 
 		*db = MemoryDatabase::default();

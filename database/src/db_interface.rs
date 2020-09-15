@@ -29,7 +29,7 @@ pub trait DbInterface: Send + Sync {
 
 	fn best_block(&self) -> Result<BlockHeight, storage::Error>;
 
-	fn set_best(&self, block_hash: &SHA256D) -> Result<(), storage::Error>;
+	fn set_best(&self, block_number: u32) -> Result<(), storage::Error>;
 
 	fn flush(&self) -> Result<(), storage::Error>;
 

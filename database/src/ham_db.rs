@@ -254,16 +254,20 @@ impl DbInterface for HamDb {
 	}
 
 	fn best_block(&self) -> Result<BlockHeight, storage::Error> {
-		match self.get_by_pref::<PRef>(Self::best_pref()) {
-			Ok(Some(best_pref)) => {
-				let hash = self.get_key(best_pref)?;
-				if let Some(meta) = self.fetch_block_meta(&hash)? {
-					return Ok(BlockHeight { hash, number: meta.number });
+		match self.get_by_pref::<u32>(Self::best_pref()) {
+			Ok(Some(best_number)) => {
+				for i in 0..100 {
+					let number = best_number - i;
+					if let Some((_, block_pref)) = self.get_by_key::<u32, PRef>(&number)? {
+						if let Some((hash, _db_block)) = self.get_keyed::<SHA256D, DbBlock>(block_pref)? {
+							return Ok(BlockHeight { hash, number });
+						}
+					}
 				}
 				return Err(storage::Error::DatabaseError("Failed to fetch best block".to_string()));
 			}
 			_ => {
-				let pref = self.put(&PRef::invalid())?;
+				let pref = self.put(&0)?;
 				if pref != Self::best_pref() {
 					return Err(storage::Error::DatabaseError("Database initialisation error".to_string()));
 				}
@@ -273,12 +277,9 @@ impl DbInterface for HamDb {
 		}
 	}
 
-	fn set_best(&self, block_hash: &SHA256D) -> Result<(), storage::Error> {
-		if let Some((db_block_pref, _)) = self.get_by_key::<SHA256D, DbBlock>(block_hash)? {
-			self.set(Self::best_pref(), &db_block_pref)?;
-			return Ok(());
-		}
-		Err(storage::Error::CannotCanonize)
+	fn set_best(&self, block_number: u32) -> Result<(), storage::Error> {
+		self.set(Self::best_pref(), &block_number)?;
+		return Ok(());
 	}
 
 	fn flush(&self) -> Result<(), storage::Error> {
