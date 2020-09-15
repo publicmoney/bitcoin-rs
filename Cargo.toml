@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"bitcoin-rs",
+	"bitcoin-rs/node-manager",
 	"chain",
 	"crypto",
 	"database",
@@ -27,7 +28,7 @@ debug = true
 panic = 'abort'
 
 [profile.release]
-debug = true
+debug = false
 panic = 'abort'
 
 [profile.test]

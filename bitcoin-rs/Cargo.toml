@@ -30,6 +30,10 @@ test-data = { path = "../test-data" }
 [build-dependencies]
 built = "0.4"
 
+[dev-dependencies]
+node-manager = { path = "node-manager" }
+
+
 [[bin]]
 name = "bitcoin-rs"
 path = "src/main.rs"

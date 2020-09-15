@@ -138,6 +138,7 @@ dependencies = [
  "logs 0.1.0",
  "message 0.1.0",
  "network 0.1.0",
+ "node-manager 0.1.0",
  "p2p 0.1.0",
  "primitives 0.1.0",
  "rpc 0.1.0",
@@ -1045,6 +1046,15 @@ dependencies = [
  "chain 0.1.0",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "primitives 0.1.0",
+]
+
+[[package]]
+name = "node-manager"
+version = "0.1.0"
+dependencies = [
+ "message 0.1.0",
+ "network 0.1.0",
+ "p2p 0.1.0",
 ]
 
 [[package]]

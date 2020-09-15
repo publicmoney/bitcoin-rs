@@ -19,6 +19,7 @@ pub fn verify(db: SharedStore, cfg: Config) -> Result<(), String> {
 	};
 
 	let best = db.best_block();
+	info!("Verifying from block 0 to {}", best.number);
 
 	for block_number in 0..best.number {
 		match db.block(BlockRef::Number(block_number)) {
