@@ -73,18 +73,20 @@ impl NodeManager {
 
 		let bitcoin_rs = bitcoin_rs_cmd.spawn().expect("Error starting node");
 
-		// Give it time to start before returning.
-		std::thread::sleep(std::time::Duration::from_secs(1));
-
 		self.process = Some(bitcoin_rs);
 		self
 	}
 
 	pub async fn connect(&mut self) -> &mut NodeManager {
 		let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.builder.config.network.port());
-		let connection = connect(&socket, &self.builder.config).await.unwrap();
-		self.connection = Some(connection);
-		self
+		for _ in 0..2 {
+			if let Ok(connection) = connect(&socket, &self.builder.config).await {
+				self.connection = Some(connection);
+				return self;
+			}
+			std::thread::sleep(std::time::Duration::from_secs(1));
+		}
+		panic!("unable to connect to node")
 	}
 
 	pub async fn send_message<T>(&self, payload: &T) -> Result<(), String>
