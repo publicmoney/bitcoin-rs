@@ -7,14 +7,14 @@ use tokio::time::timeout;
 pub async fn connect<'a>(address: &SocketAddr, config: &Config) -> Result<Connection, Error> {
 	let stream = SharedTcpStream::connect(address).await?;
 	let connect = async {
-		let handshake = handshake(&stream, config.magic, config.version(address), config.protocol_minimum).await?;
+		let handshake = handshake(&stream, config.network.magic(), config.version(address), config.protocol_minimum).await?;
 
 		Ok(Connection {
 			stream,
 			services: handshake.version.services(),
 			version: handshake.negotiated_version,
 			version_message: handshake.version,
-			magic: config.magic,
+			magic: config.network.magic(),
 			address: *address,
 		})
 	};

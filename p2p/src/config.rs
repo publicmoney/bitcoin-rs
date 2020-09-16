@@ -1,5 +1,6 @@
 use crate::{InternetProtocol, NetConfig};
 use message::common::Services;
+use std::net::SocketAddr;
 use std::{net, path};
 
 #[derive(Debug, Clone)]
@@ -12,8 +13,8 @@ pub struct Config {
 	pub connection: NetConfig,
 	/// Connect only to these nodes.
 	pub peers: Vec<net::SocketAddr>,
-	/// Connect to these nodes to retrieve peer addresses, and disconnect.
-	pub seeds: Vec<String>,
+	/// Optional seed node to use instead of default bitcoin-core seeds.
+	pub seed: Option<SocketAddr>,
 	/// p2p/nodes.csv file path.
 	pub node_table_path: path::PathBuf,
 	/// Peers with this services will get a boost in node_table.

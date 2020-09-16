@@ -6,7 +6,9 @@ use crate::{Config, Direction, InboundSyncConnectionRef, LocalSyncNodeRef, NetCo
 use message::common::Services;
 use message::types::addr::AddressEntry;
 use message::{Message, Payload};
+use network::Network;
 use parking_lot::RwLock;
+use rand::seq::SliceRandom;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -15,7 +17,6 @@ use tokio::runtime::Handle;
 use tokio::time::delay_for;
 use tokio::time::interval;
 use tokio::{net::TcpListener, net::TcpStream, stream::StreamExt};
-use trust_dns_resolver::TokioAsyncResolver;
 
 /// Network context.
 pub struct Context {
@@ -402,6 +403,9 @@ impl Context {
 	}
 }
 
+include!(concat!(env!("OUT_DIR"), "/seeds_main.rs"));
+include!(concat!(env!("OUT_DIR"), "/seeds_test.rs"));
+
 pub struct P2P {
 	/// P2P config.
 	pub config: Config,
@@ -426,12 +430,10 @@ impl P2P {
 	pub fn new(config: Config, local_sync_node: LocalSyncNodeRef) -> Result<Self, Box<dyn error::Error>> {
 		let context = Context::new(local_sync_node, config.clone())?;
 
-		let p2p = P2P {
+		Ok(P2P {
 			context: Arc::new(context),
 			config,
-		};
-
-		Ok(p2p)
+		})
 	}
 
 	pub async fn run(self) {
@@ -439,14 +441,18 @@ impl P2P {
 			self.connect::<NormalSessionFactory>(*peer);
 		}
 
-		let resolver = Arc::new(
-			TokioAsyncResolver::from_system_conf(tokio::runtime::Handle::current())
-				.await
-				.expect("could not instantiate dns resolver"),
-		);
+		if self.config.seed.is_some() {
+			Context::connect::<SeednodeSessionFactory>(self.context.clone(), self.config.seed.unwrap());
+		} else {
+			let seeds: Vec<SocketAddr> = match self.config.connection.network {
+				Network::Mainnet => seeds_main(),
+				Network::Testnet => seeds_test(),
+				_ => vec![],
+			};
 
-		for seed in &self.config.seeds {
-			tokio::spawn(Self::connect_to_seednode(self.context.clone(), resolver.clone(), seed.clone()));
+			for seed in seeds.choose_multiple(&mut rand::thread_rng(), 5) {
+				Context::connect::<SeednodeSessionFactory>(self.context.clone(), *seed);
+			}
 		}
 
 		Context::autoconnect(self.context.clone());
@@ -460,26 +466,6 @@ impl P2P {
 		T: SessionFactory + 'static,
 	{
 		Context::connect::<T>(self.context.clone(), addr);
-	}
-
-	pub async fn connect_to_seednode(context: Arc<Context>, resolver: Arc<TokioAsyncResolver>, seednode: String) {
-		let parts: Vec<&str> = seednode.splitn(2, ":").collect();
-		let name = *parts.first().unwrap();
-		let port = parts.last().unwrap().parse().unwrap();
-		match resolver.lookup_ip(name).await {
-			Ok(address) => match address.iter().last() {
-				Some(socket) => {
-					trace!("Dns lookup of seednode {} finished. Connecting to {}", seednode, socket);
-					Context::connect::<SeednodeSessionFactory>(context, SocketAddr::new(socket, port));
-				}
-				None => {
-					trace!("Dns lookup of seednode {} resolved with no results", seednode);
-				}
-			},
-			Err(err) => {
-				trace!("Dns lookup of seednode {} failed with {}", seednode, err);
-			}
-		};
 	}
 
 	pub fn context(&self) -> &Arc<Context> {

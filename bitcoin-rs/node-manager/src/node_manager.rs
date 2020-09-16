@@ -14,18 +14,16 @@ pub struct NodeManager {
 
 pub struct NodeBuilder {
 	bin_path: String,
-	network: Network,
 	config: NetConfig,
 	sub_command: Option<String>,
 }
 
 impl NodeBuilder {
 	pub fn new(bin_path: &str) -> Self {
-		let network = Network::Regtest;
 		let config = NetConfig {
 			protocol_version: PROTOCOL_VERSION,
 			protocol_minimum: PROTOCOL_MINIMUM,
-			magic: network.magic(),
+			network: Network::Regtest,
 			local_address: "0.0.0.0:3000".parse().unwrap(),
 			services: Default::default(),
 			user_agent: "bitcoin-rs-test".to_string(),
@@ -34,7 +32,6 @@ impl NodeBuilder {
 		};
 		NodeBuilder {
 			bin_path: bin_path.to_string(),
-			network,
 			config,
 			sub_command: None,
 		}
@@ -84,7 +81,7 @@ impl NodeManager {
 	}
 
 	pub async fn connect(&mut self) -> &mut NodeManager {
-		let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.builder.network.port());
+		let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.builder.config.network.port());
 		let connection = connect(&socket, &self.builder.config).await.unwrap();
 		self.connection = Some(connection);
 		self
@@ -105,7 +102,9 @@ impl NodeManager {
 
 	pub async fn read_message(&self) -> Result<(message::Command, Bytes), String> {
 		if let Some(connection) = &self.connection {
-			Ok(read_any_message(&connection.stream, self.builder.config.magic).await.unwrap())
+			Ok(read_any_message(&connection.stream, self.builder.config.network.magic())
+				.await
+				.unwrap())
 		} else {
 			Err("Not connected".to_string())
 		}

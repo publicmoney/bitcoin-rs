@@ -118,7 +118,7 @@ pub async fn start_async(
 		connection: p2p::NetConfig {
 			protocol_version: PROTOCOL_VERSION,
 			protocol_minimum: PROTOCOL_MINIMUM,
-			magic: cfg.consensus.magic(),
+			network: cfg.consensus.network,
 			local_address: SocketAddr::new(cfg.host.unwrap(), cfg.port),
 			services: cfg.services,
 			user_agent: cfg.user_agent,
@@ -126,7 +126,7 @@ pub async fn start_async(
 			relay: true,
 		},
 		peers: cfg.connect.map_or_else(|| vec![], |x| vec![x]),
-		seeds: cfg.seednodes,
+		seed: cfg.seednode,
 		node_table_path: node_table_path(&cfg.data_dir),
 		preferable_services: cfg.services,
 		internet_protocol: cfg.internet_protocol,

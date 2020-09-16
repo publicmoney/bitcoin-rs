@@ -2,14 +2,14 @@ use crate::util::nonce::{NonceGenerator, RandomNonce};
 use crate::util::time::{RealTime, Time};
 use message::common::{NetAddress, Services};
 use message::types::version::{Version, V0, V106, V70001};
-use network::Magic;
+use network::Network;
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
 pub struct Config {
 	pub protocol_version: u32,
 	pub protocol_minimum: u32,
-	pub magic: Magic,
+	pub network: Network,
 	pub local_address: SocketAddr,
 	pub services: Services,
 	pub user_agent: String,

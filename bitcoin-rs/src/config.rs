@@ -1,6 +1,5 @@
 use crate::rpc::HttpConfiguration as RpcHttpConfig;
 use crate::rpc_apis::ApiSet;
-use crate::seednodes::{mainnet_seednodes, testnet_seednodes};
 use clap;
 use message::Services;
 use network::{ConsensusParams, Network};
@@ -22,7 +21,7 @@ pub struct Config {
 	pub port: u16,
 	pub connect: Option<net::SocketAddr>,
 	pub host: Option<net::IpAddr>,
-	pub seednodes: Vec<String>,
+	pub seednode: Option<net::SocketAddr>,
 	pub quiet: bool,
 	pub inbound_connections: u32,
 	pub outbound_connections: u32,
@@ -82,13 +81,9 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 		None => None,
 	};
 
-	let seednodes: Vec<String> = match matches.value_of("seednode") {
-		Some(s) => vec![s.parse().map_err(|_| "Invalid seednode".to_owned())?],
-		None => match network {
-			Network::Mainnet => mainnet_seednodes().into_iter().map(Into::into).collect(),
-			Network::Testnet => testnet_seednodes().into_iter().map(Into::into).collect(),
-			Network::Other(_) | Network::Regtest | Network::Unitest => Vec::new(),
-		},
+	let seednode = match matches.value_of("seednode") {
+		Some(s) => Some(s.parse().map_err(|_| "Invalid seednode".to_owned())?),
+		None => None,
 	};
 
 	let only_net = match matches.value_of("only-net") {
@@ -134,7 +129,7 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 		port,
 		connect,
 		host,
-		seednodes,
+		seednode,
 		inbound_connections: in_connections,
 		outbound_connections: out_connections,
 		db_cache,

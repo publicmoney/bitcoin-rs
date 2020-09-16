@@ -9,9 +9,8 @@ tokio = "0.2"
 parking_lot = "0.10"
 futures = "0.3"
 time = "0.1"
-rand = "0.4"
+rand = "0.7"
 log = "0.4"
-trust-dns-resolver = "0.19.2"
 csv = "1"
 
 primitives = { path = "../primitives" }

@@ -12,7 +12,6 @@ mod commands;
 mod config;
 mod rpc;
 mod rpc_apis;
-mod seednodes;
 mod util;
 
 use crate::config::USER_AGENT;

@@ -12,6 +12,6 @@ jobs:
     - name: Build
       run: cargo build
     - name: Run tests
-      run: cargo test --all-targets
+      run: cargo test --workspace
     - name: Run benches
-      run: cargo bench --all-targets
+      run: cargo bench --workspace
