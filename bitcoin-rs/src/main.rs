@@ -21,6 +21,10 @@ use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::time::Duration;
 
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 pub const APP_INFO: AppInfo = AppInfo {
 	name: USER_AGENT,
 	author: "publicmoney",
@@ -32,7 +36,7 @@ fn main() {
 	::std::env::set_var("RUST_BACKTRACE", "1");
 
 	if let Err(err) = run() {
-		error!("{}", err);
+		println!("{}", err);
 	}
 }
 
@@ -51,7 +55,7 @@ fn run() -> Result<(), String> {
 		env_logger::init();
 	}
 
-	let db = open_db(&cfg).expect("Failed to open database");
+	let db = open_db(&cfg)?;
 
 	let mut threaded_rt: Runtime = runtime::Builder::new()
 		.threaded_scheduler()

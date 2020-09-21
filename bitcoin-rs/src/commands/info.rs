@@ -1,7 +1,7 @@
 use storage::SharedStore;
 
 pub fn info(db: SharedStore) -> Result<(), String> {
-	info!("Getting database statistics. This may take a while");
+	info!("Getting database statistics. This may take a while.");
 	db.info();
 	info!("Finished");
 	Ok(())

@@ -26,6 +26,9 @@ logs = { path = "../logs" }
 rpc = { path = "../rpc" }
 primitives = { path = "../primitives" }
 
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+jemallocator = "0.3"
+
 [build-dependencies]
 built = "0.4"
 
