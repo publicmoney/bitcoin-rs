@@ -11,14 +11,13 @@ pub trait CanonStore: Store + Forkable {
 
 /// Blockchain storage interface
 pub trait Store: AsSubstore {
-	/// get best block
 	fn best_block(&self) -> BlockHeight;
 
-	/// get best header
 	fn best_header(&self) -> IndexedBlockHeader;
 
-	/// get blockchain difficulty
 	fn difficulty(&self) -> f64;
+
+	fn info(&self);
 
 	fn shutdown(&self);
 }

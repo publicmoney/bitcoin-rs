@@ -448,6 +448,10 @@ where
 		self.best_header().raw.bits.to_f64()
 	}
 
+	fn info(&self) {
+		self.db.info().expect("Error getting database info")
+	}
+
 	fn shutdown(&self) {
 		self.db.flush().expect("Error flushing database");
 		self.db.shutdown().expect("Error shutting down database");
