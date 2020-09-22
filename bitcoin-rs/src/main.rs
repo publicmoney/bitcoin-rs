@@ -8,6 +8,7 @@ extern crate app_dirs;
 extern crate env_logger;
 extern crate libc;
 
+mod block_notifier;
 mod commands;
 mod config;
 mod rpc;
