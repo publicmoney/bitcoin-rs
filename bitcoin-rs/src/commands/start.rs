@@ -2,6 +2,7 @@ use super::super::rpc;
 use crate::config;
 use crate::util::{db_path, node_table_path};
 use bitcrypto::SHA256D;
+use memory::Memory;
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use p2p::LocalSyncNodeRef;
 use std::net::SocketAddr;
@@ -139,6 +140,7 @@ pub async fn start_async(
 		storage: db,
 		local_sync_node,
 		p2p_context: p2p.context().clone(),
+		memory: Arc::new(Memory::default()),
 	};
 	let _rpc_server = rpc::new_http(cfg.rpc_config, rpc_deps)?;
 

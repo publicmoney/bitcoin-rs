@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"bitcoin-rs",
+	"bitcoin-rs/memory",
 	"bitcoin-rs/node-manager",
 	"chain",
 	"crypto",

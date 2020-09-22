@@ -1,4 +1,5 @@
 use crate::rpc::Dependencies;
+use rpc::v1::impls::{ControlClient, ControlClientCore};
 use rpc::v1::*;
 use rpc::MetaIoHandler;
 use std::collections::HashSet;
@@ -6,13 +7,10 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum Api {
-	/// Raw methods
+	Control,
 	Raw,
-	/// Miner-related methods
 	Miner,
-	/// BlockChain-related methods
 	BlockChain,
-	/// Network
 	Network,
 }
 
@@ -23,7 +21,11 @@ pub enum ApiSet {
 
 impl Default for ApiSet {
 	fn default() -> Self {
-		ApiSet::List(vec![Api::Raw, Api::Miner, Api::BlockChain, Api::Network].into_iter().collect())
+		ApiSet::List(
+			vec![Api::Control, Api::Raw, Api::Miner, Api::BlockChain, Api::Network]
+				.into_iter()
+				.collect(),
+		)
 	}
 }
 
@@ -32,6 +34,7 @@ impl FromStr for Api {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
+			"control" => Ok(Api::Control),
 			"raw" => Ok(Api::Raw),
 			"miner" => Ok(Api::Miner),
 			"blockchain" => Ok(Api::BlockChain),
@@ -52,6 +55,7 @@ impl ApiSet {
 pub fn setup_rpc(mut handler: MetaIoHandler<()>, apis: ApiSet, deps: Dependencies) -> MetaIoHandler<()> {
 	for api in apis.list_apis() {
 		match api {
+			Api::Control => handler.extend_with(ControlClient::new(ControlClientCore::new(deps.memory.clone())).to_delegate()),
 			Api::Raw => handler.extend_with(
 				RawClient::new(RawClientCore::new(deps.network, deps.local_sync_node.clone(), deps.storage.clone())).to_delegate(),
 			),

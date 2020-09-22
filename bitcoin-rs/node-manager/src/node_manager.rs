@@ -77,7 +77,7 @@ impl NodeManager {
 		self
 	}
 
-	pub async fn connect(&mut self) -> &mut NodeManager {
+	pub async fn connect_p2p(&mut self) -> &mut NodeManager {
 		let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.builder.config.network.port());
 		for _ in 0..2 {
 			if let Ok(connection) = connect(&socket, &self.builder.config).await {

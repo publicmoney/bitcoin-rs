@@ -21,7 +21,6 @@ use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::time::Duration;
 
-#[cfg(not(target_env = "msvc"))]
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 

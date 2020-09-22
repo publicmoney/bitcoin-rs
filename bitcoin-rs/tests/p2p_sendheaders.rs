@@ -8,7 +8,7 @@ const BITCOIN_RS: &str = env!("CARGO_BIN_EXE_bitcoin-rs");
 #[tokio::test]
 async fn test_p2p_sendheaders() {
 	let mut bitcoin_rs = NodeManager::new_node(BITCOIN_RS);
-	bitcoin_rs.start().connect().await;
+	bitcoin_rs.start().connect_p2p().await;
 
 	let get_data = GetData::with_inventory(vec![InventoryVector::block(*Network::Regtest.genesis_block().hash())]);
 

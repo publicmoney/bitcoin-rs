@@ -1,4 +1,5 @@
 use crate::rpc_apis::{self, ApiSet};
+use memory::Memory;
 use network::Network;
 use p2p;
 use rpc::{start_http, Compatibility, MetaIoHandler, Server};
@@ -14,6 +15,7 @@ pub struct Dependencies {
 	pub local_sync_node: sync::LocalNodeRef,
 	pub storage: storage::SharedStore,
 	pub p2p_context: Arc<p2p::Context>,
+	pub memory: Arc<Memory>,
 }
 
 #[derive(Default, Debug, PartialEq)]

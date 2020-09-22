@@ -1,0 +1,12 @@
+use crate::v1::types::MemoryInfo;
+use jsonrpc_core::Error;
+use jsonrpc_derive::rpc;
+
+/// bitcoin-rs control interface.
+#[rpc(server)]
+pub trait Control {
+	/// Get information about memory usage.
+	/// @curl-example: curl --data-binary '{"jsonrpc": "2.0", "method": "getmemoryinfo", "params": [], "id":1 }' -H 'content-type: application/json' http://127.0.0.1:8332/
+	#[rpc(name = "getmemoryinfo")]
+	fn get_memory_info(&self) -> Result<MemoryInfo, Error>;
+}
