@@ -6,14 +6,12 @@ use memory::Memory;
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use p2p::LocalSyncNodeRef;
 use std::net::SocketAddr;
-use std::process::ExitStatus;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use storage::SharedStore;
 use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, LocalNodeRef, SyncListener};
-use tokio::io::Error;
 use tokio::runtime::Runtime;
 
 enum BlockNotifierTask {
@@ -50,7 +48,7 @@ impl BlockNotifier {
 					let new_block_hash = std::str::from_utf8(&new_block_hash[..]).expect("Error parsing block hash for notify command");
 					let command = block_notify_command.replace("%s", new_block_hash);
 
-					match std::process::Command::new(command).status() {
+					match std::process::Command::new(command.clone()).status() {
 						Ok(status) => {
 							if !status.success() {
 								match status.code() {
