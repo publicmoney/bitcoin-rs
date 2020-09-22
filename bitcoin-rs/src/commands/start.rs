@@ -6,12 +6,14 @@ use memory::Memory;
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use p2p::LocalSyncNodeRef;
 use std::net::SocketAddr;
+use std::process::ExitStatus;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use storage::SharedStore;
 use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, LocalNodeRef, SyncListener};
+use tokio::io::Error;
 use tokio::runtime::Runtime;
 
 enum BlockNotifierTask {
@@ -47,14 +49,19 @@ impl BlockNotifier {
 				BlockNotifierTask::NewBlock(new_block_hash) => {
 					let new_block_hash = std::str::from_utf8(&new_block_hash[..]).expect("Error parsing block hash for notify command");
 					let command = block_notify_command.replace("%s", new_block_hash);
-					let c_command = ::std::ffi::CString::new(command.clone()).unwrap();
-					unsafe {
-						use libc::system;
 
-						let err = system(c_command.as_ptr());
-						if err != 0 {
-							error!(target: "bitcoin-rs", "Block notification command {} exited with error code {}", command, err);
+					match std::process::Command::new(command).status() {
+						Ok(status) => {
+							if !status.success() {
+								match status.code() {
+									Some(code) => {
+										error!(target: "bitcoin-rs", "Block notification command {} exited with error code {}", command, code)
+									}
+									None => error!(target: "bitcoin-rs", "Block notification command {} terminated by signal", command),
+								}
+							}
 						}
+						Err(err) => error!(target: "bitcoin-rs", "Block notification command {} exited with error code {}", command, err),
 					}
 				}
 				BlockNotifierTask::Stop => break,
