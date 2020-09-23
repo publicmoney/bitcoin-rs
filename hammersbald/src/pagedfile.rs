@@ -176,9 +176,9 @@ impl<'file> Iterator for PagedFileIterator<'file> {
 mod tests {
 	use crate::page::PAGE_SIZE;
 	use crate::pagedfile::{PagedFile, PagedFileAppender};
+	use crate::pref::PRef;
 	use crate::pref::PREF_SIZE;
 	use crate::rolledfile::RolledFile;
-	use crate::PRef;
 	use std::fs;
 
 	#[test]

@@ -52,4 +52,3 @@ mod transient;
 
 pub use api::{persistent, transient, HammersbaldAPI, HammersbaldDataReader, HammersbaldDataWriter, HammersbaldIterator};
 pub use error::Error;
-pub use pref::PRef;

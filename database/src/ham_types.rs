@@ -1,6 +1,6 @@
+use crate::ham_db::PRef;
 use bitcrypto::sha256;
 use chain::{TransactionInput, TransactionOutput};
-use hammersbald::PRef;
 
 // Keyed by block hash.
 #[derive(Debug, Clone, Serializable, Deserializable)]

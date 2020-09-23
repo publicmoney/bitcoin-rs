@@ -155,7 +155,7 @@ impl PRef {
 #[cfg(test)]
 mod test {
 	use crate::page::{PAGE_PAYLOAD_SIZE, PAGE_SIZE};
-	use crate::PRef;
+	use crate::pref::PRef;
 
 	#[test]
 	fn default_is_invalid() {

@@ -6,7 +6,6 @@ use crate::{Deserializable, Error, Reader, Serializable, Stream};
 use bit_vec::BitVec;
 use bitcrypto::SHA256D;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use hammersbald::PRef;
 use primitives::checksum::Checksum;
 use std::io;
 
@@ -243,36 +242,6 @@ impl Deserializable for Compact {
 		T: io::Read,
 	{
 		reader.read::<u32>().map(Compact::new)
-	}
-}
-
-impl Serializable for PRef {
-	fn serialize(&self, stream: &mut Stream) {
-		stream.append(&self.as_u64());
-	}
-}
-
-impl Deserializable for PRef {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
-	where
-		T: io::Read,
-	{
-		reader.read::<u64>().map(PRef::from)
-	}
-}
-
-impl Serializable for Vec<PRef> {
-	fn serialize(&self, stream: &mut Stream) {
-		stream.append_list(&self);
-	}
-}
-
-impl Deserializable for Vec<PRef> {
-	fn deserialize<T>(reader: &mut Reader<T>) -> Result<Self, Error>
-	where
-		T: io::Read,
-	{
-		reader.read_list()
 	}
 }
 

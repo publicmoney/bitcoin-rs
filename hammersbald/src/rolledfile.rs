@@ -186,7 +186,7 @@ mod tests {
 	use super::RolledFile;
 	use crate::page::{Page, PAGE_SIZE};
 	use crate::pagedfile::PagedFile;
-	use crate::PRef;
+	use crate::pref::PRef;
 	use std::fs;
 
 	#[test]

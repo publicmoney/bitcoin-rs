@@ -62,7 +62,6 @@ impl Persistent {
 #[cfg(test)]
 mod test {
 	use crate::persistent::Persistent;
-	use crate::PRef;
 
 	#[test]
 	#[allow(unused_must_use)]
@@ -73,7 +72,7 @@ mod test {
 		std::fs::remove_file("test.0.bl");
 
 		let key = "abc".as_bytes();
-		let expected_pref = PRef::from(0);
+		let expected_pref = 0;
 		let value = [1, 2, 3];
 		{
 			let mut db = Persistent::new_db("test", 1).unwrap();

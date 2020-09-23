@@ -2,12 +2,15 @@ use crate::db_interface::DbInterface;
 use crate::ham_types::{DbBlock, DbInputKey, DbOutputKey, DbTransaction};
 use bitcrypto::SHA256D;
 use chain::{BlockHeader, IndexedBlock, IndexedBlockHeader, IndexedTransaction, Transaction};
-use hammersbald::{persistent, transient, HammersbaldAPI, PRef};
+use hammersbald::{persistent, transient, HammersbaldAPI};
 use parking_lot::RwLock;
 use serialization::{deserialize, serialize, Deserializable, Serializable};
 use std::path::Path;
 use std::sync::Arc;
 use storage::{BlockHeight, BlockMeta, Error, TransactionMeta};
+
+pub type PRef = u64;
+const BEST_PREF: PRef = 0;
 
 pub struct HamDb {
 	hammersbald: Arc<RwLock<Box<dyn HammersbaldAPI>>>,
@@ -30,10 +33,6 @@ impl HamDb {
 		HamDb {
 			hammersbald: Arc::new(RwLock::new(hammersbald)),
 		}
-	}
-
-	fn best_pref() -> PRef {
-		PRef::from(0)
 	}
 
 	fn get_by_pref<T>(&self, pref: PRef) -> Result<Option<T>, storage::Error>
@@ -254,7 +253,7 @@ impl DbInterface for HamDb {
 	}
 
 	fn best_block(&self) -> Result<BlockHeight, storage::Error> {
-		match self.get_by_pref::<u32>(Self::best_pref()) {
+		match self.get_by_pref::<u32>(BEST_PREF) {
 			Ok(Some(best_number)) => {
 				for i in 0..100 {
 					let number = best_number - i;
@@ -268,7 +267,7 @@ impl DbInterface for HamDb {
 			}
 			_ => {
 				let pref = self.put(&0)?;
-				if pref != Self::best_pref() {
+				if pref != BEST_PREF {
 					return Err(storage::Error::DatabaseError("Database initialisation error".to_string()));
 				}
 				self.flush()?;
@@ -278,7 +277,7 @@ impl DbInterface for HamDb {
 	}
 
 	fn set_best(&self, block_number: u32) -> Result<(), storage::Error> {
-		self.set(Self::best_pref(), &block_number)?;
+		self.set(BEST_PREF, &block_number)?;
 		return Ok(());
 	}
 

@@ -1,8 +1,8 @@
 extern crate rand;
 
 use self::rand::thread_rng;
+use hammersbald::transient;
 use hammersbald::Error;
-use hammersbald::{transient, PRef};
 use rand::RngCore;
 use std::collections::HashMap;
 
@@ -50,7 +50,7 @@ fn test_put_get() {
 
 	let value = [1, 2, 3];
 	let pref = db.put(&value).unwrap();
-	assert_eq!(PRef::from(0), pref);
+	assert_eq!(0, pref);
 
 	let result = db.get(pref).unwrap();
 
@@ -64,7 +64,7 @@ fn test_put_get_big() {
 
 	let value = [5u8; 5000];
 	let pref = db.put(&value).unwrap();
-	assert_eq!(PRef::from(0), pref);
+	assert_eq!(0, pref);
 
 	let result = db.get(pref).unwrap();
 

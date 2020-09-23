@@ -19,7 +19,8 @@
 //!
 use crate::page::Page;
 use crate::pagedfile::PagedFile;
-use crate::{Error, PRef};
+use crate::pref::PRef;
+use crate::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;

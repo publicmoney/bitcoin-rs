@@ -21,10 +21,11 @@ use crate::format::{Envelope, Payload};
 use crate::logfile::LogFile;
 use crate::memtable::MemTable;
 use crate::persistent::Persistent;
+use crate::pref::PRef;
+use crate::stats;
 use crate::tablefile::TableFile;
 use crate::transient::Transient;
 use crate::Error;
-use crate::{stats, PRef};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::{
@@ -57,23 +58,23 @@ pub trait HammersbaldAPI: Send + Sync {
 
 	/// store data accessible with key
 	/// returns a persistent reference to stored data
-	fn put_keyed(&mut self, key: &[u8], data: &[u8]) -> Result<PRef, Error>;
+	fn put_keyed(&mut self, key: &[u8], data: &[u8]) -> Result<u64, Error>;
 
 	/// retrieve data with key
 	/// returns Some(persistent reference, data) or None
-	fn get_keyed(&self, key: &[u8]) -> Result<Option<(PRef, Vec<u8>)>, Error>;
+	fn get_keyed(&self, key: &[u8]) -> Result<Option<(u64, Vec<u8>)>, Error>;
 
 	/// store data
 	/// returns a persistent reference
-	fn put(&mut self, data: &[u8]) -> Result<PRef, Error>;
+	fn put(&mut self, data: &[u8]) -> Result<u64, Error>;
 
 	/// retrieve data using a persistent reference
 	/// returns (key, data)
-	fn get(&self, pref: PRef) -> Result<(Vec<u8>, Vec<u8>), Error>;
+	fn get(&self, pref: u64) -> Result<(Vec<u8>, Vec<u8>), Error>;
 
 	/// Update data at pref
 	/// returns same pref or error
-	fn set(&mut self, pref: PRef, data: &[u8]) -> Result<PRef, Error>;
+	fn set(&mut self, pref: u64, data: &[u8]) -> Result<u64, Error>;
 
 	/// a quick (in-memory) check if the db may have the key
 	/// this might return false positive, but if it is false key is definitely not used.
@@ -209,7 +210,7 @@ impl HammersbaldAPI for Hammersbald {
 		self.mem.shutdown()
 	}
 
-	fn put_keyed(&mut self, key: &[u8], data: &[u8]) -> Result<PRef, Error> {
+	fn put_keyed(&mut self, key: &[u8], data: &[u8]) -> Result<u64, Error> {
 		#[cfg(debug_assertions)]
 		{
 			if key.len() > 255 || data.len() >= 1 << 23 {
@@ -219,35 +220,35 @@ impl HammersbaldAPI for Hammersbald {
 		if let Some((pref, current_data)) = self.mem.get(key)? {
 			if current_data.len() == data.len() {
 				self.mem.set(pref, data)?;
-				Ok(pref)
+				Ok(pref.as_u64())
 			} else {
 				let data_offset = self.mem.append_data(key, data)?;
 				self.mem.update_key(key, data_offset)?;
-				Ok(data_offset)
+				Ok(data_offset.as_u64())
 			}
 		} else {
 			let data_offset = self.mem.append_data(key, data)?;
 			self.mem.put(key, data_offset)?;
-			Ok(data_offset)
+			Ok(data_offset.as_u64())
 		}
 	}
 
-	fn get_keyed(&self, key: &[u8]) -> Result<Option<(PRef, Vec<u8>)>, Error> {
-		self.mem.get(key)
+	fn get_keyed(&self, key: &[u8]) -> Result<Option<(u64, Vec<u8>)>, Error> {
+		self.mem.get(key).map(|r| r.map(|o| (o.0.as_u64(), o.1)))
 	}
 
-	fn put(&mut self, data: &[u8]) -> Result<PRef, Error> {
+	fn put(&mut self, data: &[u8]) -> Result<u64, Error> {
 		let data_offset = self.mem.append_referred(data)?;
-		Ok(data_offset)
+		Ok(data_offset.as_u64())
 	}
 
-	fn set(&mut self, pref: PRef, data: &[u8]) -> Result<PRef, Error> {
-		let data_offset = self.mem.set(pref, data)?;
-		Ok(data_offset)
+	fn set(&mut self, pref: u64, data: &[u8]) -> Result<u64, Error> {
+		let data_offset = self.mem.set(pref.into(), data)?;
+		Ok(data_offset.as_u64())
 	}
 
-	fn get(&self, pref: PRef) -> Result<(Vec<u8>, Vec<u8>), Error> {
-		match self.mem.get_envelope(pref)?.payload()? {
+	fn get(&self, pref: u64) -> Result<(Vec<u8>, Vec<u8>), Error> {
+		match self.mem.get_envelope(pref.into())?.payload()? {
 			Payload::Referred(referred) => return Ok((vec![], referred.data.to_vec())),
 			Payload::Indexed(indexed) => return Ok((indexed.key.to_vec(), indexed.data.data.to_vec())),
 			_ => Err(Error::Corrupted("referred should point to data".to_string())),

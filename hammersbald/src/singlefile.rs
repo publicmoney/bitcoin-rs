@@ -111,8 +111,8 @@ impl PagedFile for SingleFile {
 mod tests {
 	use crate::page::{Page, PAGE_SIZE};
 	use crate::pagedfile::PagedFile;
+	use crate::pref::PRef;
 	use crate::singlefile::SingleFile;
-	use crate::PRef;
 	use std::fs;
 	use std::fs::OpenOptions;
 
