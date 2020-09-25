@@ -5,7 +5,7 @@ edition = "2018"
 
 [dependencies]
 elastic-array = "0.11"
-parking_lot = "0.10"
+parking_lot = "0.11"
 bit-vec = "0.6"
 lru-cache = "0.1"
 bitcrypto = { path = "../crypto" }
