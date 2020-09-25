@@ -1,11 +1,11 @@
-use crate::datafile::{DataFile, EnvelopeIterator};
+use crate::data_file::{DataFile, EnvelopeIterator};
 use crate::format::{Envelope, Payload};
-use crate::logfile::LogFile;
-use crate::memtable::MemTable;
+use crate::log_file::LogFile;
+use crate::mem_table::MemTable;
 use crate::persistent::Persistent;
 use crate::pref::PRef;
 use crate::stats;
-use crate::tablefile::TableFile;
+use crate::table_file::TableFile;
 use crate::transient::Transient;
 use crate::Error;
 

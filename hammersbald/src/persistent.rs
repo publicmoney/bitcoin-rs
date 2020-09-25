@@ -1,12 +1,12 @@
 use crate::api::{Hammersbald, HammersbaldAPI};
-use crate::asyncfile::AsyncFile;
-use crate::cachedfile::CachedFile;
-use crate::datafile::DataFile;
+use crate::async_file::AsyncFile;
+use crate::cached_file::CachedFile;
+use crate::data_file::DataFile;
 use crate::error::Error;
-use crate::logfile::LogFile;
+use crate::log_file::LogFile;
 use crate::page::PAGE_SIZE;
-use crate::rolledfile::RolledFile;
-use crate::tablefile::TableFile;
+use crate::rolled_file::RolledFile;
+use crate::table_file::TableFile;
 
 const TABLE_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
 const DATA_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;

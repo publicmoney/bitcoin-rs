@@ -1,8 +1,8 @@
 use crate::error::Error;
 use crate::page::Page;
-use crate::pagedfile::PagedFile;
+use crate::paged_file::PagedFile;
 use crate::pref::PRef;
-use crate::singlefile::SingleFile;
+use crate::single_file::SingleFile;
 
 use std::cmp::max;
 use std::collections::HashMap;
@@ -165,7 +165,7 @@ impl PagedFile for RolledFile {
 mod tests {
 	use super::RolledFile;
 	use crate::page::{Page, PAGE_SIZE};
-	use crate::pagedfile::PagedFile;
+	use crate::paged_file::PagedFile;
 	use crate::pref::PRef;
 	use std::fs;
 

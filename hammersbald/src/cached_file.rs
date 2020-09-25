@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::page::{Page, PAGE_SIZE};
-use crate::pagedfile::PagedFile;
+use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 
 use lru_cache::LruCache;

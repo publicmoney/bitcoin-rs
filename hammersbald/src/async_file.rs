@@ -1,5 +1,5 @@
 use crate::page::Page;
-use crate::pagedfile::PagedFile;
+use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 use crate::Error;
 use parking_lot::{Condvar, Mutex};

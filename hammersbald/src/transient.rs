@@ -1,13 +1,13 @@
 use crate::api::{Hammersbald, HammersbaldAPI};
-use crate::asyncfile::AsyncFile;
-use crate::cachedfile::CachedFile;
-use crate::datafile::DataFile;
+use crate::async_file::AsyncFile;
+use crate::cached_file::CachedFile;
+use crate::data_file::DataFile;
 use crate::error::Error;
-use crate::logfile::LogFile;
+use crate::log_file::LogFile;
 use crate::page::{Page, PAGE_SIZE};
-use crate::pagedfile::PagedFile;
+use crate::paged_file::PagedFile;
 use crate::pref::PRef;
-use crate::tablefile::TableFile;
+use crate::table_file::TableFile;
 
 use std::cmp::min;
 use std::io;

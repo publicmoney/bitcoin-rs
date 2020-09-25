@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::format::{Envelope, Payload};
 use crate::page::PAGE_SIZE;
-use crate::pagedfile::{PagedFile, PagedFileAppender};
+use crate::paged_file::{PagedFile, PagedFileAppender};
 use crate::pref::PRef;
 
 use byteorder::{BigEndian, ByteOrder};

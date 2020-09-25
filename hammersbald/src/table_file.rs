@@ -1,9 +1,9 @@
 use std::cmp::max;
 
 use crate::error::Error;
-use crate::memtable::MemTable;
+use crate::mem_table::MemTable;
 use crate::page::{Page, PAGE_PAYLOAD_SIZE, PAGE_SIZE};
-use crate::pagedfile::PagedFile;
+use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 
 pub const FIRST_PAGE_HEAD: usize = 28;

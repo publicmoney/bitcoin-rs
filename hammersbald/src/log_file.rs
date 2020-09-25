@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::page::Page;
-use crate::pagedfile::{PagedFile, PagedFileIterator};
+use crate::paged_file::{PagedFile, PagedFileIterator};
 use crate::pref::{PRef, PREF_SIZE};
 
 use std::collections::HashSet;

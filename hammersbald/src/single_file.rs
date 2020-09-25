@@ -1,6 +1,6 @@
 use crate::error::Error;
 use crate::page::{Page, PAGE_SIZE};
-use crate::pagedfile::PagedFile;
+use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 
 use std::cmp::max;
@@ -90,9 +90,9 @@ impl PagedFile for SingleFile {
 #[cfg(test)]
 mod tests {
 	use crate::page::{Page, PAGE_SIZE};
-	use crate::pagedfile::PagedFile;
+	use crate::paged_file::PagedFile;
 	use crate::pref::PRef;
-	use crate::singlefile::SingleFile;
+	use crate::single_file::SingleFile;
 	use std::fs;
 	use std::fs::OpenOptions;
 

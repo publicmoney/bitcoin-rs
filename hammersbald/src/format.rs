@@ -1,7 +1,7 @@
 use crate::error::Error;
 use crate::pref::PRef;
 
-use crate::memtable::BUCKET_FILL_TARGET;
+use crate::mem_table::BUCKET_FILL_TARGET;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
 /// Content envelope wrapping in data file
