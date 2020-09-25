@@ -66,7 +66,7 @@ fn run() -> Result<(), String> {
 
 	match matches.subcommand() {
 		("import", Some(import_matches)) => commands::import(db.clone(), cfg, import_matches),
-		("info", Some(_)) => commands::info(db.clone()),
+		("info", Some(_)) => commands::stats(db.clone()),
 		("rollback", Some(rollback_matches)) => commands::rollback(db.clone(), cfg, rollback_matches),
 		("verify", Some(_)) => commands::verify(db.clone(), cfg),
 		_ => {

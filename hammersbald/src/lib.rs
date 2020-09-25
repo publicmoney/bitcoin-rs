@@ -3,12 +3,12 @@ extern crate byteorder;
 extern crate lru_cache;
 extern crate rand;
 
-mod api;
 mod async_file;
 mod cached_file;
 mod data_file;
 mod error;
 mod format;
+mod hammersbald_api;
 mod log_file;
 mod mem_table;
 mod page;
@@ -21,5 +21,7 @@ mod stats;
 mod table_file;
 mod transient;
 
-pub use api::{persistent, transient, HammersbaldAPI, HammersbaldDataReader, HammersbaldDataWriter, HammersbaldIterator};
 pub use error::Error;
+pub use hammersbald_api::{HammersbaldAPI, HammersbaldDataReader, HammersbaldDataWriter, HammersbaldIterator};
+pub use persistent::persistent;
+pub use transient::transient;

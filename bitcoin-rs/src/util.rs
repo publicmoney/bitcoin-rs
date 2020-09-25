@@ -16,7 +16,7 @@ pub fn db_path(data_dir: &Option<String>) -> String {
 
 pub fn open_db(cfg: &Config) -> Result<storage::SharedStore, String> {
 	let db_path = db_path(&cfg.data_dir);
-	let db = Arc::new(db::BlockChainDatabase::persistent(db_path, cfg.db_cache).unwrap());
+	let db = Arc::new(db::BlockChainDatabase::persistent(&db_path, cfg.db_cache).unwrap());
 
 	let genesis_block = cfg.network.genesis_block();
 

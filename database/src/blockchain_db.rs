@@ -1,5 +1,5 @@
 use crate::db_interface::DbInterface;
-use crate::ham_db::HamDb;
+use crate::ham_adapter::HamDb;
 use crate::overlay_db::OverlayDatabase;
 use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction, OutPoint, TransactionOutput};
@@ -44,8 +44,8 @@ impl BlockChainDatabase<HamDb> {
 		BlockChainDatabase::open(HamDb::transient()?)
 	}
 
-	pub fn persistent(db_path: String, db_cache_size_mb: usize) -> Result<BlockChainDatabase<HamDb>, storage::Error> {
-		BlockChainDatabase::open(HamDb::persistent(db_path, db_cache_size_mb)?)
+	pub fn persistent(db_path: &String, db_cache_size_mb: usize) -> Result<BlockChainDatabase<HamDb>, storage::Error> {
+		BlockChainDatabase::open(HamDb::persistent(db_path, "blockchain", db_cache_size_mb)?)
 	}
 
 	pub fn init_test_chain(blocks: Vec<IndexedBlock>) -> Self {
@@ -448,8 +448,12 @@ where
 		self.best_header().raw.bits.to_f64()
 	}
 
-	fn info(&self) {
-		self.db.info().expect("Error getting database info")
+	fn stats(&self) {
+		self.db.stats().expect("Error getting database info")
+	}
+
+	fn size(&self) -> u64 {
+		self.db.size()
 	}
 
 	fn shutdown(&self) {
@@ -528,26 +532,24 @@ where
 mod tests {
 	use super::SHA256D;
 	use crate::blockchain_db::BlockChainDatabase;
-	use crate::ham_db::HamDb;
+	use crate::ham_adapter::HamDb;
 	use chain::IndexedBlock;
 	use storage::{AsSubstore, BlockMeta, BlockProvider, BlockRef, TransactionMetaProvider};
 	use test_data::{block_h0, block_h1, block_h2};
 
-	const TEST_DB: &'static str = "testdb";
-
 	#[test]
 	fn test_persistence() {
-		let _ = std::fs::remove_dir_all(TEST_DB);
+		let _ = std::fs::remove_dir_all("testdb");
 
 		let b0: IndexedBlock = block_h0().into();
 		{
-			let db = BlockChainDatabase::persistent(TEST_DB.to_string(), 1).unwrap();
+			let db = BlockChainDatabase::persistent(&"testdb".to_string(), 1).unwrap();
 			db.insert(b0.clone()).unwrap();
 			db.canonize(b0.hash()).unwrap();
 			db.flush().unwrap();
 		}
 		{
-			let db = BlockChainDatabase::persistent(TEST_DB.to_string(), 1).unwrap();
+			let db = BlockChainDatabase::persistent(&"testdb".to_string(), 1).unwrap();
 			let block = db.block(BlockRef::Hash(b0.hash().clone())).unwrap();
 			assert_eq!(block, b0);
 		}

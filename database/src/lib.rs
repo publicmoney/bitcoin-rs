@@ -1,6 +1,6 @@
 pub mod blockchain_db;
 mod db_interface;
-pub mod ham_db;
+pub mod ham_adapter;
 mod ham_types;
 mod overlay_db;
 

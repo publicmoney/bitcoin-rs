@@ -1,4 +1,4 @@
-use crate::ham_db::PRef;
+use crate::ham_adapter::PRef;
 use bitcrypto::sha256;
 use chain::{TransactionInput, TransactionOutput};
 

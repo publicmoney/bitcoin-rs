@@ -10,7 +10,6 @@ use storage;
 use sync;
 
 pub struct Dependencies {
-	pub db_path: String,
 	pub network: Network,
 	pub local_sync_node: sync::LocalNodeRef,
 	pub storage: storage::SharedStore,

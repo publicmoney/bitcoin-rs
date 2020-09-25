@@ -1,8 +1,8 @@
-use crate::api::{Hammersbald, HammersbaldAPI};
 use crate::async_file::AsyncFile;
 use crate::cached_file::CachedFile;
 use crate::data_file::DataFile;
 use crate::error::Error;
+use crate::hammersbald_api::{Hammersbald, HammersbaldAPI};
 use crate::log_file::LogFile;
 use crate::page::{Page, PAGE_SIZE};
 use crate::paged_file::PagedFile;
@@ -16,6 +16,11 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 use std::sync::Mutex;
+
+/// create a transient db
+pub fn transient() -> Result<Box<dyn HammersbaldAPI>, Error> {
+	Transient::new_db(0)
+}
 
 /// in memory representation of a file
 pub struct Transient {
@@ -46,7 +51,7 @@ impl Transient {
 			Box::new(AsyncFile::new(Box::new(Transient::new()))?),
 			cached_data_pages,
 		)?))?;
-		Ok(Box::new(Hammersbald::new(log, table, data, link)?))
+		Ok(Box::new(Hammersbald::new("", log, table, data, link)?))
 	}
 }
 

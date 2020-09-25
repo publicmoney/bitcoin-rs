@@ -1,5 +1,5 @@
-use crate::api::Hammersbald;
 use crate::format::Payload;
+use crate::hammersbald_api::Hammersbald;
 
 use bitcoin_hashes::siphash24;
 use log::info;
@@ -96,7 +96,7 @@ fn hash(key: &[u8], sip0: u64, sip1: u64) -> u32 {
 
 #[test]
 fn test_stats() {
-	let mut db = super::api::transient().unwrap();
+	let mut db = super::transient().unwrap();
 	db.put_keyed(&[5], &[5]).unwrap();
 	db.batch().unwrap();
 	db.stats();

@@ -76,7 +76,7 @@ pub fn write_heavy(c: &mut Criterion) {
 			let _ = std::fs::remove_dir_all("testdb");
 			// let store = BlockChainDatabase::transient().unwrap();
 			// let db = HamDb::persistent("bench", 8, 128).unwrap();
-			let store = BlockChainDatabase::persistent(TEST_DB.to_string(), 100).unwrap();
+			let store = BlockChainDatabase::persistent(&TEST_DB.to_string(), 100).unwrap();
 
 			store.insert(genesis.clone()).unwrap();
 			store.canonize(&genesis.header.hash).unwrap();

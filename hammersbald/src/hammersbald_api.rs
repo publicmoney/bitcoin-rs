@@ -2,11 +2,9 @@ use crate::data_file::{DataFile, EnvelopeIterator};
 use crate::format::{Envelope, Payload};
 use crate::log_file::LogFile;
 use crate::mem_table::MemTable;
-use crate::persistent::Persistent;
 use crate::pref::PRef;
 use crate::stats;
 use crate::table_file::TableFile;
-use crate::transient::Transient;
 use crate::Error;
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -17,17 +15,8 @@ use std::{
 
 /// Hammersbald
 pub struct Hammersbald {
+	path: Option<String>,
 	mem: MemTable,
-}
-
-/// create or open a persistent db
-pub fn persistent(name: &str, cache_size_mb: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
-	Persistent::new_db(name, cache_size_mb)
-}
-
-/// create a transient db
-pub fn transient() -> Result<Box<dyn HammersbaldAPI>, Error> {
-	Transient::new_db(0)
 }
 
 /// public API to Hammersbald
@@ -71,6 +60,8 @@ pub trait HammersbaldAPI: Send + Sync {
 
 	/// print database stats
 	fn stats(&self);
+
+	fn size(&self) -> u64;
 }
 
 /// A helper to build Hammersbald data elements
@@ -135,9 +126,12 @@ impl<'a> Read for HammersbaldDataReader<'a> {
 
 impl Hammersbald {
 	/// create a new db with key and data file
-	pub fn new(log: LogFile, table: TableFile, data: DataFile, link: DataFile) -> Result<Hammersbald, Error> {
+	pub fn new(path: &str, log: LogFile, table: TableFile, data: DataFile, link: DataFile) -> Result<Hammersbald, Error> {
 		let mem = MemTable::new(log, table, data, link);
-		let mut db = Hammersbald { mem };
+		let mut db = Hammersbald {
+			path: Some(path.to_string()),
+			mem,
+		};
 		db.recover()?;
 		db.load()?;
 		db.batch()?;
@@ -180,10 +174,6 @@ impl Hammersbald {
 }
 
 impl HammersbaldAPI for Hammersbald {
-	fn stats(&self) {
-		stats::stats(self)
-	}
-
 	fn batch(&mut self) -> Result<(), Error> {
 		self.mem.batch()
 	}
@@ -224,17 +214,17 @@ impl HammersbaldAPI for Hammersbald {
 		Ok(data_offset.as_u64())
 	}
 
-	fn set(&mut self, pref: u64, data: &[u8]) -> Result<u64, Error> {
-		let data_offset = self.mem.set(pref.into(), data)?;
-		Ok(data_offset.as_u64())
-	}
-
 	fn get(&self, pref: u64) -> Result<(Vec<u8>, Vec<u8>), Error> {
 		match self.mem.get_envelope(pref.into())?.payload()? {
 			Payload::Referred(referred) => return Ok((vec![], referred.data.to_vec())),
 			Payload::Indexed(indexed) => return Ok((indexed.key.to_vec(), indexed.data.data.to_vec())),
 			_ => Err(Error::Corrupted("referred should point to data".to_string())),
 		}
+	}
+
+	fn set(&mut self, pref: u64, data: &[u8]) -> Result<u64, Error> {
+		let data_offset = self.mem.set(pref.into(), data)?;
+		Ok(data_offset.as_u64())
 	}
 
 	fn may_have_key(&self, key: &[u8]) -> Result<bool, Error> {
@@ -248,6 +238,22 @@ impl HammersbaldAPI for Hammersbald {
 	fn iter(&self) -> HammersbaldIterator {
 		HammersbaldIterator {
 			ei: self.mem.data_envelopes(),
+		}
+	}
+
+	fn stats(&self) {
+		stats::stats(self)
+	}
+
+	fn size(&self) -> u64 {
+		match &self.path {
+			Some(path) => std::fs::read_dir(path)
+				.unwrap()
+				.filter_map(|entry| entry.ok())
+				.filter_map(|entry| entry.metadata().ok())
+				.filter(|metadata| metadata.is_file())
+				.fold(0, |acc, m| acc + m.len()),
+			None => 0,
 		}
 	}
 }

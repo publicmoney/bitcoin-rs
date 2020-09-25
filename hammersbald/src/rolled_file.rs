@@ -10,7 +10,7 @@ use std::fs::{self, File, OpenOptions};
 use std::path::Path;
 
 pub struct RolledFile {
-	name: String,
+	path: String,
 	extension: String,
 	files: HashMap<u16, SingleFile>,
 	len: u64,
@@ -18,9 +18,9 @@ pub struct RolledFile {
 }
 
 impl RolledFile {
-	pub fn new(name: &str, extension: &str, file_size: u64) -> Result<RolledFile, Error> {
+	pub fn new(path: &str, extension: &str, file_size: u64) -> Result<RolledFile, Error> {
 		let mut rolled = RolledFile {
-			name: name.to_string(),
+			path: path.to_string(),
 			extension: extension.to_string(),
 			files: HashMap::new(),
 			len: 0,
@@ -34,9 +34,9 @@ impl RolledFile {
 		// interesting file names are:
 		// name.index.extension
 		// where index is a number
-		if let Some(basename) = Path::new(self.name.as_str()).file_name() {
+		if let Some(basename) = Path::new(self.path.as_str()).file_name() {
 			let mut highest_index = 0;
-			if let Some(mut dir) = Path::new(&self.name).parent() {
+			if let Some(mut dir) = Path::new(&self.path).parent() {
 				if dir.to_string_lossy().to_string().is_empty() {
 					dir = Path::new(".");
 				}
@@ -138,7 +138,7 @@ impl PagedFile for RolledFile {
 		let file_index = (n_offset / self.file_size) as u16;
 
 		if !self.files.contains_key(&file_index) {
-			let file = Self::open_file((((self.name.clone() + ".") + file_index.to_string().as_str()) + ".") + self.extension.as_str())?;
+			let file = Self::open_file((((self.path.clone() + ".") + file_index.to_string().as_str()) + ".") + self.extension.as_str())?;
 			self.files.insert(
 				file_index,
 				SingleFile::new(file, (n_offset / self.file_size) * self.file_size, self.file_size)?,
@@ -170,12 +170,11 @@ mod tests {
 	use std::fs;
 
 	#[test]
-	#[allow(unused_must_use)]
 	fn test_rolled_file() {
-		fs::remove_file("rolled-test.0.bc");
-		fs::remove_file("rolled-test.1.bc");
+		fs::remove_file("testdb/rolled-test.0.bc").unwrap_or_default();
+		fs::remove_file("testdb/rolled-test.1.bc").unwrap_or_default();
 
-		let mut rolled_file = RolledFile::new("rolled-test", "bc", PAGE_SIZE as u64).unwrap();
+		let mut rolled_file = RolledFile::new("testdb/rolled-test", "bc", PAGE_SIZE as u64).unwrap();
 
 		let page_one_pref = PRef::from(0);
 		let mut page_one = Page::new_page_with_position(page_one_pref);
@@ -194,12 +193,12 @@ mod tests {
 
 		assert_eq!(
 			PAGE_SIZE as u64,
-			fs::File::open("rolled-test.0.bc").unwrap().metadata().unwrap().len()
+			fs::File::open("testdb/rolled-test.0.bc").unwrap().metadata().unwrap().len()
 		);
 		assert_eq!(
 			PAGE_SIZE as u64,
-			fs::File::open("rolled-test.1.bc").unwrap().metadata().unwrap().len()
+			fs::File::open("testdb/rolled-test.1.bc").unwrap().metadata().unwrap().len()
 		);
-		assert!(fs::File::open("rolled-test.2.bc").is_err());
+		assert!(fs::File::open("testdb/rolled-test.2.bc").is_err());
 	}
 }

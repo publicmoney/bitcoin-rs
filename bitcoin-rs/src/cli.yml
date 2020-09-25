@@ -101,8 +101,8 @@ subcommands:
             - PATH:
                 required: true
                 help: Path of the Bitcoin Core database.
-    - info:
-        about: Print low level information about the database
+    - stats:
+        about: Print low level statistics about the database
     - rollback:
         about: Rollback the database to given canonical-chain block.
         args:

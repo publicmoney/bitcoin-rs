@@ -17,7 +17,9 @@ pub trait Store: AsSubstore {
 
 	fn difficulty(&self) -> f64;
 
-	fn info(&self);
+	fn stats(&self);
+
+	fn size(&self) -> u64;
 
 	fn shutdown(&self);
 }

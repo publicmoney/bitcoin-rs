@@ -65,7 +65,6 @@ pub fn setup_rpc(mut handler: MetaIoHandler<()>, apis: ApiSet, deps: Dependencie
 					deps.network,
 					deps.storage.clone(),
 					Some(deps.local_sync_node.clone()),
-					deps.db_path.clone(),
 				))
 				.to_delegate(),
 			),

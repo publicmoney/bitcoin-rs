@@ -97,10 +97,9 @@ mod tests {
 	use std::fs::OpenOptions;
 
 	#[test]
-	#[allow(unused_must_use)]
 	fn test_single_file() {
-		let file_name = "single-test.bc";
-		fs::remove_file(file_name);
+		let file_name = "testdb/single-test.bc";
+		fs::remove_file(file_name).unwrap_or_default();
 
 		let mut options = OpenOptions::new();
 		options.read(true).write(true).create(true);
@@ -123,7 +122,7 @@ mod tests {
 		assert_eq!(PAGE_SIZE as u64 * 2, single_file.len);
 
 		page_one.write_u64(0, 3);
-		single_file.update_page(page_one.clone());
+		single_file.update_page(page_one.clone()).unwrap();
 
 		assert_eq!(PAGE_SIZE as u64 * 2, single_file.len);
 

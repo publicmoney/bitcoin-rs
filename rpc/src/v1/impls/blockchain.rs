@@ -15,7 +15,6 @@ use keys::{self, Address};
 use network::Network;
 use ser::serialize;
 use std::collections::HashMap;
-use std::fs;
 use storage;
 use storage::{BlockMeta, BlockRef};
 use verification;
@@ -47,16 +46,14 @@ pub struct BlockChainClientCore {
 	network: Network,
 	storage: storage::SharedStore,
 	local_sync_node: Option<sync::LocalNodeRef>, // Might be None only in tests.
-	db_path: String,
 }
 
 impl BlockChainClientCore {
-	pub fn new(network: Network, storage: storage::SharedStore, local_sync_node: Option<sync::LocalNodeRef>, db_path: String) -> Self {
+	pub fn new(network: Network, storage: storage::SharedStore, local_sync_node: Option<sync::LocalNodeRef>) -> Self {
 		BlockChainClientCore {
 			network,
 			storage,
 			local_sync_node,
-			db_path,
 		}
 	}
 }
@@ -71,13 +68,7 @@ impl BlockChainClientCoreApi for BlockChainClientCore {
 	}
 
 	fn size_on_disk(&self) -> u64 {
-		let paths = fs::read_dir(&self.db_path).unwrap();
-
-		paths
-			.filter_map(|entry| entry.ok())
-			.filter_map(|entry| entry.metadata().ok())
-			.filter(|metadata| metadata.is_file())
-			.fold(0, |acc, m| acc + m.len())
+		self.storage.size()
 	}
 
 	fn network(&self) -> String {
@@ -700,7 +691,7 @@ pub mod tests {
 			test_data::block_h2().into(),
 		]));
 
-		let core = BlockChainClientCore::new(Network::Mainnet, storage, None, "db_path".to_string());
+		let core = BlockChainClientCore::new(Network::Mainnet, storage, None);
 
 		// get info on block #1:
 		// https://blockexplorer.com/block/00000000839a8e6886ab5951d76f411475428afc90947ee320161bbf18eb6048
@@ -878,7 +869,7 @@ pub mod tests {
 	#[test]
 	fn verbose_transaction_out_contents() {
 		let storage = Arc::new(BlockChainDatabase::init_test_chain(vec![test_data::genesis().into()]));
-		let core = BlockChainClientCore::new(Network::Mainnet, storage, None, "db_path".to_string());
+		let core = BlockChainClientCore::new(Network::Mainnet, storage, None);
 
 		// get info on tx from genesis block:
 		// https://blockchain.info/ru/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b

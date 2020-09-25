@@ -6,10 +6,8 @@ extern crate test_data;
 use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use db::blockchain_db::BlockChainDatabase;
-use db::ham_db::HamDb;
+use db::ham_adapter::HamDb;
 use storage::{BlockProvider, ForkChain, SideChainOrigin, Store};
-
-const TEST_DB: &'static str = "testdb";
 
 #[test]
 fn insert_block() {
@@ -51,13 +49,13 @@ fn insert_block() {
 
 #[test]
 fn reopen_db() {
-	std::fs::remove_dir_all(TEST_DB).unwrap_or_default();
+	std::fs::remove_dir_all("testdb").unwrap_or_default();
 
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
 	{
-		let ham = HamDb::persistent(TEST_DB.to_string(), 100).unwrap();
+		let ham = HamDb::persistent("testdb", "reopen", 100).unwrap();
 		let store = BlockChainDatabase::open(ham.clone()).unwrap();
 		store.insert(b0.clone()).unwrap();
 		store.insert(b1.clone()).unwrap();
@@ -73,7 +71,7 @@ fn reopen_db() {
 		assert_eq!(1, store.best_block().number);
 	}
 	{
-		let ham = HamDb::persistent(TEST_DB.to_string(), 100).unwrap();
+		let ham = HamDb::persistent("testdb", "reopen", 100).unwrap();
 		let store = BlockChainDatabase::open(ham).unwrap();
 		assert_eq!(b0.hash(), &store.block_hash(0).unwrap());
 		assert_eq!(1, store.best_block().number);

@@ -1,7 +1,7 @@
 use super::super::rpc;
 use crate::block_notifier::BlockNotifier;
 use crate::config;
-use crate::util::{db_path, node_table_path};
+use crate::util::node_table_path;
 use memory::Memory;
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use p2p::LocalSyncNodeRef;
@@ -59,7 +59,6 @@ pub async fn start_async(
 	let p2p = p2p::P2P::new(p2p_cfg, sync_connection_factory).map_err(|e| e.to_string())?;
 
 	let rpc_deps = rpc::Dependencies {
-		db_path: db_path(&cfg.data_dir),
 		network: cfg.network,
 		storage: db,
 		local_sync_node,

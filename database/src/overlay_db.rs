@@ -211,7 +211,11 @@ impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 		self.ham_db.flush()
 	}
 
-	fn info(&self) -> Result<(), Error> {
+	fn stats(&self) -> Result<(), Error> {
+		unreachable!()
+	}
+
+	fn size(&self) -> u64 {
 		unreachable!()
 	}
 

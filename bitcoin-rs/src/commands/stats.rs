@@ -1,8 +1,8 @@
 use storage::SharedStore;
 
-pub fn info(db: SharedStore) -> Result<(), String> {
+pub fn stats(db: SharedStore) -> Result<(), String> {
 	info!("Getting database statistics. This may take a while.");
-	db.info();
+	db.stats();
 	info!("Finished");
 	Ok(())
 }
@@ -20,6 +20,6 @@ mod tests {
 			test_data::block_h2().into(),
 		]);
 
-		store.info();
+		store.stats();
 	}
 }
