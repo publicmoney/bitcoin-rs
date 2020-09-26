@@ -7,7 +7,6 @@ use crate::log_file::LogFile;
 use crate::page::PAGE_SIZE;
 use crate::rolled_file::RolledFile;
 use crate::table_file::TableFile;
-use std::path::Path;
 
 const TABLE_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
 const DATA_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
@@ -15,29 +14,27 @@ const LOG_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
 
 /// Implements persistent storage
 pub fn persistent(path: &str, name: &str, cache_size_mb: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
-	if !Path::new(path).exists() {
-		std::fs::create_dir(path).unwrap();
-	}
-	let full_path = format!("{}/{}", path, name);
+	std::fs::create_dir_all(path).unwrap();
 
 	let data = DataFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(Box::new(RolledFile::new(&full_path, "bc", DATA_FILE_SIZE)?))?),
+		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "bc", DATA_FILE_SIZE)?))?),
 		cache_size_mb,
 	)?))?;
 
 	let link = DataFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(Box::new(RolledFile::new(&full_path, "bl", DATA_FILE_SIZE)?))?),
+		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "bl", DATA_FILE_SIZE)?))?),
 		cache_size_mb,
 	)?))?;
 
 	let log = LogFile::new(Box::new(AsyncFile::new(Box::new(RolledFile::new(
-		&full_path,
+		path,
+		name,
 		"lg",
 		LOG_FILE_SIZE,
 	)?))?));
 
 	let table = TableFile::new(Box::new(CachedFile::new(
-		Box::new(RolledFile::new(&full_path, "tb", TABLE_FILE_SIZE)?),
+		Box::new(RolledFile::new(path, name, "tb", TABLE_FILE_SIZE)?),
 		cache_size_mb,
 	)?))?;
 
@@ -50,22 +47,20 @@ mod test {
 
 	#[test]
 	fn test_reopen_persistent() {
-		std::fs::remove_file("test.0.bc").unwrap_or_default();
-		std::fs::remove_file("test.0.lg").unwrap_or_default();
-		std::fs::remove_file("test.0.tb").unwrap_or_default();
-		std::fs::remove_file("test.0.bl").unwrap_or_default();
+		let path = "testdb/persistent";
+		std::fs::remove_dir_all(path).unwrap_or_default();
 
 		let key = "abc".as_bytes();
 		let expected_pref = 0;
 		let value = [1, 2, 3];
 		{
-			let mut db = persistent("testdb", "test", 1).unwrap();
+			let mut db = persistent(path, "test", 1).unwrap();
 			let pref = db.put_keyed(key, &value).unwrap();
 			assert_eq!(pref, expected_pref);
 			db.batch().unwrap();
 		}
 
-		let db = persistent("testdb", "test", 1).unwrap();
+		let db = persistent(path, "test", 1).unwrap();
 		let (pref, result) = db.get_keyed(key).unwrap().unwrap();
 		assert_eq!(pref, expected_pref);
 		assert_eq!(value, result.as_slice());

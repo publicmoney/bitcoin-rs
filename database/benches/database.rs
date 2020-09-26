@@ -9,7 +9,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 
 use db::blockchain_db::BlockChainDatabase;
 
-const TEST_DB: &'static str = "testdb";
+const TEST_DB: &'static str = "testdb/bench";
 
 // which is better performance - keyed lookup or two lookups by ref? Thinking about getting blocks txs from list
 // 1. write 12000 blocks
@@ -73,9 +73,8 @@ pub fn write_heavy(c: &mut Criterion) {
 	// bench
 	c.bench_function("write_heavy", |b| {
 		b.iter(|| {
-			let _ = std::fs::remove_dir_all("testdb");
-			// let store = BlockChainDatabase::transient().unwrap();
-			// let db = HamDb::persistent("bench", 8, 128).unwrap();
+			let _ = std::fs::remove_dir_all(TEST_DB.to_string());
+
 			let store = BlockChainDatabase::persistent(&TEST_DB.to_string(), 100).unwrap();
 
 			store.insert(genesis.clone()).unwrap();

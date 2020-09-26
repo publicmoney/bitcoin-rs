@@ -164,9 +164,9 @@ mod tests {
 
 	#[test]
 	fn test_append() {
-		fs::remove_file("testdb/paged-test.0.bc").unwrap_or_default();
+		fs::remove_dir_all("testdb/paged-append").unwrap_or_default();
 
-		let rolled_file = RolledFile::new("testdb/paged-test", "bc", PAGE_SIZE as u64).unwrap();
+		let rolled_file = RolledFile::new("testdb/paged-append", "test", "bc", PAGE_SIZE as u64).unwrap();
 		let mut appender = PagedFileAppender::new(Box::new(rolled_file), PRef::from(0));
 
 		let value = [1, 2, 3];
@@ -188,10 +188,9 @@ mod tests {
 
 	#[test]
 	fn test_big() {
-		fs::remove_file("testdb/paged-test-big.0.bc").unwrap_or_default();
-		fs::remove_file("testdb/paged-test-big.1.bc").unwrap_or_default();
+		fs::remove_dir_all("testdb/paged-big").unwrap_or_default();
 
-		let rolled_file = RolledFile::new("testdb/paged-test-big", "bc", PAGE_SIZE as u64).unwrap();
+		let rolled_file = RolledFile::new("testdb/paged-big", "test", "bc", PAGE_SIZE as u64).unwrap();
 		let mut appender = PagedFileAppender::new(Box::new(rolled_file), PRef::from(0));
 
 		let value = [1u8; 5000];

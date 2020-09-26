@@ -9,8 +9,10 @@ use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::path::Path;
 
+// File names have the format name.index.extension where index is a number.
 pub struct RolledFile {
 	path: String,
+	basename: String,
 	extension: String,
 	files: HashMap<u16, SingleFile>,
 	len: u64,
@@ -18,9 +20,12 @@ pub struct RolledFile {
 }
 
 impl RolledFile {
-	pub fn new(path: &str, extension: &str, file_size: u64) -> Result<RolledFile, Error> {
+	pub fn new(path: &str, name: &str, extension: &str, file_size: u64) -> Result<RolledFile, Error> {
+		std::fs::create_dir_all(path)?;
+
 		let mut rolled = RolledFile {
 			path: path.to_string(),
+			basename: name.to_string(),
 			extension: extension.to_string(),
 			files: HashMap::new(),
 			len: 0,
@@ -31,41 +36,30 @@ impl RolledFile {
 	}
 
 	fn open(&mut self) -> Result<(), Error> {
-		// interesting file names are:
-		// name.index.extension
-		// where index is a number
-		if let Some(basename) = Path::new(self.path.as_str()).file_name() {
-			let mut highest_index = 0;
-			if let Some(mut dir) = Path::new(&self.path).parent() {
-				if dir.to_string_lossy().to_string().is_empty() {
-					dir = Path::new(".");
-				}
-				for entry in fs::read_dir(dir)? {
-					let path = entry?.path();
-					if path.is_file() {
-						if let Some(name_index) = path.file_stem() {
-							// name.index
-							let ni = Path::new(name_index.clone());
-							if let Some(name) = ni.file_stem() {
-								// compare name
-								if name == basename {
-									// compare extension
-									if let Some(extension) = path.extension() {
-										if extension.to_string_lossy().to_string() == self.extension {
-											// parse index
-											if let Some(index) = ni.extension() {
-												if let Ok(number) = index.to_string_lossy().parse::<u16>() {
-													let filename = path.clone().to_string_lossy().to_string();
-													let file = Self::open_file(filename)?;
-													self.files.insert(
-														number,
-														SingleFile::new(file, number as u64 * self.file_size, self.file_size)?,
-													);
-													if let Some(file) = self.files.get(&number) {
-														if file.len().unwrap() > 0 {
-															highest_index = max(highest_index, number);
-														}
-													}
+		let mut highest_index = 0;
+
+		for entry in fs::read_dir(&self.path)? {
+			let path = entry?.path();
+			if path.is_file() {
+				if let Some(name_index) = path.file_stem() {
+					// name.index
+					let ni = Path::new(name_index.clone());
+					if let Some(name) = ni.file_stem() {
+						// compare name
+						if name == self.basename.as_str() {
+							// compare extension
+							if let Some(extension) = path.extension() {
+								if extension.to_string_lossy().to_string() == self.extension {
+									// parse index
+									if let Some(index) = ni.extension() {
+										if let Ok(number) = index.to_string_lossy().parse::<u16>() {
+											let filename = path.clone().to_string_lossy().to_string();
+											let file = Self::open_file(filename)?;
+											self.files
+												.insert(number, SingleFile::new(file, number as u64 * self.file_size, self.file_size)?);
+											if let Some(file) = self.files.get(&number) {
+												if file.len().unwrap() > 0 {
+													highest_index = max(highest_index, number);
 												}
 											}
 										}
@@ -76,11 +70,9 @@ impl RolledFile {
 					}
 				}
 			}
-			if let Some(file) = self.files.get(&highest_index) {
-				self.len = highest_index as u64 * self.file_size + file.len()?;
-			}
-		} else {
-			return Err(Error::Corrupted("invalid db name".to_string()));
+		}
+		if let Some(file) = self.files.get(&highest_index) {
+			self.len = highest_index as u64 * self.file_size + file.len()?;
 		}
 		Ok(())
 	}
@@ -138,7 +130,10 @@ impl PagedFile for RolledFile {
 		let file_index = (n_offset / self.file_size) as u16;
 
 		if !self.files.contains_key(&file_index) {
-			let file = Self::open_file((((self.path.clone() + ".") + file_index.to_string().as_str()) + ".") + self.extension.as_str())?;
+			let file = Self::open_file(
+				(((self.path.clone() + "/") + (self.basename.clone() + ".").as_str() + file_index.to_string().as_str()) + ".")
+					+ self.extension.as_str(),
+			)?;
 			self.files.insert(
 				file_index,
 				SingleFile::new(file, (n_offset / self.file_size) * self.file_size, self.file_size)?,
@@ -171,10 +166,9 @@ mod tests {
 
 	#[test]
 	fn test_rolled_file() {
-		fs::remove_file("testdb/rolled-test.0.bc").unwrap_or_default();
-		fs::remove_file("testdb/rolled-test.1.bc").unwrap_or_default();
+		fs::remove_dir_all("testdb/rolled").unwrap_or_default();
 
-		let mut rolled_file = RolledFile::new("testdb/rolled-test", "bc", PAGE_SIZE as u64).unwrap();
+		let mut rolled_file = RolledFile::new("testdb/rolled", "test", "bc", PAGE_SIZE as u64).unwrap();
 
 		let page_one_pref = PRef::from(0);
 		let mut page_one = Page::new_page_with_position(page_one_pref);
@@ -193,12 +187,12 @@ mod tests {
 
 		assert_eq!(
 			PAGE_SIZE as u64,
-			fs::File::open("testdb/rolled-test.0.bc").unwrap().metadata().unwrap().len()
+			fs::File::open("testdb/rolled/test.0.bc").unwrap().metadata().unwrap().len()
 		);
 		assert_eq!(
 			PAGE_SIZE as u64,
-			fs::File::open("testdb/rolled-test.1.bc").unwrap().metadata().unwrap().len()
+			fs::File::open("testdb/rolled/test.1.bc").unwrap().metadata().unwrap().len()
 		);
-		assert!(fs::File::open("testdb/rolled-test.2.bc").is_err());
+		assert!(fs::File::open("testdb/rolled/test.2.bc").is_err());
 	}
 }

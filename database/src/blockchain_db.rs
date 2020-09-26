@@ -539,17 +539,18 @@ mod tests {
 
 	#[test]
 	fn test_persistence() {
-		let _ = std::fs::remove_dir_all("testdb");
+		let path = "testdb/persistence".to_string();
+		std::fs::remove_dir_all(&path).unwrap_or_default();
 
 		let b0: IndexedBlock = block_h0().into();
 		{
-			let db = BlockChainDatabase::persistent(&"testdb".to_string(), 1).unwrap();
+			let db = BlockChainDatabase::persistent(&path, 1).unwrap();
 			db.insert(b0.clone()).unwrap();
 			db.canonize(b0.hash()).unwrap();
 			db.flush().unwrap();
 		}
 		{
-			let db = BlockChainDatabase::persistent(&"testdb".to_string(), 1).unwrap();
+			let db = BlockChainDatabase::persistent(&path, 1).unwrap();
 			let block = db.block(BlockRef::Hash(b0.hash().clone())).unwrap();
 			assert_eq!(block, b0);
 		}

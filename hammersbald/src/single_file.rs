@@ -98,12 +98,12 @@ mod tests {
 
 	#[test]
 	fn test_single_file() {
-		let file_name = "testdb/single-test.bc";
-		fs::remove_file(file_name).unwrap_or_default();
+		fs::remove_dir_all("testdb/single").unwrap_or_default();
+		fs::create_dir_all("testdb/single").unwrap_or_default();
 
 		let mut options = OpenOptions::new();
 		options.read(true).write(true).create(true);
-		let file = options.open(file_name).unwrap();
+		let file = options.open("testdb/single/test.bc").unwrap();
 		let mut single_file = SingleFile::new(file, 0, 100000).unwrap();
 
 		let page_one_pref = PRef::from(0);

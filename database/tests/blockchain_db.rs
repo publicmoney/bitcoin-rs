@@ -49,13 +49,13 @@ fn insert_block() {
 
 #[test]
 fn reopen_db() {
-	std::fs::remove_dir_all("testdb").unwrap_or_default();
+	std::fs::remove_dir_all("testdb/reopen").unwrap_or_default();
 
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
 	{
-		let ham = HamDb::persistent("testdb", "reopen", 100).unwrap();
+		let ham = HamDb::persistent("testdb/reopen", "test", 100).unwrap();
 		let store = BlockChainDatabase::open(ham.clone()).unwrap();
 		store.insert(b0.clone()).unwrap();
 		store.insert(b1.clone()).unwrap();
@@ -71,7 +71,7 @@ fn reopen_db() {
 		assert_eq!(1, store.best_block().number);
 	}
 	{
-		let ham = HamDb::persistent("testdb", "reopen", 100).unwrap();
+		let ham = HamDb::persistent("testdb/reopen", "test", 100).unwrap();
 		let store = BlockChainDatabase::open(ham).unwrap();
 		assert_eq!(b0.hash(), &store.block_hash(0).unwrap());
 		assert_eq!(1, store.best_block().number);
