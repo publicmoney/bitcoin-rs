@@ -455,7 +455,7 @@ mod tests {
 		let consensus = ConsensusParams::new(Network::Unitest);
 		let verifier = ChainVerifier::new(storage.clone(), consensus);
 		let expected = Err(Error::Transaction(1, TransactionError::Overspend));
-		assert_eq!(expected, verifier.verify(VerificationLevel::Header, &block.clone().into()));
+		assert_eq!(expected, verifier.verify(VerificationLevel::Full, &block.clone().into()));
 	}
 
 	#[test]

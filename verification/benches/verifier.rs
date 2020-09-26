@@ -12,6 +12,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use db::BlockChainDatabase;
 use network::{ConsensusParams, Network};
 use std::sync::Arc;
+use std::time::Duration;
 use verification::{BackwardsCompatibleChainVerifier as ChainVerifier, VerificationLevel, Verify};
 
 // 1. write BLOCKS_INITIAL blocks with 1 transaction each
@@ -19,13 +20,13 @@ use verification::{BackwardsCompatibleChainVerifier as ChainVerifier, Verificati
 //    spending outputs from last <BLOCKS*TRANSACTIONS*OUTPUTS> blocks
 pub fn verifier(c: &mut Criterion) {
 	// params
-	const BLOCKS_INITIAL: usize = 5200;
-	const BLOCKS: usize = 20;
-	const TRANSACTIONS: usize = 20;
-	const OUTPUTS: usize = 10;
+	const BLOCKS_INITIAL: usize = 600;
+	const BLOCKS: usize = 10;
+	const TRANSACTIONS: usize = 10;
+	const OUTPUTS: usize = 5;
 
 	assert!(
-		BLOCKS_INITIAL - 100 > BLOCKS * OUTPUTS * TRANSACTIONS,
+		BLOCKS_INITIAL - 100 >= BLOCKS * OUTPUTS * TRANSACTIONS,
 		"There will be not enough initial blocks to continue this bench"
 	);
 
@@ -89,12 +90,12 @@ pub fn verifier(c: &mut Criterion) {
 		}
 		#[rustfmt::skip]
 		verification_blocks.push(
-			builder
+		builder
 				.merkled_header()
 					.parent(rolling_hash.clone())
 					.build()
 				.build()
-			.into());
+				.into());
 	}
 
 	assert_eq!(store.best_block().hash, rolling_hash);
@@ -111,5 +112,10 @@ pub fn verifier(c: &mut Criterion) {
 	});
 }
 
-criterion_group!(benches, verifier);
+criterion_group! {
+	name = benches;
+	// This can be any expression that returns a `Criterion` object.
+	config = Criterion::default().sample_size(20).measurement_time(Duration::from_secs(30));
+	targets = verifier
+}
 criterion_main!(benches);
