@@ -40,7 +40,7 @@ impl Context {
 			runtime_handle: tokio::runtime::Handle::current(),
 			connections: Default::default(),
 			connection_counter: ConnectionCounter::new(config.inbound_connections, config.outbound_connections),
-			node_table: RwLock::new(NodeTable::from_file(config.preferable_services, &config.node_table_path)?),
+			node_table: RwLock::new(NodeTable::from_file(config.preferable_services, config.node_table_path.clone())?),
 			local_sync_node,
 			config,
 		};
@@ -147,7 +147,7 @@ impl Context {
 			}
 		}
 
-		if let Err(_err) = context.node_table.read().save_to_file(&context.config.node_table_path) {
+		if let Err(_err) = context.node_table.read().save_to_file() {
 			error!("Saving node table to disk failed");
 		}
 	}

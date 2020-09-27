@@ -8,16 +8,17 @@ extern crate app_dirs;
 extern crate env_logger;
 extern crate libc;
 
+mod app_dir;
 mod block_notifier;
 mod commands;
 mod config;
+mod logger;
 mod rpc;
 mod rpc_apis;
-mod util;
 
-use crate::config::USER_AGENT;
-use crate::util::open_db;
-use app_dirs::AppInfo;
+use crate::app_dir::app_path;
+use std::sync::Arc;
+use storage::CanonStore;
 use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::time::Duration;
@@ -25,10 +26,6 @@ use tokio::time::Duration;
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-pub const APP_INFO: AppInfo = AppInfo {
-	name: USER_AGENT,
-	author: "publicmoney",
-};
 pub const LOG_INFO: &'static str = "info";
 
 fn main() {
@@ -55,7 +52,8 @@ fn run() -> Result<(), String> {
 		env_logger::init();
 	}
 
-	let db = open_db(&cfg)?;
+	let db_path = app_path(&cfg.data_dir, "db");
+	let db = Arc::new(db::BlockChainDatabase::persistent(&db_path, cfg.db_cache, &cfg.network.genesis_block()).unwrap());
 
 	let mut threaded_rt: Runtime = runtime::Builder::new()
 		.threaded_scheduler()
@@ -78,6 +76,6 @@ fn run() -> Result<(), String> {
 
 	info!("Shutting down, please wait...");
 	threaded_rt.shutdown_timeout(Duration::from_secs(3));
-	db.shutdown();
+	db.as_store().shutdown();
 	Ok(())
 }

@@ -7,7 +7,9 @@ use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::net::SocketAddr;
-use std::{fs, io, net, path};
+use std::{fs, io, net};
+
+const NODES_FILE: &str = "nodes.csv";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Node {
@@ -179,6 +181,8 @@ where
 	by_score: BTreeSet<NodeByScore>,
 	/// Nodes sorted by time.
 	by_time: BTreeSet<NodeByTime>,
+	/// where nodes table is stored
+	path: String,
 }
 
 impl NodeTable {
@@ -192,25 +196,22 @@ impl NodeTable {
 	}
 
 	/// Opens a file loads node_table from it.
-	pub fn from_file<P>(preferable_services: Services, path: P) -> Result<Self, io::Error>
-	where
-		P: AsRef<path::Path>,
-	{
-		fs::OpenOptions::new()
+	pub fn from_file(preferable_services: Services, path: String) -> Result<Self, io::Error> {
+		let file_path = path + NODES_FILE;
+		let mut table = fs::OpenOptions::new()
 			.create(true)
 			.read(true)
 			// without opening for write, mac os returns os error 22
 			.write(true)
-			.open(path)
-			.and_then(|f| Self::load(preferable_services, f))
+			.open(&file_path)
+			.and_then(|f| Self::load(preferable_services, f))?;
+		table.path = file_path;
+		Ok(table)
 	}
 
 	/// Saves node table to file
-	pub fn save_to_file<P>(&self, path: P) -> Result<(), io::Error>
-	where
-		P: AsRef<path::Path>,
-	{
-		fs::File::create(path).and_then(|file| self.save(file))
+	pub fn save_to_file(&self) -> Result<(), io::Error> {
+		fs::File::create(&self.path).and_then(|file| self.save(file))
 	}
 }
 

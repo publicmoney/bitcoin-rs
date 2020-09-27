@@ -75,10 +75,8 @@ pub fn write_heavy(c: &mut Criterion) {
 		b.iter(|| {
 			let _ = std::fs::remove_dir_all(TEST_DB.to_string());
 
-			let store = BlockChainDatabase::persistent(&TEST_DB.to_string(), 100).unwrap();
+			let store = BlockChainDatabase::persistent(&TEST_DB.to_string(), 100, &genesis).unwrap();
 
-			store.insert(genesis.clone()).unwrap();
-			store.canonize(&genesis.header.hash).unwrap();
 			for block in &blocks {
 				let block: IndexedBlock = block.clone().into();
 				let hash = block.hash().clone();

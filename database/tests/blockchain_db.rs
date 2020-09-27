@@ -3,7 +3,6 @@ extern crate db;
 extern crate storage;
 extern crate test_data;
 
-use bitcrypto::SHA256D;
 use chain::IndexedBlock;
 use db::blockchain_db::BlockChainDatabase;
 use db::ham_adapter::HamDb;
@@ -11,19 +10,14 @@ use storage::{BlockProvider, ForkChain, SideChainOrigin, Store};
 
 #[test]
 fn insert_block() {
-	let store = BlockChainDatabase::transient().unwrap();
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
+	let store = BlockChainDatabase::transient(&b0).unwrap();
 
-	store.insert(b0.clone()).unwrap();
 	store.insert(b1.clone()).unwrap();
 	store.insert(b2.clone()).unwrap();
 
-	assert_eq!(0, store.best_block().number);
-	assert_eq!(SHA256D::default(), store.best_block().hash);
-
-	store.canonize(b0.hash()).unwrap();
 	assert_eq!(0, store.best_block().number);
 	assert_eq!(b0.hash(), &store.best_block().hash);
 
@@ -81,16 +75,13 @@ fn reopen_db() {
 
 #[test]
 fn switch_to_simple_fork() {
-	let store = BlockChainDatabase::transient().unwrap();
 	let b0: IndexedBlock = test_data::block_h0().into();
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
+	let store = BlockChainDatabase::transient(&b0).unwrap();
 
-	store.insert(b0.clone()).unwrap();
 	store.insert(b1.clone()).unwrap();
 	store.insert(b2.clone()).unwrap();
-
-	store.canonize(b0.hash()).unwrap();
 	store.canonize(b1.hash()).unwrap();
 
 	assert_eq!(1, store.best_block().number);

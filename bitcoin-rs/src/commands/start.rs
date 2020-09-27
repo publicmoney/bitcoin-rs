@@ -1,7 +1,7 @@
 use super::super::rpc;
+use crate::app_dir::app_path;
 use crate::block_notifier::BlockNotifier;
 use crate::config;
-use crate::util::node_table_path;
 use memory::Memory;
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use p2p::LocalSyncNodeRef;
@@ -52,7 +52,7 @@ pub async fn start_async(
 		},
 		peers: cfg.connect.map_or_else(|| vec![], |x| vec![x]),
 		seed: cfg.seednode,
-		node_table_path: node_table_path(&cfg.data_dir),
+		node_table_path: app_path(&cfg.data_dir, "p2p"),
 		preferable_services: cfg.services,
 		internet_protocol: cfg.internet_protocol,
 	};

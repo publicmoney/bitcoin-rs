@@ -8,7 +8,7 @@ use serialization::serialize;
 use std::collections::HashMap;
 use storage::bytes::Bytes;
 use storage::{
-	BlockChain, BlockHeaderProvider, BlockHeight, BlockMeta, BlockOrigin, BlockProvider, BlockRef, CanonStore, ForkChain, Forkable,
+	BlockChain, BlockHeaderProvider, BlockHeight, BlockMeta, BlockOrigin, BlockProvider, BlockRef, CanonStore, Error, ForkChain, Forkable,
 	SideChainOrigin, Store, TransactionMeta, TransactionMetaProvider, TransactionOutputProvider, TransactionProvider,
 };
 
@@ -40,20 +40,46 @@ impl<'a, T: DbInterface> ForkChain for ForkChainDatabase<'a, T> {
 }
 
 impl BlockChainDatabase<HamDb> {
-	pub fn transient() -> Result<BlockChainDatabase<HamDb>, storage::Error> {
-		BlockChainDatabase::open(HamDb::transient()?)
+	pub fn transient(genesis_block: &IndexedBlock) -> Result<BlockChainDatabase<HamDb>, storage::Error> {
+		let db = BlockChainDatabase::open(HamDb::transient()?)?;
+		db.check_genesis(genesis_block)?;
+		Ok(db)
 	}
 
-	pub fn persistent(db_path: &String, db_cache_size_mb: usize) -> Result<BlockChainDatabase<HamDb>, storage::Error> {
-		BlockChainDatabase::open(HamDb::persistent(db_path, "blockchain", db_cache_size_mb)?)
+	pub fn persistent(
+		db_path: &String,
+		db_cache_size_mb: usize,
+		genesis_block: &IndexedBlock,
+	) -> Result<BlockChainDatabase<HamDb>, storage::Error> {
+		let db = BlockChainDatabase::open(HamDb::persistent(db_path, "blockchain", db_cache_size_mb)?)?;
+		db.check_genesis(genesis_block)?;
+		Ok(db)
+	}
+
+	fn check_genesis(&self, genesis_block: &IndexedBlock) -> Result<(), storage::Error> {
+		match self.block_hash(0) {
+			Some(ref db_genesis_block_hash) if db_genesis_block_hash != genesis_block.hash() => Err(Error::DatabaseError(
+				"Trying to open database with incompatible genesis block".to_string(),
+			)),
+			Some(_) => {
+				info!("Opened database with genesis block: {}", genesis_block.hash());
+				Ok(())
+			}
+			None => {
+				info!("Initialising database with genesis block: {}", genesis_block.hash());
+				let hash = genesis_block.hash().clone();
+				self.insert(genesis_block.clone())?;
+				self.canonize(&hash)
+			}
+		}
 	}
 
 	pub fn init_test_chain(blocks: Vec<IndexedBlock>) -> Self {
-		let store = Self::transient().unwrap();
+		let store = Self::transient(blocks.get(0).unwrap()).unwrap();
 
-		for block in blocks {
+		for block in blocks.iter().skip(1) {
 			let hash = block.hash().clone();
-			store.insert(block).unwrap();
+			store.insert(block.clone()).unwrap();
 			store.canonize(&hash).unwrap();
 		}
 		store
@@ -66,10 +92,6 @@ where
 {
 	pub fn open(db: T) -> Result<BlockChainDatabase<T>, storage::Error> {
 		let best_block = db.best_block()?;
-		info!(
-			"Opened database with best block number: {} hash: {}",
-			best_block.number, best_block.hash
-		);
 		Ok(BlockChainDatabase {
 			db,
 			best_block: RwLock::new(best_block),
@@ -544,13 +566,11 @@ mod tests {
 
 		let b0: IndexedBlock = block_h0().into();
 		{
-			let db = BlockChainDatabase::persistent(&path, 1).unwrap();
-			db.insert(b0.clone()).unwrap();
-			db.canonize(b0.hash()).unwrap();
+			let db = BlockChainDatabase::persistent(&path, 1, &b0).unwrap();
 			db.flush().unwrap();
 		}
 		{
-			let db = BlockChainDatabase::persistent(&path, 1).unwrap();
+			let db = BlockChainDatabase::persistent(&path, 1, &b0).unwrap();
 			let block = db.block(BlockRef::Hash(b0.hash().clone())).unwrap();
 			assert_eq!(block, b0);
 		}
@@ -558,11 +578,8 @@ mod tests {
 
 	#[test]
 	fn test_block_provider() {
-		let db = BlockChainDatabase::transient().unwrap();
-
 		let b0: IndexedBlock = block_h0().into();
-		db.insert(b0.clone()).unwrap();
-		db.canonize(b0.hash()).unwrap();
+		let db = BlockChainDatabase::transient(&b0).unwrap();
 
 		let block_ref = BlockRef::Hash(b0.hash().clone());
 
@@ -604,11 +621,8 @@ mod tests {
 
 	#[test]
 	pub fn test_canonize() {
-		let db = BlockChainDatabase::transient().unwrap();
-
 		let b0: IndexedBlock = block_h0().into();
-		db.insert(b0.clone()).unwrap();
-		db.canonize(b0.hash()).unwrap();
+		let db = BlockChainDatabase::transient(&b0).unwrap();
 
 		assert_best(&db, 0, b0.header.hash);
 
@@ -640,21 +654,19 @@ mod tests {
 
 	#[test]
 	fn test_block_not_found() {
-		let db = BlockChainDatabase::transient().unwrap();
+		let db = BlockChainDatabase::transient(&block_h0().into()).unwrap();
 
-		assert!(db.block(BlockRef::Hash(block_h0().hash())).is_none());
+		assert!(db.block(BlockRef::Hash(block_h1().hash())).is_none());
 		assert!(db.block(BlockRef::Number(5)).is_none());
-		assert!(db.block_meta(BlockRef::Hash(block_h0().hash())).is_none());
+		assert!(db.block_meta(BlockRef::Hash(block_h1().hash())).is_none());
 		assert!(db.transaction_meta(&SHA256D::default()).is_none())
 	}
 
 	#[test]
 	fn test_transaction_provider() {
-		let db = BlockChainDatabase::transient().unwrap();
-
 		let b0: IndexedBlock = block_h0().into();
-		db.insert(b0.clone()).unwrap();
-		db.canonize(b0.hash()).unwrap();
+		let db = BlockChainDatabase::transient(&b0).unwrap();
+
 		let tx = db
 			.as_transaction_meta_provider()
 			.transaction_meta(&b0.transactions.get(0).unwrap().hash)
