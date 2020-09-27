@@ -5,7 +5,6 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 extern crate app_dirs;
-extern crate env_logger;
 extern crate libc;
 
 mod app_dir;
@@ -26,8 +25,6 @@ use tokio::time::Duration;
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
-pub const LOG_INFO: &'static str = "info";
-
 fn main() {
 	// Always print backtrace on panic.
 	::std::env::set_var("RUST_BACKTRACE", "1");
@@ -42,15 +39,7 @@ fn run() -> Result<(), String> {
 	let matches = clap::App::from_yaml(yaml).get_matches();
 	let cfg = config::parse(&matches)?;
 
-	if !cfg.quiet {
-		if cfg!(windows) {
-			logs::init(LOG_INFO, logs::DateLogFormatter);
-		} else {
-			logs::init(LOG_INFO, logs::DateAndColorLogFormatter);
-		}
-	} else {
-		env_logger::init();
-	}
+	logger::setup_log(&cfg)?;
 
 	let db_path = app_path(&cfg.data_dir, "db");
 	let db = Arc::new(db::BlockChainDatabase::persistent(&db_path, cfg.db_cache, &cfg.network.genesis_block()).unwrap());

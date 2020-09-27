@@ -11,7 +11,7 @@ use verification::VerificationLevel;
 pub const USER_AGENT: &'static str = env!("CARGO_PKG_NAME");
 pub const USER_AGENT_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub const REGTEST_USER_AGENT: &'static str = "/Satoshi:0.12.1/";
-pub const DEFAULT_DB_CACHE: usize = 512;
+pub const DEFAULT_DB_CACHE: usize = 64;
 
 #[derive(Default)]
 pub struct Config {
@@ -22,7 +22,6 @@ pub struct Config {
 	pub connect: Option<net::SocketAddr>,
 	pub host: Option<net::IpAddr>,
 	pub seednode: Option<net::SocketAddr>,
-	pub quiet: bool,
 	pub inbound_connections: u32,
 	pub outbound_connections: u32,
 	pub db_cache: usize,
@@ -45,7 +44,6 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 		None => None,
 	};
 
-	let quiet = matches.is_present("quiet");
 	let network = match (matches.is_present("testnet"), matches.is_present("regtest")) {
 		(true, false) => Network::Testnet,
 		(false, true) => Network::Regtest,
@@ -122,7 +120,6 @@ pub fn parse(matches: &clap::ArgMatches) -> Result<Config, String> {
 	};
 
 	let config = Config {
-		quiet,
 		network,
 		consensus,
 		services,

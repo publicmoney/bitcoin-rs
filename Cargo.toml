@@ -9,7 +9,6 @@ members = [
 	"hammersbald",
 	"import",
 	"keys",
-	"logs",
 	"message",
 	"miner",
 	"network",

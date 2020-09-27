@@ -197,7 +197,7 @@ impl NodeTable {
 
 	/// Opens a file loads node_table from it.
 	pub fn from_file(preferable_services: Services, path: String) -> Result<Self, io::Error> {
-		let file_path = path + NODES_FILE;
+		let file_path = path + "/" + NODES_FILE;
 		let mut table = fs::OpenOptions::new()
 			.create(true)
 			.read(true)

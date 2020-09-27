@@ -9,10 +9,10 @@ edition = "2018"
 [dependencies]
 jemallocator = "0.3"
 log = "0.4"
-env_logger = "0.7"
 app_dirs = "1.2.1"
 libc = "0.2"
 clap = { version = "2", features = ["yaml"] }
+log4rs = { version = "0.12.0", features = ["background_rotation"] }
 tokio = { version = "0.2.11", features = ["rt-core", "rt-threaded", "net", "time", "io-util", "sync", "stream", "test-util", "macros", "signal"] }
 bitcrypto = { path = "../crypto" }
 message = { path = "../message" }
@@ -23,7 +23,6 @@ db = { path = "../database" }
 verification = { path = "../verification" }
 sync = { path = "../sync" }
 import = { path = "../import" }
-logs = { path = "../logs" }
 rpc = { path = "../rpc" }
 primitives = { path = "../primitives" }
 memory = { path = "memory" }

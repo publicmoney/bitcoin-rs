@@ -64,8 +64,7 @@ impl NodeManager {
 		bitcoin_rs_cmd
 			.arg("--regtest")
 			.args(&["--data-dir", "testdb"])
-			.stdout(Stdio::null())
-			.stderr(Stdio::null());
+			.stdout(Stdio::null());
 
 		if let Some(sub_command) = &self.builder.sub_command {
 			bitcoin_rs_cmd.arg(sub_command);
