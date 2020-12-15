@@ -1,6 +1,6 @@
 use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
-use storage::{BlockHeight, BlockMeta, TransactionMeta};
+use storage::{BlockHeight, BlockMeta, BlockRef, TransactionMeta};
 
 pub trait DbInterface: Send + Sync {
 	fn insert_block(&self, block: IndexedBlock) -> Result<(), storage::Error>;
@@ -34,6 +34,8 @@ pub trait DbInterface: Send + Sync {
 	fn flush(&self) -> Result<(), storage::Error>;
 
 	fn stats(&self) -> Result<(), storage::Error>;
+
+	fn truncate(&self, block_ref: &BlockRef) -> Result<(), storage::Error>;
 
 	fn size(&self) -> u64;
 

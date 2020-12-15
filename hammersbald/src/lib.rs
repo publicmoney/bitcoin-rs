@@ -1,6 +1,6 @@
 extern crate bitcoin_hashes;
 extern crate byteorder;
-extern crate lru_cache;
+extern crate lru;
 extern crate rand;
 
 mod async_file;

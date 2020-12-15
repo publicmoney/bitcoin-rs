@@ -6,7 +6,6 @@ use crate::single_file::SingleFile;
 
 use std::cmp::max;
 use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
 use std::path::Path;
 
 // File names have the format name.index.extension where index is a number.
@@ -38,7 +37,7 @@ impl RolledFile {
 	fn open(&mut self) -> Result<(), Error> {
 		let mut highest_index = 0;
 
-		for entry in fs::read_dir(&self.path)? {
+		for entry in std::fs::read_dir(&self.path)? {
 			let path = entry?.path();
 			if path.is_file() {
 				if let Some(name_index) = path.file_stem() {
@@ -54,9 +53,8 @@ impl RolledFile {
 									if let Some(index) = ni.extension() {
 										if let Ok(number) = index.to_string_lossy().parse::<u16>() {
 											let filename = path.clone().to_string_lossy().to_string();
-											let file = Self::open_file(filename)?;
 											self.files
-												.insert(number, SingleFile::new(file, number as u64 * self.file_size, self.file_size)?);
+												.insert(number, SingleFile::new(filename, number as u64 * self.file_size, self.file_size)?);
 											if let Some(file) = self.files.get(&number) {
 												if file.len().unwrap() > 0 {
 													highest_index = max(highest_index, number);
@@ -75,12 +73,6 @@ impl RolledFile {
 			self.len = highest_index as u64 * self.file_size + file.len()?;
 		}
 		Ok(())
-	}
-
-	fn open_file(path: String) -> Result<File, Error> {
-		let mut open_mode = OpenOptions::new();
-		open_mode.read(true).write(true).create(true);
-		Ok(open_mode.open(path)?)
 	}
 }
 
@@ -102,11 +94,13 @@ impl PagedFile for RolledFile {
 
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
 		let file_index = (new_len / self.file_size) as u16;
-		for (c, file) in &mut self.files {
-			if *c > file_index {
-				file.truncate(0)?;
-			}
+
+		let to_delete: Vec<u16> = self.files.iter().filter(|(i, _)| **i > file_index).map(|file| *file.0).collect();
+
+		for number in to_delete {
+			self.files.remove(&number).unwrap().delete();
 		}
+
 		if let Some(last) = self.files.get_mut(&file_index) {
 			last.truncate(new_len % self.file_size)?;
 		}
@@ -130,13 +124,11 @@ impl PagedFile for RolledFile {
 		let file_index = (n_offset / self.file_size) as u16;
 
 		if !self.files.contains_key(&file_index) {
-			let file = Self::open_file(
-				(((self.path.clone() + "/") + (self.basename.clone() + ".").as_str() + file_index.to_string().as_str()) + ".")
-					+ self.extension.as_str(),
-			)?;
+			let path = (((self.path.clone() + "/") + (self.basename.clone() + ".").as_str() + file_index.to_string().as_str()) + ".")
+				+ self.extension.as_str();
 			self.files.insert(
 				file_index,
-				SingleFile::new(file, (n_offset / self.file_size) * self.file_size, self.file_size)?,
+				SingleFile::new(path, (n_offset / self.file_size) * self.file_size, self.file_size)?,
 			);
 		}
 
@@ -168,22 +160,23 @@ mod tests {
 	fn test_rolled_file() {
 		fs::remove_dir_all("testdb/rolled").unwrap_or_default();
 
-		let mut rolled_file = RolledFile::new("testdb/rolled", "test", "bc", PAGE_SIZE as u64).unwrap();
-
 		let page_one_pref = PRef::from(0);
-		let mut page_one = Page::new_page_with_position(page_one_pref);
-		page_one.write_u64(0, 1);
-		rolled_file.update_page(page_one.clone()).unwrap();
+		{
+			let mut rolled_file = RolledFile::new("testdb/rolled", "test", "bc", PAGE_SIZE as u64).unwrap();
 
-		let page_two_pref = page_one_pref.next_page();
-		let mut page_two = Page::new_page_with_position(page_two_pref);
-		page_two.write_u64(0, 2);
-		rolled_file.update_page(page_two.clone()).unwrap();
+			let mut page_one = Page::new_page_with_position(page_one_pref);
+			page_one.write_u64(0, 1);
+			rolled_file.update_page(page_one.clone()).unwrap();
 
-		rolled_file.update_page(page_one.clone()).unwrap();
+			let mut page_two = Page::new_page_with_position(page_one_pref.next_page());
+			page_two.write_u64(0, 2);
+			rolled_file.update_page(page_two.clone()).unwrap();
 
-		rolled_file.sync().unwrap();
-		rolled_file.flush().unwrap();
+			rolled_file.update_page(page_one.clone()).unwrap();
+
+			rolled_file.sync().unwrap();
+			rolled_file.flush().unwrap();
+		}
 
 		assert_eq!(
 			PAGE_SIZE as u64,
@@ -194,5 +187,53 @@ mod tests {
 			fs::File::open("testdb/rolled/test.1.bc").unwrap().metadata().unwrap().len()
 		);
 		assert!(fs::File::open("testdb/rolled/test.2.bc").is_err());
+
+		let rolled_file = RolledFile::new("testdb/rolled", "test", "bc", PAGE_SIZE as u64).unwrap();
+
+		assert_eq!(1, rolled_file.read_page(page_one_pref).unwrap().unwrap().read_u64(0));
+		assert_eq!(2, rolled_file.read_page(page_one_pref.next_page()).unwrap().unwrap().read_u64(0));
+	}
+
+	#[test]
+	fn test_rolled_file_truncate() {
+		fs::remove_dir_all("testdb/rolled-truncate").unwrap_or_default();
+
+		let mut rolled_file = RolledFile::new("testdb/rolled-truncate", "test", "bc", PAGE_SIZE as u64).unwrap();
+
+		let page_one_pref = PRef::from(0);
+
+		rolled_file.update_page(Page::new_page_with_position(page_one_pref)).unwrap();
+		rolled_file
+			.update_page(Page::new_page_with_position(page_one_pref.next_page()))
+			.unwrap();
+
+		assert_eq!(
+			PAGE_SIZE as u64,
+			fs::File::open("testdb/rolled-truncate/test.0.bc")
+				.unwrap()
+				.metadata()
+				.unwrap()
+				.len()
+		);
+		assert_eq!(
+			PAGE_SIZE as u64,
+			fs::File::open("testdb/rolled-truncate/test.1.bc")
+				.unwrap()
+				.metadata()
+				.unwrap()
+				.len()
+		);
+
+		rolled_file.truncate(1000).unwrap();
+
+		assert_eq!(
+			1000,
+			fs::File::open("testdb/rolled-truncate/test.0.bc")
+				.unwrap()
+				.metadata()
+				.unwrap()
+				.len()
+		);
+		assert!(fs::File::open("testdb/rolled-truncate/test.1.bc").is_err());
 	}
 }

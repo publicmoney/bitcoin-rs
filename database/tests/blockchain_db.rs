@@ -5,7 +5,6 @@ extern crate test_data;
 
 use chain::IndexedBlock;
 use db::blockchain_db::BlockChainDatabase;
-use db::ham_adapter::HamDb;
 use storage::{BlockProvider, ForkChain, SideChainOrigin, Store};
 
 #[test]
@@ -49,13 +48,9 @@ fn reopen_db() {
 	let b1: IndexedBlock = test_data::block_h1().into();
 	let b2: IndexedBlock = test_data::block_h2().into();
 	{
-		let ham = HamDb::persistent("testdb/reopen", "test", 100).unwrap();
-		let store = BlockChainDatabase::open(ham.clone()).unwrap();
-		store.insert(b0.clone()).unwrap();
+		let store = BlockChainDatabase::persistent(&"testdb/reopen".to_string(), 100, &b0).unwrap();
 		store.insert(b1.clone()).unwrap();
 		store.insert(b2.clone()).unwrap();
-
-		store.canonize(b0.hash()).unwrap();
 		store.canonize(b1.hash()).unwrap();
 		store.canonize(b2.hash()).unwrap();
 
@@ -65,8 +60,7 @@ fn reopen_db() {
 		assert_eq!(1, store.best_block().number);
 	}
 	{
-		let ham = HamDb::persistent("testdb/reopen", "test", 100).unwrap();
-		let store = BlockChainDatabase::open(ham).unwrap();
+		let store = BlockChainDatabase::persistent(&"testdb/reopen".to_string(), 100, &b0).unwrap();
 		assert_eq!(b0.hash(), &store.block_hash(0).unwrap());
 		assert_eq!(1, store.best_block().number);
 		assert_eq!(b1.hash(), &store.best_block().hash);

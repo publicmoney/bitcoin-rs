@@ -19,7 +19,7 @@ use std::sync::Mutex;
 
 /// create a transient db
 pub fn transient() -> Result<Box<dyn HammersbaldAPI>, Error> {
-	Transient::new_db(0)
+	Transient::new_db(1)
 }
 
 /// in memory representation of a file

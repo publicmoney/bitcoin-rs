@@ -61,10 +61,7 @@ impl BlockChainDatabase<HamDb> {
 			Some(ref db_genesis_block_hash) if db_genesis_block_hash != genesis_block.hash() => Err(Error::DatabaseError(
 				"Trying to open database with incompatible genesis block".to_string(),
 			)),
-			Some(_) => {
-				info!("Opened database with genesis block: {}", genesis_block.hash());
-				Ok(())
-			}
+			Some(_) => Ok(()),
 			None => {
 				info!("Initialising database with genesis block: {}", genesis_block.hash());
 				let hash = genesis_block.hash().clone();
@@ -92,6 +89,7 @@ where
 {
 	pub fn open(db: T) -> Result<BlockChainDatabase<T>, storage::Error> {
 		let best_block = db.best_block()?;
+		info!("Best block is: {:?}", best_block);
 		Ok(BlockChainDatabase {
 			db,
 			best_block: RwLock::new(best_block),
@@ -359,8 +357,8 @@ where
 		self.db.flush()
 	}
 
-	fn rollback_best(&self) -> Result<SHA256D, storage::Error> {
-		unimplemented!()
+	fn truncate(&self, block_ref: &BlockRef) -> Result<(), storage::Error> {
+		self.db.truncate(block_ref)
 	}
 
 	fn resolve_hash(&self, block_ref: BlockRef) -> Option<SHA256D> {
@@ -381,7 +379,7 @@ where
 
 	fn block_header(&self, block_ref: BlockRef) -> Option<IndexedBlockHeader> {
 		self.resolve_hash(block_ref)
-			.and_then(|block_hash| self.db.fetch_block_header(&block_hash).unwrap_or_default())
+			.and_then(|block_hash| self.db.fetch_block_header(&block_hash).unwrap())
 	}
 }
 
@@ -391,11 +389,11 @@ where
 {
 	fn block_meta(&self, block_ref: BlockRef) -> Option<BlockMeta> {
 		self.resolve_hash(block_ref)
-			.and_then(|hash| self.db.fetch_block_meta(&hash).unwrap_or_default())
+			.and_then(|hash| self.db.fetch_block_meta(&hash).unwrap())
 	}
 
 	fn block_hash(&self, number: u32) -> Option<SHA256D> {
-		self.db.block_hash(number).unwrap_or_default()
+		self.db.block_hash(number).unwrap()
 	}
 
 	fn block_number(&self, hash: &SHA256D) -> Option<u32> {
@@ -408,14 +406,13 @@ where
 	}
 
 	fn block(&self, block_ref: BlockRef) -> Option<IndexedBlock> {
-		self.resolve_hash(block_ref)
-			.and_then(|hash| self.db.fetch_block(&hash).unwrap_or_default())
+		self.resolve_hash(block_ref).and_then(|hash| self.db.fetch_block(&hash).unwrap())
 	}
 
 	fn block_transaction_hashes(&self, block_ref: BlockRef) -> Vec<SHA256D> {
 		self.resolve_hash(block_ref)
-			.and_then(|hash| self.db.fetch_transaction_hashes(&hash).unwrap_or_default())
-			.unwrap_or_default()
+			.and_then(|hash| self.db.fetch_transaction_hashes(&hash).unwrap())
+			.unwrap()
 	}
 
 	fn block_transactions(&self, block_ref: BlockRef) -> Vec<IndexedTransaction> {
@@ -490,7 +487,7 @@ where
 	T: DbInterface,
 {
 	fn transaction_meta(&self, hash: &SHA256D) -> Option<TransactionMeta> {
-		self.db.fetch_transaction_meta(hash).unwrap_or_default()
+		self.db.fetch_transaction_meta(hash).unwrap()
 	}
 }
 
@@ -503,7 +500,7 @@ where
 	}
 
 	fn transaction(&self, hash: &SHA256D) -> Option<IndexedTransaction> {
-		self.db.fetch_transaction(hash).unwrap_or_default()
+		self.db.fetch_transaction(hash).unwrap()
 	}
 }
 
@@ -533,8 +530,8 @@ where
 		BlockChainDatabase::insert(self, block)
 	}
 
-	fn rollback_best(&self) -> Result<SHA256D, storage::Error> {
-		BlockChainDatabase::rollback_best(self)
+	fn truncate(&self, block_ref: &BlockRef) -> Result<(), storage::Error> {
+		BlockChainDatabase::truncate(self, block_ref)
 	}
 
 	fn canonize(&self, block_hash: &SHA256D) -> Result<(), storage::Error> {

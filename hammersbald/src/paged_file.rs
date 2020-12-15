@@ -39,8 +39,7 @@ impl PagedFileAppender {
 	}
 
 	pub fn append(&mut self, buf: &[u8]) -> Result<PRef, Error> {
-		self.pos = self.update(self.pos, buf)?;
-		Ok(self.pos)
+		Ok(self.update(self.pos, buf)?)
 	}
 
 	pub fn update(&mut self, pos: PRef, buf: &[u8]) -> Result<PRef, Error> {
@@ -63,6 +62,9 @@ impl PagedFileAppender {
 			if new_pos.in_page_pos() == PAGE_PAYLOAD_SIZE {
 				new_pos += PREF_SIZE as u64;
 			}
+		}
+		if new_pos > self.pos {
+			self.pos = new_pos;
 		}
 		Ok(new_pos)
 	}

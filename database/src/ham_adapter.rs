@@ -6,7 +6,7 @@ use hammersbald::{persistent, transient, HammersbaldAPI};
 use parking_lot::RwLock;
 use serialization::{deserialize, serialize, Deserializable, Serializable};
 use std::sync::Arc;
-use storage::{BlockHeight, BlockMeta, Error, TransactionMeta};
+use storage::{BlockHeight, BlockMeta, BlockRef, Error, TransactionMeta};
 
 pub type PRef = u64;
 const BEST_PREF: PRef = 0;
@@ -92,6 +92,13 @@ impl HamDb {
 		T: Serializable,
 	{
 		self.hammersbald.write().set(pref, &serialize(data)).map_err(from_ham)
+	}
+
+	fn truncate<T>(&self, data: &T) -> Result<(), storage::Error>
+	where
+		T: Serializable,
+	{
+		self.hammersbald.write().truncate(&serialize(data)).map_err(from_ham)
 	}
 }
 
@@ -283,6 +290,13 @@ impl DbInterface for HamDb {
 	fn stats(&self) -> Result<(), Error> {
 		self.hammersbald.read().stats();
 		Ok(())
+	}
+
+	fn truncate(&self, block_ref: &BlockRef) -> Result<(), Error> {
+		match block_ref {
+			BlockRef::Number(number) => self.truncate(number),
+			BlockRef::Hash(hash) => self.truncate(hash),
+		}
 	}
 
 	fn size(&self) -> u64 {

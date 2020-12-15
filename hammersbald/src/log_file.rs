@@ -28,8 +28,17 @@ impl LogFile {
 		first.write_pref(PREF_SIZE * 2, PRef::from(link_len));
 
 		self.file.update_page(first)?;
-		self.flush()?;
 		Ok(())
+	}
+
+	pub fn recover(&self) -> Result<(u64, u64, u64), Error> {
+		if let Some(page) = self.read_page(PRef::from(0))? {
+			let data_len = page.read_pref(0).as_u64();
+			let table_len = page.read_pref(PREF_SIZE).as_u64();
+			let link_len = page.read_pref(PREF_SIZE * 2).as_u64();
+			return Ok((data_len, table_len, link_len));
+		}
+		Ok((0, 0, 0))
 	}
 
 	pub fn page_iter(&self) -> PagedFileIterator {

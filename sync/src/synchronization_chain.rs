@@ -648,11 +648,9 @@ impl Chain {
 
 	/// Calculate block locator hashes for storage
 	fn block_locator_hashes_for_storage(&self, mut index: BlockHeight, mut step: BlockHeight, hashes: &mut Vec<SHA256D>) {
+		trace!("Calculating block locator hashes. Index: {}, step: {}", index, step);
 		loop {
-			let block_hash = self
-				.storage
-				.block_hash(index)
-				.expect("private function; index calculated in `block_locator_hashes`; qed");
+			let block_hash = self.storage.block_hash(index).unwrap();
 			hashes.push(block_hash);
 
 			if hashes.len() >= 10 {

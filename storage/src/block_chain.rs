@@ -1,5 +1,5 @@
 use crate::chain::{IndexedBlock, IndexedBlockHeader};
-use crate::{BlockOrigin, Error, SideChainOrigin, Store};
+use crate::{BlockOrigin, BlockRef, Error, SideChainOrigin, Store};
 use bitcrypto::SHA256D;
 
 pub trait ForkChain {
@@ -16,7 +16,7 @@ pub trait BlockChain {
 	fn insert(&self, block: IndexedBlock) -> Result<(), Error>;
 
 	/// Rollbacks single best block. Returns new best block hash
-	fn rollback_best(&self) -> Result<SHA256D, Error>;
+	fn truncate(&self, block_ref: &BlockRef) -> Result<(), Error>;
 
 	/// Canonizes block with given hash
 	fn canonize(&self, block_hash: &SHA256D) -> Result<(), Error>;

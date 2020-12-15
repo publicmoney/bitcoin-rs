@@ -1,7 +1,6 @@
 use crate::error::Error;
 use crate::pref::PRef;
 
-use crate::mem_table::BUCKET_FILL_TARGET;
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
 /// Content envelope wrapping in data file
@@ -174,8 +173,8 @@ pub struct Link<'e> {
 impl<'e> Link<'e> {
 	/// serialize slots
 	pub fn from_slots(slots: &[(u32, PRef)]) -> Vec<u8> {
-		// Make the vec max size it will need to be so that it can be updated and not get overwritten.
-		let mut links = vec![0u8; 10 * BUCKET_FILL_TARGET * 8];
+		// Make the vec max size it will need to be so that it can be updated and not get overwritten. (PAGE_PAYLOAD_SIZE - envelope size)
+		let mut links = vec![0u8; 4086];
 		for (i, slot) in slots.iter().enumerate() {
 			BigEndian::write_u32(&mut links[i * 10..i * 10 + 4], slot.0);
 			BigEndian::write_u48(&mut links[i * 10 + 4..i * 10 + 10], slot.1.as_u64());

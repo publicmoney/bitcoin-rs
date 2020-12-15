@@ -3,7 +3,7 @@ use crate::page::{Page, PAGE_SIZE};
 use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 
-use lru_cache::LruCache;
+use lru::LruCache;
 
 use std::cmp::max;
 use std::sync::{Arc, Mutex};
@@ -44,6 +44,7 @@ impl PagedFile for CachedFile {
 
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
 		self.cache.lock().unwrap().reset_len(new_len);
+		self.file.truncate(new_len)?;
 		Ok(())
 	}
 
@@ -81,7 +82,7 @@ impl Cache {
 	}
 
 	pub fn cache(&mut self, pref: PRef, page: Arc<Page>) {
-		self.reads.insert(pref, page);
+		self.reads.put(pref, page);
 	}
 
 	pub fn clear(&mut self) {
@@ -118,8 +119,9 @@ impl Cache {
 				}
 			})
 			.collect();
+
 		for o in to_delete {
-			self.reads.remove(&PRef::from(o));
+			self.reads.pop(&PRef::from(o));
 		}
 	}
 }

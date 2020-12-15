@@ -3,7 +3,7 @@ use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use storage::{BlockHeight, BlockMeta, Error, TransactionMeta};
+use storage::{BlockHeight, BlockMeta, BlockRef, Error, TransactionMeta};
 
 #[derive(Default)]
 struct MemoryDatabase {
@@ -212,6 +212,10 @@ impl<'a, T: DbInterface> DbInterface for OverlayDatabase<'a, T> {
 	}
 
 	fn stats(&self) -> Result<(), Error> {
+		unreachable!()
+	}
+
+	fn truncate(&self, _block_ref: &BlockRef) -> Result<(), Error> {
 		unreachable!()
 	}
 

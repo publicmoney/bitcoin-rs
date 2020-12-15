@@ -65,4 +65,31 @@ mod test {
 		assert_eq!(pref, expected_pref);
 		assert_eq!(value, result.as_slice());
 	}
+
+	#[test]
+	fn test_truncate() {
+		let path = "testdb/truncate";
+		std::fs::remove_dir_all(path).unwrap_or_default();
+
+		{
+			let mut db = persistent(path, "test", 1).unwrap();
+			db.put_keyed("a".as_bytes(), &[1]).unwrap();
+			db.put_keyed("b".as_bytes(), &[2]).unwrap();
+			db.put_keyed("c".as_bytes(), &[3]).unwrap();
+
+			db.batch().unwrap();
+			db.truncate("b".as_bytes()).unwrap();
+			db.shutdown().unwrap();
+		}
+
+		let mut db = persistent(path, "test", 1).unwrap();
+		assert_eq!(vec![1], db.get_keyed("a".as_bytes()).unwrap().unwrap().1);
+		assert_eq!(None, db.get_keyed("b".as_bytes()).unwrap());
+		assert_eq!(None, db.get_keyed("c".as_bytes()).unwrap());
+
+		// Reuse same key
+		db.put_keyed("b".as_bytes(), &[4]).unwrap();
+		db.batch().unwrap();
+		assert_eq!(vec![4], db.get_keyed("b".as_bytes()).unwrap().unwrap().1);
+	}
 }

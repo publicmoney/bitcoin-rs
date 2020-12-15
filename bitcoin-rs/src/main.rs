@@ -54,7 +54,7 @@ fn run() -> Result<(), String> {
 	match matches.subcommand() {
 		("import", Some(import_matches)) => commands::import(db.clone(), cfg, import_matches),
 		("info", Some(_)) => commands::stats(db.clone()),
-		("rollback", Some(rollback_matches)) => commands::rollback(db.clone(), cfg, rollback_matches),
+		("rollback", Some(rollback_matches)) => commands::rollback(db.clone(), rollback_matches),
 		("verify", Some(_)) => commands::verify(db.clone(), cfg),
 		_ => {
 			let result = commands::start(&threaded_rt, db.clone(), cfg);

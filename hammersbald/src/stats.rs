@@ -13,8 +13,8 @@ pub fn stats(db: &Hammersbald) {
 
 	let mut pointers = HashSet::new();
 	for bucket in db.buckets() {
-		if bucket.is_valid() {
-			pointers.insert(bucket);
+		if bucket.stored.is_valid() {
+			pointers.insert(bucket.stored);
 		}
 	}
 
@@ -35,7 +35,8 @@ pub fn stats(db: &Hammersbald) {
 	let mut roots = HashMap::new();
 	let mut n_slots = 0;
 	let mut used_buckets = 0;
-	for slots in db.slots() {
+	for bucket in db.buckets() {
+		let slots = bucket.slots.unwrap_or_default();
 		n_slots += slots.len();
 		if slots.len() > 0 {
 			used_buckets += 1;

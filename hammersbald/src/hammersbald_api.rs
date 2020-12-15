@@ -1,7 +1,7 @@
 use crate::data_file::{DataFile, EnvelopeIterator};
 use crate::format::{Envelope, Payload};
 use crate::log_file::LogFile;
-use crate::mem_table::MemTable;
+use crate::mem_table::{Bucket, MemTable};
 use crate::pref::PRef;
 use crate::stats;
 use crate::table_file::TableFile;
@@ -54,6 +54,9 @@ pub trait HammersbaldAPI: Send + Sync {
 	/// forget a key (if known)
 	/// This is not a real delete as data will be still accessible through its PRef, but contains hash table growth
 	fn forget(&mut self, key: &[u8]) -> Result<(), Error>;
+
+	/// Delete everything stored after this key (block hash).
+	fn truncate(&mut self, key: &[u8]) -> Result<(), Error>;
 
 	/// iterator of data
 	fn iter(&self) -> HammersbaldIterator;
@@ -148,12 +151,7 @@ impl Hammersbald {
 	}
 
 	/// get hash table bucket iterator
-	pub fn slots<'a>(&'a self) -> impl Iterator<Item = Vec<(u32, PRef)>> + 'a {
-		self.mem.slots()
-	}
-
-	/// get hash table pointers
-	pub fn buckets<'a>(&'a self) -> impl Iterator<Item = PRef> + 'a {
+	pub fn buckets<'a>(&'a self) -> impl Iterator<Item = Bucket> + 'a {
 		self.mem.buckets()
 	}
 
@@ -233,6 +231,10 @@ impl HammersbaldAPI for Hammersbald {
 
 	fn forget(&mut self, key: &[u8]) -> Result<(), Error> {
 		self.mem.forget(key)
+	}
+
+	fn truncate(&mut self, key: &[u8]) -> Result<(), Error> {
+		self.mem.truncate(key)
 	}
 
 	fn iter(&self) -> HammersbaldIterator {

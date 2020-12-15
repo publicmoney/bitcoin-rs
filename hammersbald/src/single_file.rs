@@ -4,11 +4,12 @@ use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 
 use std::cmp::max;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::Mutex;
 
 pub struct SingleFile {
+	path: String,
 	file: Mutex<File>,
 	base: u64,
 	len: u64,
@@ -16,14 +17,26 @@ pub struct SingleFile {
 }
 
 impl SingleFile {
-	pub fn new(mut file: File, base: u64, file_size: u64) -> Result<SingleFile, Error> {
+	pub fn new(path: String, base: u64, file_size: u64) -> Result<SingleFile, Error> {
+		let mut file = SingleFile::open_file(path.clone())?;
 		let len = file.seek(SeekFrom::End(0))?;
 		Ok(SingleFile {
+			path,
 			file: Mutex::new(file),
 			base,
 			len,
 			file_size,
 		})
+	}
+
+	pub fn delete(&self) {
+		std::fs::remove_file(&self.path).unwrap()
+	}
+
+	fn open_file(path: String) -> Result<File, Error> {
+		let mut open_mode = OpenOptions::new();
+		open_mode.read(true).write(true).create(true);
+		Ok(open_mode.open(path)?)
 	}
 }
 
@@ -50,7 +63,6 @@ impl PagedFile for SingleFile {
 		Ok(None)
 	}
 
-	// The length of the current single file (a multiple of PAGE_SIZE)
 	fn len(&self) -> Result<u64, Error> {
 		Ok(self.len)
 	}
@@ -94,17 +106,13 @@ mod tests {
 	use crate::pref::PRef;
 	use crate::single_file::SingleFile;
 	use std::fs;
-	use std::fs::OpenOptions;
 
 	#[test]
 	fn test_single_file() {
 		fs::remove_dir_all("testdb/single").unwrap_or_default();
 		fs::create_dir_all("testdb/single").unwrap_or_default();
 
-		let mut options = OpenOptions::new();
-		options.read(true).write(true).create(true);
-		let file = options.open("testdb/single/test.bc").unwrap();
-		let mut single_file = SingleFile::new(file, 0, 100000).unwrap();
+		let mut single_file = SingleFile::new("testdb/single/test.bc".to_string(), 0, 100000).unwrap();
 
 		let page_one_pref = PRef::from(0);
 		let mut page_one = Page::new_page_with_position(page_one_pref);
