@@ -32,6 +32,7 @@ impl Channel {
 
 	pub async fn shutdown(&self) {
 		self.stream.shutdown().await;
+		trace!("Closed channel with {}", self.peer_info.address);
 	}
 
 	pub fn version(&self) -> u32 {

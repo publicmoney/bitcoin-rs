@@ -1,5 +1,3 @@
-//! bitcoin-rs client.
-
 #[macro_use]
 extern crate clap;
 #[macro_use]
@@ -44,8 +42,7 @@ fn run() -> Result<(), String> {
 	let db_path = app_path(&cfg.data_dir, "db");
 	let db = Arc::new(db::BlockChainDatabase::persistent(&db_path, cfg.db_cache, &cfg.network.genesis_block()).unwrap());
 
-	let mut threaded_rt: Runtime = runtime::Builder::new()
-		.threaded_scheduler()
+	let threaded_rt: Runtime = runtime::Builder::new_multi_thread()
 		.enable_io()
 		.enable_time()
 		.build()
@@ -53,18 +50,21 @@ fn run() -> Result<(), String> {
 
 	match matches.subcommand() {
 		("import", Some(import_matches)) => commands::import(db.clone(), cfg, import_matches),
-		("info", Some(_)) => commands::stats(db.clone()),
+		("stats", Some(_)) => commands::stats(db.clone()),
 		("rollback", Some(rollback_matches)) => commands::rollback(db.clone(), rollback_matches),
 		("verify", Some(_)) => commands::verify(db.clone(), cfg),
 		_ => {
-			let result = commands::start(&threaded_rt, db.clone(), cfg);
+			let (local_node, p2p, rpc) = commands::start(&threaded_rt, db.clone(), cfg)?;
 			threaded_rt.block_on(tokio::signal::ctrl_c()).expect("Runtime error");
-			result
+			info!("Shutting down, please wait...");
+			rpc.close();
+			p2p.shutdown();
+			local_node.shutdown();
+			Ok(())
 		}
 	}?;
 
-	info!("Shutting down, please wait...");
-	threaded_rt.shutdown_timeout(Duration::from_secs(3));
+	threaded_rt.shutdown_timeout(Duration::from_secs(10));
 	db.as_store().shutdown();
 	Ok(())
 }

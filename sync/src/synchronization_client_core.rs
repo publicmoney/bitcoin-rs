@@ -856,6 +856,10 @@ where
 		sync
 	}
 
+	pub fn shutdown(&mut self) {
+		self.management_worker.as_mut().unwrap().shutdown();
+	}
+
 	/// Get information on current synchronization state.
 	pub fn information(&self) -> Information {
 		Information {

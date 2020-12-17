@@ -1,18 +1,19 @@
-use super::super::rpc;
 use crate::app_dir::app_path;
 use crate::block_notifier::BlockNotifier;
 use crate::config;
 use memory::Memory;
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
-use p2p::LocalSyncNodeRef;
+use p2p::P2P;
+use rpc::Server;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage::SharedStore;
 use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, LocalNodeRef};
 use tokio::runtime::Runtime;
 
-/// Setup functions in here spawn new threads (which should be done off the main thread).
-pub fn start(runtime: &Runtime, db: SharedStore, cfg: config::Config) -> Result<(), String> {
+/// Some setup functions in here spawn new threads (which should be done off the main thread)
+/// At the moment only the p2p context runs on the Tokio runtime. RPC servier has its own Tokio runtime.
+pub fn start(runtime: &Runtime, db: SharedStore, cfg: config::Config) -> Result<(LocalNodeRef, P2P, Server), String> {
 	let sync_peers = create_sync_peers();
 	let local_sync_node = create_local_sync_node(
 		cfg.consensus.clone(),
@@ -26,17 +27,6 @@ pub fn start(runtime: &Runtime, db: SharedStore, cfg: config::Config) -> Result<
 		local_sync_node.install_sync_listener(Box::new(BlockNotifier::new(block_notify_command)));
 	}
 
-	runtime.spawn(start_async(cfg, db, sync_connection_factory, local_sync_node));
-	Ok(())
-}
-
-/// All work that happens in here is handled by the Tokio runtime.
-pub async fn start_async(
-	cfg: config::Config,
-	db: SharedStore,
-	sync_connection_factory: LocalSyncNodeRef,
-	local_sync_node: LocalNodeRef,
-) -> Result<(), String> {
 	let p2p_cfg = p2p::Config {
 		inbound_connections: cfg.inbound_connections,
 		outbound_connections: cfg.outbound_connections,
@@ -56,18 +46,20 @@ pub async fn start_async(
 		preferable_services: cfg.services,
 		internet_protocol: cfg.internet_protocol,
 	};
-	let p2p = p2p::P2P::new(p2p_cfg, sync_connection_factory).map_err(|e| e.to_string())?;
+	let context = Arc::new(p2p::Context::new(runtime.handle().clone(), sync_connection_factory, p2p_cfg).map_err(|e| e.to_string())?);
+	let p2p = p2p::P2P::new(context.clone());
 
-	let rpc_deps = rpc::Dependencies {
+	let rpc_deps = crate::rpc::Dependencies {
 		network: cfg.network,
 		storage: db,
-		local_sync_node,
-		p2p_context: p2p.context().clone(),
+		local_sync_node: local_sync_node.clone(),
+		p2p_context: context,
 		memory: Arc::new(Memory::default()),
 	};
-	let _rpc_server = rpc::new_http(cfg.rpc_config, rpc_deps)?;
+	let rpc_server = crate::rpc::new_http(cfg.rpc_config, rpc_deps)?.unwrap();
 
-	p2p.run().await;
+	let p2p2 = p2p.clone();
+	runtime.spawn(async move { p2p2.run().await });
 
-	Ok(())
+	Ok((local_sync_node, p2p, rpc_server))
 }

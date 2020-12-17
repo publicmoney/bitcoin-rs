@@ -37,12 +37,14 @@ pub fn stats(db: &Hammersbald) {
 	let mut used_buckets = 0;
 	for bucket in db.buckets() {
 		let slots = bucket.slots.unwrap_or_default();
-		n_slots += slots.len();
 		if slots.len() > 0 {
 			used_buckets += 1;
+			n_slots += slots.len();
 		}
 		for slot in slots.iter() {
-			roots.entry(slot.1).or_insert(Vec::new()).push(slot.0);
+			if slot.1.is_valid() {
+				roots.entry(slot.1).or_insert(Vec::new()).push(slot.0);
+			}
 		}
 	}
 	info!(

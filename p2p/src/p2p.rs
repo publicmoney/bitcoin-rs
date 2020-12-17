@@ -7,20 +7,21 @@ use message::common::Services;
 use message::types::addr::AddressEntry;
 use message::{Message, Payload};
 use network::Network;
-use parking_lot::RwLock;
+use parking_lot::{Condvar, Mutex, RwLock};
 use rand::seq::SliceRandom;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::{error, net, time};
 use tokio::runtime::Handle;
-use tokio::time::delay_for;
-use tokio::time::interval;
 use tokio::{net::TcpListener, net::TcpStream, stream::StreamExt};
 
 /// Network context.
 pub struct Context {
+	/// Handle to current Tokio runtime.
 	runtime_handle: Handle,
+	// Signal to shutdown p2p services.
+	shutdown_flag: Arc<(Mutex<bool>, Condvar)>,
 	/// Connections.
 	connections: Connections,
 	/// Connection counter.
@@ -35,9 +36,10 @@ pub struct Context {
 
 impl Context {
 	/// Creates new context with reference to local sync node.
-	pub fn new(local_sync_node: LocalSyncNodeRef, config: Config) -> Result<Self, Box<dyn error::Error>> {
+	pub fn new(runtime_handle: Handle, local_sync_node: LocalSyncNodeRef, config: Config) -> Result<Self, Box<dyn error::Error>> {
 		let context = Context {
-			runtime_handle: tokio::runtime::Handle::current(),
+			runtime_handle,
+			shutdown_flag: Arc::new((Mutex::new(false), Condvar::new())),
 			connections: Default::default(),
 			connection_counter: ConnectionCounter::new(config.inbound_connections, config.outbound_connections),
 			node_table: RwLock::new(NodeTable::from_file(config.preferable_services, config.node_table_path.clone())?),
@@ -72,7 +74,7 @@ impl Context {
 		F: FnOnce() + 'static + Send,
 	{
 		self.spawn(async move {
-			delay_for(duration).await;
+			tokio::time::interval(duration).tick().await;
 			f();
 		});
 	}
@@ -109,15 +111,17 @@ impl Context {
 	/// Every 10 seconds check if we have reached maximum number of outbound connections.
 	/// If not, connect to best peers.
 	pub fn autoconnect(context: Arc<Context>) {
-		let mut interval = interval(time::Duration::new(60, 0));
-		let inner_context = context.clone();
-		let interval_loop = async move {
+		tokio::spawn(async move {
 			loop {
-				interval.tick().await;
-				tokio::spawn(Self::autoconnect_future(inner_context.clone()));
+				let &(ref lock, ref cvar) = &*context.shutdown_flag;
+				let mut shutdown = lock.lock();
+				cvar.wait_for(&mut shutdown, std::time::Duration::from_secs(10));
+				if *shutdown {
+					break;
+				}
+				tokio::spawn(Self::autoconnect_future(context.clone()));
 			}
-		};
-		tokio::spawn(interval_loop);
+		});
 	}
 
 	async fn autoconnect_future(context: Arc<Context>) {
@@ -256,8 +260,7 @@ impl Context {
 	pub async fn listen(context: Arc<Context>, config: NetConfig) {
 		trace!("Starting tcp server");
 		let mut server = TcpListener::bind(&config.local_address).await.expect("Unable to bind to address");
-		let mut incoming = server.incoming();
-		while let Some(stream) = incoming.next().await {
+		while let Some(stream) = server.next().await {
 			match stream {
 				Ok(stream) => {
 					// because we acquire atomic value twice,
@@ -406,45 +409,37 @@ impl Context {
 include!(concat!(env!("OUT_DIR"), "/seeds_main.rs"));
 include!(concat!(env!("OUT_DIR"), "/seeds_test.rs"));
 
+#[derive(Clone)]
 pub struct P2P {
-	/// P2P config.
-	pub config: Config,
 	/// Network context.
 	context: Arc<Context>,
 }
 
-impl Drop for P2P {
-	fn drop(&mut self) {
-		// there are retain cycles
-		// context->connections->channel->session->protocol->context
-		// context->connections->channel->on_message closure->context
-		// first let's get rid of session retain cycle
+impl P2P {
+	pub fn new(context: Arc<Context>) -> Self {
+		P2P { context }
+	}
+
+	pub fn shutdown(&self) {
+		let &(ref lock, ref cvar) = &*self.context.shutdown_flag;
+		let mut shutdown = lock.lock();
+		*shutdown = true;
+		cvar.notify_one();
+
 		for channel in self.context.connections.remove_all() {
-			// done, now let's finish on_message
-			tokio::spawn(async move { channel.shutdown().await });
+			self.context.spawn(async move { channel.shutdown().await });
 		}
 	}
-}
 
-impl P2P {
-	pub fn new(config: Config, local_sync_node: LocalSyncNodeRef) -> Result<Self, Box<dyn error::Error>> {
-		let context = Context::new(local_sync_node, config.clone())?;
-
-		Ok(P2P {
-			context: Arc::new(context),
-			config,
-		})
-	}
-
-	pub async fn run(self) {
-		for peer in &self.config.peers {
+	pub async fn run(&self) {
+		for peer in &self.context.config.peers {
 			self.connect::<NormalSessionFactory>(*peer);
 		}
 
-		if self.config.seed.is_some() {
-			Context::connect::<SeednodeSessionFactory>(self.context.clone(), self.config.seed.unwrap());
+		if self.context.config.seed.is_some() {
+			Context::connect::<SeednodeSessionFactory>(self.context.clone(), self.context.config.seed.unwrap());
 		} else {
-			let seeds: Vec<SocketAddr> = match self.config.connection.network {
+			let seeds: Vec<SocketAddr> = match self.context.config.connection.network {
 				Network::Mainnet => seeds_main(),
 				Network::Testnet => seeds_test(),
 				_ => vec![],
@@ -457,7 +452,7 @@ impl P2P {
 
 		Context::autoconnect(self.context.clone());
 
-		Context::listen(self.context.clone(), self.config.connection.clone()).await
+		Context::listen(self.context.clone(), self.context.config.connection.clone()).await
 	}
 
 	/// Attempts to connect to the specified node

@@ -132,6 +132,7 @@ pub trait Client: Send + Sync + 'static {
 	fn after_peer_nearly_blocks_verified(&self, peer_index: PeerIndex, future: EmptyBoxFuture);
 	fn accept_transaction(&self, transaction: IndexedTransaction, sink: Box<dyn TransactionVerificationSink>) -> Result<(), String>;
 	fn install_sync_listener(&self, listener: SyncListenerRef);
+	fn shutdown(&self);
 }
 
 /// Synchronization client facade
@@ -235,6 +236,10 @@ where
 
 	fn install_sync_listener(&self, listener: SyncListenerRef) {
 		self.core.lock().install_sync_listener(listener);
+	}
+
+	fn shutdown(&self) {
+		self.core.lock().shutdown();
 	}
 }
 

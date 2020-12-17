@@ -125,15 +125,20 @@ impl ManagementWorker {
 
 		trace!(target: "sync", "Stopping sync management thread");
 	}
-}
 
-impl Drop for ManagementWorker {
-	fn drop(&mut self) {
+	pub fn shutdown(&mut self) {
+		trace!("Shutting down management worker.");
 		if let Some(join_handle) = self.thread.take() {
 			*self.is_stopping.lock() = true;
 			self.stopping_event.notify_all();
 			join_handle.join().expect("Clean shutdown.");
 		}
+	}
+}
+
+impl Drop for ManagementWorker {
+	fn drop(&mut self) {
+		self.shutdown()
 	}
 }
 

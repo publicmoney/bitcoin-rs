@@ -21,8 +21,8 @@ impl From<message::Error> for Error {
 	}
 }
 
-impl From<tokio::time::Elapsed> for Error {
-	fn from(_: tokio::time::Elapsed) -> Self {
+impl From<tokio::time::error::Elapsed> for Error {
+	fn from(_: tokio::time::error::Elapsed) -> Self {
 		Error::Timeout
 	}
 }

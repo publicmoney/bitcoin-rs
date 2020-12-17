@@ -73,6 +73,10 @@ where
 		}
 	}
 
+	pub fn shutdown(&self) {
+		self.client.shutdown();
+	}
+
 	/// Return shared reference to synchronization state.
 	pub fn sync_state(&self) -> SynchronizationStateRef {
 		self.state.clone()

@@ -257,12 +257,9 @@ impl DbInterface for HamDb {
 	fn best_block(&self) -> Result<BlockHeight, storage::Error> {
 		match self.get_by_pref::<u32>(BEST_PREF) {
 			Ok(Some(best_number)) => {
-				for i in 0..100 {
-					let number = best_number - i;
-					if let Some((_, block_pref)) = self.get_by_key::<u32, PRef>(&number)? {
-						if let Some((hash, _db_block)) = self.get_keyed::<SHA256D, DbBlock>(block_pref)? {
-							return Ok(BlockHeight { hash, number });
-						}
+				if let Some((_, block_pref)) = self.get_by_key::<u32, PRef>(&best_number)? {
+					if let Some((hash, _db_block)) = self.get_keyed::<SHA256D, DbBlock>(block_pref)? {
+						return Ok(BlockHeight { hash, number: best_number });
 					}
 				}
 				return Err(storage::Error::DatabaseError("Failed to fetch best block".to_string()));
