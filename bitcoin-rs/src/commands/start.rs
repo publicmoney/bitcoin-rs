@@ -46,17 +46,17 @@ pub fn start(runtime: &Runtime, db: SharedStore, cfg: config::Config) -> Result<
 		preferable_services: cfg.services,
 		internet_protocol: cfg.internet_protocol,
 	};
-	let context = Arc::new(p2p::Context::new(runtime.handle().clone(), sync_connection_factory, p2p_cfg).map_err(|e| e.to_string())?);
-	let p2p = p2p::P2P::new(context.clone());
+	let p2p_context = Arc::new(p2p::Context::new(runtime.handle().clone(), sync_connection_factory, p2p_cfg).map_err(|e| e.to_string())?);
+	let p2p = p2p::P2P::new(p2p_context.clone());
 
-	let rpc_deps = crate::rpc::Dependencies {
+	let rpc_deps = rpc::rpc_server::Dependencies {
 		network: cfg.network,
 		storage: db,
 		local_sync_node: local_sync_node.clone(),
-		p2p_context: context,
+		p2p_context,
 		memory: Arc::new(Memory::default()),
 	};
-	let rpc_server = crate::rpc::new_http(cfg.rpc_config, rpc_deps)?.unwrap();
+	let rpc_server = rpc::rpc_server::new_http(cfg.rpc_config, rpc_deps)?.unwrap();
 
 	let p2p2 = p2p.clone();
 	runtime.spawn(async move { p2p2.run().await });

@@ -10,8 +10,6 @@ mod block_notifier;
 mod commands;
 mod config;
 mod logger;
-mod rpc;
-mod rpc_apis;
 
 use crate::app_dir::app_path;
 use std::sync::Arc;

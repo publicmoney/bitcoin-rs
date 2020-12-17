@@ -20,10 +20,9 @@ extern crate storage;
 extern crate sync;
 extern crate verification;
 
+pub mod rpc_apis;
 pub mod rpc_server;
 pub mod v1;
 
 pub use jsonrpc_core::{Compatibility, Error, MetaIoHandler};
-
 pub use jsonrpc_http_server::Server;
-pub use rpc_server::start_http;

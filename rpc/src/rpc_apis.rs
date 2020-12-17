@@ -1,7 +1,7 @@
-use crate::rpc::Dependencies;
-use rpc::v1::impls::{ControlClient, ControlClientCore};
-use rpc::v1::*;
-use rpc::MetaIoHandler;
+use crate::rpc_server::Dependencies;
+use crate::v1::impls::{ControlClient, ControlClientCore};
+use crate::v1::*;
+use crate::MetaIoHandler;
 use std::collections::HashSet;
 use std::str::FromStr;
 
