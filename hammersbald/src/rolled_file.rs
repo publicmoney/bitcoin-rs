@@ -69,7 +69,7 @@ impl RolledFile {
 				}
 			}
 		}
-		if let Some(file) = self.files.get(&highest_index) {
+		if let Some(file) = self.files.get_mut(&highest_index) {
 			self.len = highest_index as u64 * self.file_size + file.len()?;
 		}
 		Ok(())

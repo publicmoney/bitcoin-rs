@@ -1,47 +1,56 @@
 extern crate rand;
 
 use self::rand::thread_rng;
-use hammersbald::transient;
 use hammersbald::Error;
+use hammersbald::{persistent, transient};
 use rand::RngCore;
 use std::collections::HashMap;
 
 #[test]
 fn test_two_batches_indexed() {
-	let mut db = transient().unwrap();
+	let path = "testdb/bat";
+	std::fs::remove_dir_all(path).unwrap_or_default();
 
 	let mut rng = thread_rng();
-
 	let mut check = HashMap::new();
 	let mut key = [0x0u8; 32];
 	let mut data = [0x0u8; 40];
 
-	for _ in 0..1000 {
-		rng.fill_bytes(&mut key);
-		rng.fill_bytes(&mut data);
-		let pref = db.put_keyed(&key, &data).unwrap();
-		check.insert(key, (pref, data));
-	}
-	db.batch().unwrap();
+	{
+		let mut db = persistent(path, "test", 1).unwrap();
+		for _ in 0..100 {
+			rng.fill_bytes(&mut key);
+			rng.fill_bytes(&mut data);
+			let pref = db.put_keyed(&key, &data).unwrap();
+			check.insert(key, (pref, data));
+		}
+		db.batch().unwrap();
 
-	for _ in 0..1000 {
-		rng.fill_bytes(&mut key);
-		rng.fill_bytes(&mut data);
-		let pref = db.put_keyed(&key, &data).unwrap();
-		check.insert(key, (pref, data));
-	}
-	db.batch().unwrap();
+		for _ in 0..100 {
+			rng.fill_bytes(&mut key);
+			rng.fill_bytes(&mut data);
+			let pref = db.put_keyed(&key, &data).unwrap();
+			check.insert(key, (pref, data));
+		}
+		db.batch().unwrap();
 
-	for (k, (o, v)) in check.iter() {
-		assert_eq!(db.get(o.clone()).unwrap(), (k.to_vec(), v.to_vec()));
-		assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*o, v.to_vec())));
+		for (k, (pref, v)) in check.iter() {
+			assert_eq!(db.get(pref.clone()).unwrap(), (k.to_vec(), v.to_vec()));
+			assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*pref, v.to_vec())));
+		}
+		db.shutdown().unwrap();
 	}
 
-	for (k, (o, v)) in check.iter() {
-		assert_eq!(db.get(o.clone()).unwrap(), (k.to_vec(), v.to_vec()));
-		assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*o, v.to_vec())));
+	{
+		// Now reopen database and check again.
+		let mut db = persistent(path, "test", 1).unwrap();
+
+		for (k, (pref, v)) in check.iter() {
+			assert_eq!(db.get(pref.clone()).unwrap(), (k.to_vec(), v.to_vec()));
+			assert_eq!(db.get_keyed(&k[..]).unwrap(), Some((*pref, v.to_vec())));
+		}
+		db.shutdown().unwrap();
 	}
-	db.shutdown().unwrap();
 }
 
 #[test]

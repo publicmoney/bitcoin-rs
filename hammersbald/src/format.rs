@@ -173,8 +173,11 @@ pub struct Link<'e> {
 impl<'e> Link<'e> {
 	/// serialize slots
 	pub fn from_slots(slots: &[(u32, PRef)]) -> Vec<u8> {
-		// Make the vec max size it will need to be so that it can be updated and not get overwritten. (PAGE_PAYLOAD_SIZE - envelope size)
+		// Make the vec max size it will need to be so that it can be updated and not get overwritten. (PAGE_PAYLOAD_SIZE - envelope size (4))
 		let mut links = vec![0u8; 4086];
+		if slots.len() > 408 {
+			panic!("Database error: index space");
+		}
 		for (i, slot) in slots.iter().enumerate() {
 			BigEndian::write_u32(&mut links[i * 10..i * 10 + 4], slot.0);
 			BigEndian::write_u48(&mut links[i * 10 + 4..i * 10 + 10], slot.1.as_u64());

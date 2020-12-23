@@ -214,8 +214,8 @@ impl HammersbaldAPI for Hammersbald {
 
 	fn get(&self, pref: u64) -> Result<(Vec<u8>, Vec<u8>), Error> {
 		match self.mem.get_envelope(pref.into())?.payload()? {
-			Payload::Referred(referred) => return Ok((vec![], referred.data.to_vec())),
-			Payload::Indexed(indexed) => return Ok((indexed.key.to_vec(), indexed.data.data.to_vec())),
+			Payload::Referred(referred) => Ok((vec![], referred.data.to_vec())),
+			Payload::Indexed(indexed) => Ok((indexed.key.to_vec(), indexed.data.data.to_vec())),
 			_ => Err(Error::Corrupted("referred should point to data".to_string())),
 		}
 	}
@@ -270,11 +270,11 @@ impl<'a> Iterator for HammersbaldIterator<'a> {
 
 	fn next(&mut self) -> Option<<Self as Iterator>::Item> {
 		if let Some((pref, envelope)) = self.ei.next() {
-			match envelope.payload().unwrap() {
-				Payload::Indexed(indexed) => return Some((pref, indexed.key.to_vec(), indexed.data.data.to_vec())),
-				Payload::Referred(referred) => return Some((pref, vec![], referred.data.to_vec())),
-				_ => return None,
-			}
+			return match envelope.payload().unwrap() {
+				Payload::Indexed(indexed) => Some((pref, indexed.key.to_vec(), indexed.data.data.to_vec())),
+				Payload::Referred(referred) => Some((pref, vec![], referred.data.to_vec())),
+				_ => None,
+			};
 		}
 		None
 	}

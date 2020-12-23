@@ -52,10 +52,10 @@ impl PagedFile for SingleFile {
 			file.seek(SeekFrom::Start(pos))?;
 			let mut buffer = [0u8; PAGE_SIZE];
 
-			let len = if self.len as usize % PAGE_SIZE > 0 {
+			let len = if pos + PAGE_SIZE as u64 > self.len {
 				self.len as usize % PAGE_SIZE
 			} else {
-				PAGE_SIZE as usize
+				PAGE_SIZE
 			};
 			file.read_exact(&mut buffer[..len])?;
 			return Ok(Some(Page::from_buf(buffer)));

@@ -3,7 +3,6 @@ use crate::error::Error;
 use crate::format::{Data, Envelope, IndexedData, Link, Payload};
 use crate::log_file::LogFile;
 use crate::page::Page;
-use crate::page::PAGE_SIZE;
 use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 use crate::table_file::{TableFile, BUCKETS_FIRST_PAGE, BUCKETS_PER_PAGE, BUCKET_SIZE, FIRST_PAGE_HEAD};
@@ -67,9 +66,6 @@ impl MemTable {
 
 	/// end current batch and start a new batch
 	pub fn batch(&mut self) -> Result<(), Error> {
-		self.log_file.flush()?;
-		self.log_file.sync()?;
-
 		self.flush()?;
 
 		self.table_file.flush()?;
@@ -80,12 +76,10 @@ impl MemTable {
 		self.link_file.sync()?;
 		let link_len = self.link_file.len()?;
 
-		// println!("link len {:?}", link_len);
 		self.data_file.flush()?;
 		self.data_file.sync()?;
 		let data_len = self.data_file.len()?;
 
-		self.log_file.reset(table_len);
 		self.log_file.init(data_len, table_len, link_len)?;
 		self.log_file.flush()?;
 		self.log_file.sync()?;
@@ -103,22 +97,9 @@ impl MemTable {
 
 	pub fn recover(&mut self) -> Result<(), Error> {
 		let (data_len, table_len, link_len) = self.log_file.recover()?;
+		self.data_file.set_pos(PRef::from(data_len));
 		self.table_file.truncate(table_len)?;
-		self.data_file.truncate(data_len)?;
 		self.link_file.truncate(link_len)?;
-
-		if self.log_file.len()? > PAGE_SIZE as u64 {
-			for page in self.log_file.page_iter().skip(1) {
-				self.table_file.update_page(page)?;
-			}
-			self.table_file.flush()?;
-			self.table_file.sync()?;
-
-			self.log_file.init(data_len, table_len, link_len)?;
-			self.log_file.flush()?;
-			self.log_file.sync()?;
-		}
-
 		Ok(())
 	}
 
@@ -178,7 +159,7 @@ impl MemTable {
 					let mut page = self
 						.table_file
 						.read_page(bucket_pref.this_page())?
-						.unwrap_or(Self::invalid_offsets_page(bucket_pref.this_page()));
+						.unwrap_or_else(|| Self::invalid_offsets_page(bucket_pref.this_page()));
 					if let Some(ref slots) = bucket.slots {
 						let link = if slots.len() > 0 {
 							let links = Link::from_slots(slots);
@@ -192,7 +173,6 @@ impl MemTable {
 						} else {
 							PRef::invalid()
 						};
-						// println!("Stored bucket {} {}", link, self.link_file.len().unwrap());
 						bucket.stored = link;
 						page.write_pref(bucket_pref.in_page_pos(), link);
 						self.table_file.update_page(page)?;
@@ -303,7 +283,7 @@ impl MemTable {
 			}
 		}
 		if remove.is_some() {
-			self.modify_bucket(bucket_number)?;
+			self.dirty.set(bucket_number);
 		}
 		Ok(remove.is_some())
 	}
@@ -321,7 +301,7 @@ impl MemTable {
 				format!("memtable does not have the bucket {}", bucket).to_string(),
 			));
 		}
-		self.modify_bucket(bucket)?;
+		self.dirty.set(bucket);
 		Ok(())
 	}
 
@@ -356,19 +336,9 @@ impl MemTable {
 				}
 			}
 			self.buckets.write().unwrap()[bucket] = new_bucket_store;
-			self.modify_bucket(bucket)?;
+			self.dirty.set(bucket);
 		}
 		Ok(())
-	}
-
-	fn modify_bucket(&mut self, bucket: usize) -> Result<(), Error> {
-		self.dirty.set(bucket);
-		let bucket_page = if bucket < BUCKETS_FIRST_PAGE {
-			PRef::from(0)
-		} else {
-			PRef::from(((bucket - BUCKETS_FIRST_PAGE) / BUCKETS_PER_PAGE + 1) as u64 * PAGE_SIZE as u64)
-		};
-		self.log_file.log_page(bucket_page, &self.table_file)
 	}
 
 	pub fn may_have_key(&self, key: &[u8]) -> Result<bool, Error> {

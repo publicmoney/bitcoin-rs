@@ -67,7 +67,7 @@ impl PagedFile for TableFile {
 	}
 
 	fn shutdown(&mut self) -> Result<(), Error> {
-		Ok(())
+		self.file.shutdown()
 	}
 
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {

@@ -1,23 +1,15 @@
 use crate::error::Error;
 use crate::page::Page;
-use crate::paged_file::{PagedFile, PagedFileIterator};
+use crate::paged_file::PagedFile;
 use crate::pref::{PRef, PREF_SIZE};
-
-use std::collections::HashSet;
 
 pub struct LogFile {
 	file: Box<dyn PagedFile>,
-	logged: HashSet<PRef>,
-	source_len: u64,
 }
 
 impl LogFile {
 	pub fn new(rw: Box<dyn PagedFile>) -> LogFile {
-		LogFile {
-			file: rw,
-			logged: HashSet::new(),
-			source_len: 0,
-		}
+		LogFile { file: rw }
 	}
 
 	pub fn init(&mut self, data_len: u64, table_len: u64, link_len: u64) -> Result<(), Error> {
@@ -40,24 +32,6 @@ impl LogFile {
 		}
 		Ok((0, 0, 0))
 	}
-
-	pub fn page_iter(&self) -> PagedFileIterator {
-		PagedFileIterator::new(self, PRef::from(0))
-	}
-
-	pub fn log_page(&mut self, pref: PRef, source: &dyn PagedFile) -> Result<(), Error> {
-		if pref.as_u64() < self.source_len && self.logged.insert(pref) {
-			if let Some(page) = source.read_page(pref)? {
-				self.file.update_page(page)?;
-			}
-		}
-		Ok(())
-	}
-
-	pub fn reset(&mut self, len: u64) {
-		self.source_len = len;
-		self.logged.clear();
-	}
 }
 
 impl PagedFile for LogFile {
@@ -78,7 +52,7 @@ impl PagedFile for LogFile {
 	}
 
 	fn shutdown(&mut self) -> Result<(), Error> {
-		Ok(())
+		self.file.shutdown()
 	}
 
 	fn update_page(&mut self, _: Page) -> Result<u64, Error> {

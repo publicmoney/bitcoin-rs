@@ -60,7 +60,6 @@ pub fn stats(db: &Hammersbald) {
 	);
 
 	let mut indexed_garbage = 0;
-	let referred_garbage = 0;
 	let mut referred = 0;
 	for (pos, envelope) in db.data_envelopes() {
 		match envelope.payload() {
@@ -81,16 +80,11 @@ pub fn stats(db: &Hammersbald) {
 			Err(e) => panic!("{}", e),
 		}
 	}
+	info!("Referred: {}", referred);
+	info!("Garbage indexed: {}, links: {}", indexed_garbage, n_links - used_buckets);
 	if !roots.is_empty() {
 		panic!("ERROR {} roots point to non-existent data", roots.len());
 	}
-	info!("Referred: {}", referred);
-	info!(
-		"Garbage: indexed: {}, referred: {}, links: {}",
-		indexed_garbage,
-		referred_garbage,
-		n_links - used_buckets
-	);
 }
 
 fn hash(key: &[u8], sip0: u64, sip1: u64) -> u32 {

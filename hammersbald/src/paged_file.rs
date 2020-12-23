@@ -34,12 +34,17 @@ impl PagedFileAppender {
 		PagedFileAppender { file, pos }
 	}
 
+	pub fn set_pos(&mut self, pos: PRef) {
+		self.pos = pos;
+	}
+
 	pub fn position(&self) -> PRef {
 		self.pos
 	}
 
 	pub fn append(&mut self, buf: &[u8]) -> Result<PRef, Error> {
-		Ok(self.update(self.pos, buf)?)
+		self.pos = self.update(self.pos, buf)?;
+		Ok(self.pos)
 	}
 
 	pub fn update(&mut self, pos: PRef, buf: &[u8]) -> Result<PRef, Error> {
@@ -47,12 +52,15 @@ impl PagedFileAppender {
 		let mut wrote = 0;
 
 		while wrote < buf.len() {
-			let mut page = self
-				.read_page(new_pos.this_page())?
-				.unwrap_or(Page::new_page_with_position(new_pos.this_page()));
+			let page_pref = new_pos.this_page();
 
-			let space = min(PAGE_PAYLOAD_SIZE - new_pos.in_page_pos(), buf.len() - wrote);
-			page.write(new_pos.in_page_pos(), &buf[wrote..wrote + space]);
+			let mut page = self
+				.read_page(page_pref)?
+				.unwrap_or_else(|| Page::new_page_with_position(page_pref));
+
+			let in_page_pos = new_pos.in_page_pos();
+			let space = min(PAGE_PAYLOAD_SIZE - in_page_pos, buf.len() - wrote);
+			page.write(in_page_pos, &buf[wrote..wrote + space]);
 
 			wrote += space;
 			new_pos += space as u64;
@@ -62,9 +70,6 @@ impl PagedFileAppender {
 			if new_pos.in_page_pos() == PAGE_PAYLOAD_SIZE {
 				new_pos += PREF_SIZE as u64;
 			}
-		}
-		if new_pos > self.pos {
-			self.pos = new_pos;
 		}
 		Ok(new_pos)
 	}
@@ -129,17 +134,6 @@ pub struct PagedFileIterator<'file> {
 	file: &'file dyn PagedFile,
 }
 
-/// page iterator
-impl<'file> PagedFileIterator<'file> {
-	/// create a new iterator starting at given page
-	pub fn new(file: &'file dyn PagedFile, pref: PRef) -> PagedFileIterator {
-		PagedFileIterator {
-			pagenumber: pref.page_number(),
-			file,
-		}
-	}
-}
-
 impl<'file> Iterator for PagedFileIterator<'file> {
 	type Item = Page;
 
@@ -165,7 +159,7 @@ mod tests {
 	use std::fs;
 
 	#[test]
-	fn test_append() {
+	fn test_append_update() {
 		fs::remove_dir_all("testdb/paged-append").unwrap_or_default();
 
 		let rolled_file = RolledFile::new("testdb/paged-append", "test", "bc", PAGE_SIZE as u64).unwrap();
