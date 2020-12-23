@@ -1,6 +1,7 @@
 # The Bitcoin protocol implemented in Rust.
 
 ![CI](https://github.com/publicmoney/bitcoin-rs/workflows/CI/badge.svg)
+[![dependency status](https://deps.rs/repo/github/publicmoney/bitcoin-rs/status.svg)](https://deps.rs/repo/github/publicmoney/bitcoin-rs)
 [![license](https://img.shields.io/github/license/publicmoney/bitcoin-rs)](https://github.com/publicmoeny/bitcoin-rs/LICENSE)
 
 This is a work in progress and is not recommended for production use.
