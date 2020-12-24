@@ -1,6 +1,7 @@
 # The Bitcoin protocol implemented in Rust.
 
 ![CI](https://github.com/publicmoney/bitcoin-rs/workflows/CI/badge.svg)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
 [![dependency status](https://deps.rs/repo/github/publicmoney/bitcoin-rs/status.svg)](https://deps.rs/repo/github/publicmoney/bitcoin-rs)
 [![license](https://img.shields.io/github/license/publicmoney/bitcoin-rs)](https://github.com/publicmoeny/bitcoin-rs/LICENSE)
 
