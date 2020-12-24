@@ -19,7 +19,7 @@ mod read_and_hash;
 mod short_transaction_id;
 mod transaction;
 
-pub use primitives::{bigint, bytes, compact, hash};
+pub use primitives::{bytes, compact, hash};
 
 pub use block::Block;
 pub use block_header::BlockHeader;

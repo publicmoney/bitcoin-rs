@@ -8,5 +8,5 @@ edition = "2018"
 heapsize = "0.4"
 rustc-hex = "2"
 byteorder = "1.0"
-bigint = "1.0"
+uint = "0.8"
 bitcrypto = { path = "../crypto" }

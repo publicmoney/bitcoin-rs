@@ -4,7 +4,7 @@
 use crate::compact::Compact;
 use bitcrypto::{FromInnerHex, SHA256D};
 use chain::IndexedBlock;
-use primitives::bigint::U256;
+use primitives::U256;
 use std::fmt;
 
 pub const PROTOCOL_VERSION: u32 = 70_014;

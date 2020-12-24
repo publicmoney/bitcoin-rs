@@ -1,8 +1,8 @@
 use bitcrypto::{FromInnerHex, SHA256D};
 use chain::IndexedBlockHeader;
 use network::{ConsensusParams, Network};
-use primitives::bigint::U256;
 use primitives::compact::Compact;
+use primitives::U256;
 use std::cmp;
 use storage::{BlockHeaderProvider, BlockRef};
 
@@ -136,8 +136,8 @@ pub fn work_required_retarget(
 	let mut retarget: U256 = last_bits.into();
 	let maximum: U256 = max_work_bits.into();
 
-	retarget = retarget * retarget_timespan(retarget_timestamp, last_timestamp).into();
-	retarget = retarget / TARGET_TIMESPAN_SECONDS.into();
+	retarget = retarget * retarget_timespan(retarget_timestamp, last_timestamp);
+	retarget = retarget / TARGET_TIMESPAN_SECONDS;
 
 	if retarget > maximum {
 		max_work_bits

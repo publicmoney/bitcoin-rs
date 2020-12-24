@@ -91,7 +91,7 @@ mod accept_transaction;
 // backwards compatibility
 mod chain_verifier;
 
-pub use primitives::{bigint, compact, hash};
+pub use primitives::{compact, hash};
 
 pub use accept_block::BlockAcceptor;
 pub use accept_chain::ChainAcceptor;

@@ -3,9 +3,9 @@ use bitcrypto::dhash256;
 use bitcrypto::SHA256D;
 use byteorder::{LittleEndian, WriteBytesExt};
 use chain::{merkle_root, Transaction};
-use primitives::bigint::{Uint, U256};
 use primitives::bytes::Bytes;
 use primitives::compact::Compact;
+use primitives::U256;
 use ser::Stream;
 use verification::is_valid_proof_of_work_hash;
 
@@ -129,7 +129,7 @@ where
 			}
 		}
 
-		extranonce = extranonce + 1.into();
+		extranonce = extranonce + 1;
 	}
 
 	None
@@ -142,8 +142,8 @@ mod tests {
 	use bitcrypto::SHA256D;
 	use chain::{Transaction, TransactionInput, TransactionOutput};
 	use keys::AddressHash;
-	use primitives::bigint::{Uint, U256};
 	use primitives::bytes::Bytes;
+	use primitives::U256;
 	use script::Builder;
 
 	pub struct P2shCoinbaseTransactionBuilder {
