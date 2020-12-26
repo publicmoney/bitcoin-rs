@@ -1,5 +1,7 @@
-use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian, WriteBytesExt};
 use ser::{Deserializable, Error as ReaderError, Reader, Serializable, Stream};
+use std::convert::TryInto;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::{io, net, str};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -57,27 +59,17 @@ impl Deserializable for IpAddress {
 	where
 		T: io::Read,
 	{
-		let bytes: &mut [u8] = &mut [0u8; 12];
+		let bytes: &mut [u8] = &mut [0u8; 16];
 		reader.read_slice(bytes)?;
-		if bytes == &[0u8; 12] {
-			let address: &mut [u8] = &mut [0u8; 4];
-			reader.read_slice(address)?;
-			let address = net::Ipv4Addr::new(address[0], address[1], address[2], address[3]);
-			Ok(IpAddress(net::IpAddr::V4(address)))
+
+		if &bytes[0..12] == &[0u8; 12] {
+			let address: &[u8; 4] = &bytes[12..16].try_into().unwrap();
+			let ipv4 = Ipv4Addr::from(*address);
+			Ok(IpAddress(net::IpAddr::V4(ipv4)))
 		} else {
-			// compiler needs some help here...
-			let mut b = bytes as &[u8];
-			let address = net::Ipv6Addr::new(
-				b.read_u16::<BigEndian>()?,
-				b.read_u16::<BigEndian>()?,
-				b.read_u16::<BigEndian>()?,
-				b.read_u16::<BigEndian>()?,
-				b.read_u16::<BigEndian>()?,
-				b.read_u16::<BigEndian>()?,
-				reader.read_u16::<BigEndian>()?,
-				reader.read_u16::<BigEndian>()?,
-			);
-			Ok(IpAddress(net::IpAddr::V6(address)))
+			let address: &[u8; 16] = &bytes[..].try_into().unwrap();
+			let ipv6 = Ipv6Addr::from(*address);
+			Ok(IpAddress(net::IpAddr::V6(ipv6)))
 		}
 	}
 }
