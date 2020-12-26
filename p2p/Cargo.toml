@@ -8,7 +8,6 @@ edition = "2018"
 tokio = "0.3.6"
 parking_lot = "0.11"
 futures = "0.3"
-time = "0.1"
 rand = "0.7"
 log = "0.4"
 csv = "1"
@@ -18,3 +17,6 @@ bitcrypto = { path = "../crypto" }
 message = { path = "../message" }
 serialization = { path = "../serialization" }
 network = { path = "../network" }
+
+[dev-dependencies]
+test-data = { path = "../test-data" }

@@ -3,7 +3,7 @@ use chain::IndexedTransaction;
 use linked_hash_map::LinkedHashMap;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
-use time;
+use std::time::Instant;
 
 #[derive(Debug)]
 /// Storage for transactions, for which we have no parent transactions yet.
@@ -19,7 +19,7 @@ pub struct OrphanTransactionsPool {
 /// Orphan transaction representation.
 pub struct OrphanTransaction {
 	/// Time when this transaction was inserted to the pool
-	pub insertion_time: f64,
+	pub insertion_time: Instant,
 	/// Transaction itself
 	pub transaction: IndexedTransaction,
 	/// Parent transactions, which are still unknown to us
@@ -119,7 +119,7 @@ impl OrphanTransaction {
 	/// Create new orphaned transaction
 	pub fn new(transaction: IndexedTransaction, unknown_parents: HashSet<SHA256D>) -> Self {
 		OrphanTransaction {
-			insertion_time: time::precise_time_s(),
+			insertion_time: Instant::now(),
 			transaction,
 			unknown_parents,
 		}

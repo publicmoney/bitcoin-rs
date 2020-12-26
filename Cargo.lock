@@ -1277,7 +1277,7 @@ dependencies = [
  "primitives",
  "rand 0.7.3",
  "serialization",
- "time",
+ "test-data",
  "tokio 0.3.6",
 ]
 
@@ -2038,7 +2038,6 @@ dependencies = [
  "serialization",
  "storage",
  "test-data",
- "time",
  "verification",
 ]
 
@@ -2060,7 +2059,6 @@ dependencies = [
  "primitives",
  "script",
  "serialization",
- "time",
 ]
 
 [[package]]
@@ -2461,7 +2459,6 @@ dependencies = [
  "serialization",
  "storage",
  "test-data",
- "time",
 ]
 
 [[package]]

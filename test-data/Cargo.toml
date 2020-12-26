@@ -5,8 +5,6 @@ authors = ["Nikolay Volf <nikvolf@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-time = "0.1"
-
 chain = { path = "../chain"  }
 primitives = { path = "../primitives" }
 serialization = { path = "../serialization" }

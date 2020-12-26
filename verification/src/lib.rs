@@ -51,7 +51,6 @@
 //! so instead we might want to call AcceptMemoryPoolTransaction on each tx
 //! that is inserted into assembled block
 
-extern crate time;
 #[macro_use]
 extern crate log;
 extern crate parking_lot;

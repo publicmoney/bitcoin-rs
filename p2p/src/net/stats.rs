@@ -5,6 +5,8 @@ use std::time::Instant;
 use crate::util::interval::{Interval, RealInterval};
 use message::types::{Ping, Pong};
 use message::{Command, Payload};
+use primitives::time::{RealTime, Time};
+use tokio::time::Duration;
 
 // delay somewhere near communication timeout
 const ENORMOUS_PING_DELAY: f64 = 10f64;
@@ -51,8 +53,8 @@ pub enum Flow {
 
 #[derive(Default, Clone)]
 pub struct PeerStats<T: Interval = RealInterval> {
-	pub last_send: u32,
-	pub last_recv: u32,
+	pub last_send: Duration,
+	pub last_recv: Duration,
 
 	pub total_send: u64,
 	pub total_recv: u64,
@@ -79,7 +81,7 @@ impl<I: Interval> PeerStats<I> {
 
 	pub fn report_send(&mut self, command: Command, bytes: usize) {
 		self.total_send += bytes as u64;
-		self.last_send = ::time::get_time().sec as u32;
+		self.last_send = RealTime.now();
 
 		if command == Ping::command() {
 			self.report_ping_send();
@@ -116,7 +118,7 @@ impl<I: Interval> PeerStats<I> {
 
 	pub fn report_recv(&mut self, command: Command, bytes: usize) {
 		self.total_recv += bytes as u64;
-		self.last_recv = ::time::get_time().sec as u32;
+		self.last_recv = RealTime.now();
 
 		if command == Pong::command() {
 			self.report_pong_recv();

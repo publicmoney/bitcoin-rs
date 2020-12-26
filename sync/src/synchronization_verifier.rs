@@ -5,12 +5,12 @@ use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedTransaction};
 use network::ConsensusParams;
 use parking_lot::Mutex;
+use primitives::time::{RealTime, Time};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
-use time::get_time;
 use verification::{
 	BackwardsCompatibleChainVerifier as ChainVerifier, Error as VerificationError, VerificationLevel, Verify as VerificationVerify,
 };
@@ -188,7 +188,7 @@ impl AsyncVerifier {
 							continue; // with new verification sub-task
 						}
 						Ok(tx_output_provider) => {
-							let time: u32 = get_time().sec as u32;
+							let time: u32 = RealTime.now().as_secs() as u32;
 							match verifier.verifier.verify_mempool_transaction(
 								storage.as_block_header_provider(),
 								&tx_output_provider,

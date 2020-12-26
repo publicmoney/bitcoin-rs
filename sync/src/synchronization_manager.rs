@@ -8,25 +8,24 @@ use parking_lot::{Condvar, Mutex};
 use std::collections::HashSet;
 use std::sync::{Arc, Weak};
 use std::thread;
-use std::time::Duration;
-use time::precise_time_s;
+use std::time::{Duration, Instant};
 
-/// Management interval (in ms)
-const MANAGEMENT_INTERVAL_MS: u64 = 10 * 1000;
+/// Management duration
+const MANAGEMENT_DURATION: Duration = Duration::from_secs(10);
 /// Response time before getting block to decrease peer score
-const DEFAULT_NEW_PEER_BLOCK_FAILURE_INTERVAL_MS: u32 = 5 * 1000;
+const DEFAULT_NEW_PEER_BLOCK_FAILURE_DURATION: Duration = Duration::from_secs(5);
 /// Response time before getting headers to decrease peer score
-const DEFAULT_NEW_PEER_HEADERS_FAILURE_INTERVAL_MS: u32 = 5 * 1000;
+const DEFAULT_NEW_PEER_HEADERS_FAILURE_DURATION: Duration = Duration::from_secs(5);
 /// Response time before getting block to decrease peer score
-const DEFAULT_TRUSTED_PEER_BLOCK_FAILURE_INTERVAL_MS: u32 = 20 * 1000;
+const DEFAULT_TRUSTED_PEER_BLOCK_FAILURE_DURATION: Duration = Duration::from_secs(20);
 /// Response time before getting headers to decrease peer score
-const DEFAULT_TRUSTED_PEER_HEADERS_FAILURE_INTERVAL_MS: u32 = 20 * 1000;
+const DEFAULT_TRUSTED_PEER_HEADERS_FAILURE_DURATION: Duration = Duration::from_secs(20);
 /// Unknown orphan block removal time
-const DEFAULT_UNKNOWN_BLOCK_REMOVAL_TIME_MS: u32 = 20 * 60 * 1000;
+const DEFAULT_UNKNOWN_BLOCK_REMOVAL_DURATION: Duration = Duration::from_secs(1200);
 /// Maximal number of orphaned blocks
 const DEFAULT_UNKNOWN_BLOCKS_MAX_LEN: usize = 16;
 /// Unknown orphan transaction removal time
-const DEFAULT_ORPHAN_TRANSACTION_REMOVAL_TIME_MS: u32 = 10 * 60 * 1000;
+const DEFAULT_ORPHAN_TRANSACTION_REMOVAL_DURATION: Duration = Duration::from_secs(600);
 /// Maximal number of orphaned transactions
 const DEFAULT_ORPHAN_TRANSACTIONS_MAX_LEN: usize = 10000;
 
@@ -71,10 +70,7 @@ impl ManagementWorker {
 				break;
 			}
 
-			if !stopping_event
-				.wait_for(&mut lock, Duration::from_millis(MANAGEMENT_INTERVAL_MS))
-				.timed_out()
-			{
+			if !stopping_event.wait_for(&mut lock, MANAGEMENT_DURATION).timed_out() {
 				if *lock {
 					break;
 				}
@@ -144,30 +140,30 @@ impl Drop for ManagementWorker {
 
 /// Peers management configuration
 pub struct ManagePeersConfig {
-	pub new_block_failure_interval_ms: u32,
-	/// Time interval (in milliseconds) to wait headers from the peer before penalizing && reexecuting tasks
-	pub new_headers_failure_interval_ms: u32,
-	/// Time interval (in milliseconds) to wait block from the peer before penalizing && reexecuting tasks
-	pub trusted_block_failure_interval_ms: u32,
-	/// Time interval (in milliseconds) to wait headers from the peer before penalizing && reexecuting tasks
-	pub trusted_headers_failure_interval_ms: u32,
+	pub new_block_failure_duration: Duration,
+	/// Duration to wait headers from the peer before penalizing && reexecuting tasks
+	pub new_headers_failure_duration: Duration,
+	/// Duration to wait block from the peer before penalizing && reexecuting tasks
+	pub trusted_block_failure_duration: Duration,
+	/// Duration to wait headers from the peer before penalizing && reexecuting tasks
+	pub trusted_headers_failure_duration: Duration,
 }
 
 impl Default for ManagePeersConfig {
 	fn default() -> Self {
 		ManagePeersConfig {
-			new_block_failure_interval_ms: DEFAULT_NEW_PEER_BLOCK_FAILURE_INTERVAL_MS,
-			new_headers_failure_interval_ms: DEFAULT_NEW_PEER_HEADERS_FAILURE_INTERVAL_MS,
-			trusted_block_failure_interval_ms: DEFAULT_TRUSTED_PEER_BLOCK_FAILURE_INTERVAL_MS,
-			trusted_headers_failure_interval_ms: DEFAULT_TRUSTED_PEER_HEADERS_FAILURE_INTERVAL_MS,
+			new_block_failure_duration: DEFAULT_NEW_PEER_BLOCK_FAILURE_DURATION,
+			new_headers_failure_duration: DEFAULT_NEW_PEER_HEADERS_FAILURE_DURATION,
+			trusted_block_failure_duration: DEFAULT_TRUSTED_PEER_BLOCK_FAILURE_DURATION,
+			trusted_headers_failure_duration: DEFAULT_TRUSTED_PEER_HEADERS_FAILURE_DURATION,
 		}
 	}
 }
 
 /// Unknown blocks management configuration
 pub struct ManageUnknownBlocksConfig {
-	/// Time interval (in milliseconds) to wait before removing unknown blocks from in-memory pool
-	pub removal_time_ms: u32,
+	/// Duration to wait before removing unknown blocks from in-memory pool
+	pub removal_duration: Duration,
 	/// Maximal # of unknown blocks in the in-memory pool
 	pub max_number: usize,
 }
@@ -175,7 +171,7 @@ pub struct ManageUnknownBlocksConfig {
 impl Default for ManageUnknownBlocksConfig {
 	fn default() -> Self {
 		ManageUnknownBlocksConfig {
-			removal_time_ms: DEFAULT_UNKNOWN_BLOCK_REMOVAL_TIME_MS,
+			removal_duration: DEFAULT_UNKNOWN_BLOCK_REMOVAL_DURATION,
 			max_number: DEFAULT_UNKNOWN_BLOCKS_MAX_LEN,
 		}
 	}
@@ -184,7 +180,7 @@ impl Default for ManageUnknownBlocksConfig {
 /// Orphan transactions management configuration
 pub struct ManageOrphanTransactionsConfig {
 	/// Time interval (in milliseconds) to wait before removing orphan transactions from orphan pool
-	pub removal_time_ms: u32,
+	pub removal_duration: Duration,
 	/// Maximal # of unknown transactions in the orphan pool
 	pub max_number: usize,
 }
@@ -192,7 +188,7 @@ pub struct ManageOrphanTransactionsConfig {
 impl Default for ManageOrphanTransactionsConfig {
 	fn default() -> Self {
 		ManageOrphanTransactionsConfig {
-			removal_time_ms: DEFAULT_ORPHAN_TRANSACTION_REMOVAL_TIME_MS,
+			removal_duration: DEFAULT_ORPHAN_TRANSACTION_REMOVAL_DURATION,
 			max_number: DEFAULT_ORPHAN_TRANSACTIONS_MAX_LEN,
 		}
 	}
@@ -206,7 +202,7 @@ pub fn manage_synchronization_peers_blocks(
 ) -> (Vec<SHA256D>, Vec<SHA256D>) {
 	let mut blocks_to_request: Vec<SHA256D> = Vec::new();
 	let mut blocks_to_forget: Vec<SHA256D> = Vec::new();
-	let now = precise_time_s();
+	let now = Instant::now();
 
 	// reset tasks for peers, which has not responded during given period
 	let ordered_blocks_requests: Vec<_> = peers_tasks.ordered_blocks_requests().clone().into_iter().collect();
@@ -216,18 +212,18 @@ pub fn manage_synchronization_peers_blocks(
 			.get_peer_stats(worst_peer_index)
 			.map(|s| s.trust() == TrustLevel::Trusted)
 			.unwrap_or(false);
-		let block_failure_interval = if is_trusted {
-			config.trusted_block_failure_interval_ms
+		let block_failure_duration = if is_trusted {
+			config.trusted_block_failure_duration
 		} else {
-			config.new_block_failure_interval_ms
+			config.new_block_failure_duration
 		};
 		let time_diff = now - blocks_request.timestamp;
-		if time_diff <= block_failure_interval as f64 / 1000f64 {
+		if time_diff <= block_failure_duration {
 			break;
 		}
 
 		// decrease score && move to the idle queue
-		warn!(target: "sync", "Failed to get requested block from peer#{} in {:.2} seconds.", worst_peer_index, time_diff);
+		warn!(target: "sync", "Failed to get requested block from peer#{} in {:.2} seconds.", worst_peer_index, time_diff.as_secs());
 		let failed_blocks = peers_tasks.reset_blocks_tasks(worst_peer_index);
 
 		// mark blocks as failed
@@ -248,7 +244,7 @@ pub fn manage_synchronization_peers_blocks(
 
 /// Manage stalled synchronization peers headers tasks
 pub fn manage_synchronization_peers_headers(config: &ManagePeersConfig, peers: PeersRef, peers_tasks: &mut PeersTasks) {
-	let now = precise_time_s();
+	let now = Instant::now();
 	// reset tasks for peers, which has not responded during given period
 	let ordered_headers_requests: Vec<_> = peers_tasks.ordered_headers_requests().clone().into_iter().collect();
 	for (worst_peer_index, headers_request) in ordered_headers_requests {
@@ -258,12 +254,12 @@ pub fn manage_synchronization_peers_headers(config: &ManagePeersConfig, peers: P
 			.map(|s| s.trust() == TrustLevel::Trusted)
 			.unwrap_or(false);
 		let headers_failure_interval = if is_trusted {
-			config.trusted_headers_failure_interval_ms
+			config.trusted_headers_failure_duration
 		} else {
-			config.new_headers_failure_interval_ms
+			config.new_headers_failure_duration
 		};
 		let time_diff = now - headers_request.timestamp;
-		if time_diff <= headers_failure_interval as f64 / 1000f64 {
+		if time_diff <= headers_failure_interval {
 			break;
 		}
 
@@ -297,7 +293,7 @@ pub fn manage_unknown_orphaned_blocks(
 		} else {
 			0
 		};
-		let now = precise_time_s();
+		let now = Instant::now();
 		for (hash, time) in unknown_blocks {
 			// remove oldest blocks if there are more unknown blocks that we can hold in memory
 			if remove_num > 0 {
@@ -307,8 +303,8 @@ pub fn manage_unknown_orphaned_blocks(
 			}
 
 			// check if block is unknown for too long
-			let time_diff = now - time;
-			if time_diff <= config.removal_time_ms as f64 / 1000f64 {
+			let time_diff = now - *time;
+			if time_diff <= config.removal_duration {
 				break;
 			}
 			unknown_to_remove.insert(hash.clone());
@@ -340,7 +336,7 @@ pub fn manage_orphaned_transactions(
 		} else {
 			0
 		};
-		let now = precise_time_s();
+		let now = Instant::now();
 		for (hash, orphan_tx) in unknown_transactions {
 			// remove oldest transactions if there are more unknown transactions that we can hold in memory
 			if remove_num > 0 {
@@ -351,7 +347,7 @@ pub fn manage_orphaned_transactions(
 
 			// check if transaction is unknown for too long
 			let time_diff = now - orphan_tx.insertion_time;
-			if time_diff <= config.removal_time_ms as f64 / 1000f64 {
+			if time_diff <= config.removal_duration {
 				break;
 			}
 			orphans_to_remove.push(hash.clone());
@@ -388,11 +384,12 @@ mod tests {
 	use bitcrypto::{FromStr, SHA256D};
 	use std::collections::HashSet;
 	use std::sync::Arc;
+	use std::time::Duration;
 
 	#[test]
 	fn manage_good_peer() {
 		let config = ManagePeersConfig {
-			new_block_failure_interval_ms: 1000,
+			new_block_failure_duration: Duration::from_secs(1000),
 			..Default::default()
 		};
 		let mut peers = PeersTasks::default();
@@ -416,7 +413,7 @@ mod tests {
 		use std::thread::sleep;
 		use std::time::Duration;
 		let config = ManagePeersConfig {
-			trusted_block_failure_interval_ms: 0,
+			trusted_block_failure_duration: Duration::from_secs(0),
 			..Default::default()
 		};
 		let mut peers = PeersTasks::default();
@@ -441,7 +438,7 @@ mod tests {
 	#[test]
 	fn manage_unknown_blocks_good() {
 		let config = ManageUnknownBlocksConfig {
-			removal_time_ms: 1000,
+			removal_duration: Duration::from_secs(1000),
 			max_number: 100,
 		};
 		let mut pool = OrphanBlocksPool::new();
@@ -456,7 +453,7 @@ mod tests {
 		use std::thread::sleep;
 		use std::time::Duration;
 		let config = ManageUnknownBlocksConfig {
-			removal_time_ms: 0,
+			removal_duration: Duration::from_secs(0),
 			max_number: 100,
 		};
 		let mut pool = OrphanBlocksPool::new();
@@ -472,7 +469,7 @@ mod tests {
 	#[test]
 	fn manage_unknown_blocks_by_max_number() {
 		let config = ManageUnknownBlocksConfig {
-			removal_time_ms: 100,
+			removal_duration: Duration::from_secs(100),
 			max_number: 1,
 		};
 		let mut pool = OrphanBlocksPool::new();
@@ -488,7 +485,7 @@ mod tests {
 	#[test]
 	fn manage_orphan_transactions_good() {
 		let config = ManageOrphanTransactionsConfig {
-			removal_time_ms: 1000,
+			removal_duration: Duration::from_secs(1000),
 			max_number: 100,
 		};
 		let mut pool = OrphanTransactionsPool::new();
@@ -504,7 +501,7 @@ mod tests {
 		use std::thread::sleep;
 		use std::time::Duration;
 		let config = ManageOrphanTransactionsConfig {
-			removal_time_ms: 0,
+			removal_duration: Duration::from_secs(0),
 			max_number: 100,
 		};
 		let mut pool = OrphanTransactionsPool::new();
@@ -521,7 +518,7 @@ mod tests {
 	#[test]
 	fn manage_orphan_transactions_by_max_number() {
 		let config = ManageOrphanTransactionsConfig {
-			removal_time_ms: 100,
+			removal_duration: Duration::from_secs(100),
 			max_number: 1,
 		};
 		let mut pool = OrphanTransactionsPool::new();

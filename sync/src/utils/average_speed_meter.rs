@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
-use time;
+use std::time::{Duration, Instant};
 
 /// Speed meter with given items number
 #[derive(Debug, Default)]
@@ -8,11 +8,11 @@ pub struct AverageSpeedMeter {
 	/// Number of items to inspect
 	inspect_items: usize,
 	/// Number of items currently inspected
-	inspected_items: Mutex<VecDeque<f64>>,
+	inspected_items: Mutex<VecDeque<Duration>>,
 	/// Current speed
 	speed: Mutex<f64>,
 	/// Last timestamp
-	last_timestamp: Mutex<Option<f64>>,
+	last_timestamp: Mutex<Option<Instant>>,
 }
 
 impl AverageSpeedMeter {
@@ -46,22 +46,22 @@ impl AverageSpeedMeter {
 		// if inspected_items is already full => remove oldest item from average
 		if inspected_items.len() == self.inspect_items {
 			let oldest = inspected_items.pop_front().expect("len() is not zero; qed");
-			*speed = (self.inspect_items as f64 * *speed - oldest) / (self.inspect_items as f64 - 1_f64);
+			*speed = (self.inspect_items as f64 * *speed - oldest.as_secs_f64()) / (self.inspect_items as f64 - 1_f64);
 		}
 
 		// add new item
-		let now = time::precise_time_s();
+		let now = Instant::now();
 		let mut last_timestamp = self.last_timestamp.lock().unwrap();
 		if let Some(last_timestamp) = *last_timestamp {
 			let newest = now - last_timestamp;
-			*speed = (inspected_items.len() as f64 * *speed + newest) / (inspected_items.len() as f64 + 1_f64);
+			*speed = (inspected_items.len() as f64 * *speed + newest.as_secs_f64()) / (inspected_items.len() as f64 + 1_f64);
 			inspected_items.push_back(newest);
 		}
 		*last_timestamp = Some(now);
 	}
 
 	pub fn start(&self) {
-		*self.last_timestamp.lock().unwrap() = Some(time::precise_time_s());
+		*self.last_timestamp.lock().unwrap() = Some(Instant::now());
 	}
 
 	pub fn stop(&self) {

@@ -1,8 +1,8 @@
 use crate::util::nonce::{NonceGenerator, RandomNonce};
-use crate::util::time::{RealTime, Time};
 use message::common::{NetAddress, Services};
 use message::types::version::{Version, V0, V106, V70001};
 use network::Network;
+use primitives::time::{RealTime, Time};
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
@@ -23,7 +23,7 @@ impl Config {
 			V0 {
 				version: self.protocol_version,
 				services: self.services,
-				timestamp: RealTime.get().sec,
+				timestamp: RealTime.now().as_secs(),
 				receiver: NetAddress {
 					services: self.services,
 					address: to.ip().into(),

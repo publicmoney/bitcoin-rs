@@ -5,7 +5,6 @@ pub mod nonce;
 mod peer;
 mod response_queue;
 mod synchronizer;
-pub mod time;
 
 pub use self::internet_protocol::InternetProtocol;
 pub use self::node_table::{Node, NodeTable, NodeTableError};

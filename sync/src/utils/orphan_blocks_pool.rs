@@ -3,7 +3,7 @@ use chain::IndexedBlock;
 use linked_hash_map::LinkedHashMap;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
-use time;
+use std::time::Instant;
 
 #[derive(Debug)]
 /// Storage for blocks, for which we have no parent yet.
@@ -12,7 +12,7 @@ pub struct OrphanBlocksPool {
 	/// Blocks from requested_hashes, but received out-of-order.
 	orphaned_blocks: HashMap<SHA256D, HashMap<SHA256D, IndexedBlock>>,
 	/// Blocks that we have received without requesting with receiving time.
-	unknown_blocks: LinkedHashMap<SHA256D, f64>,
+	unknown_blocks: LinkedHashMap<SHA256D, Instant>,
 }
 
 impl OrphanBlocksPool {
@@ -35,7 +35,7 @@ impl OrphanBlocksPool {
 	}
 
 	/// Get unknown blocks in the insertion order
-	pub fn unknown_blocks(&self) -> &LinkedHashMap<SHA256D, f64> {
+	pub fn unknown_blocks(&self) -> &LinkedHashMap<SHA256D, Instant> {
 		&self.unknown_blocks
 	}
 
@@ -49,7 +49,7 @@ impl OrphanBlocksPool {
 
 	/// Insert unknown block, for which we know nothing about its parent block
 	pub fn insert_unknown_block(&mut self, block: IndexedBlock) {
-		let previous_value = self.unknown_blocks.insert(block.header.hash.clone(), time::precise_time_s());
+		let previous_value = self.unknown_blocks.insert(block.header.hash.clone(), Instant::now());
 		assert_eq!(previous_value, None);
 
 		self.insert_orphaned_block(block);

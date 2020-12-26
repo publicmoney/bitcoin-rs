@@ -7,20 +7,21 @@ use message::common::Command;
 use message::types::{Ping, Pong};
 use message::{deserialize_payload, Error as MessageError, Payload};
 use std::sync::Arc;
-use time;
+use std::time::Instant;
+use tokio::time::Duration;
 
 /// Time that must pass since last message from this peer, before we send ping request
-const PING_INTERVAL_S: f64 = 60f64;
+const PING_INTERVAL_S: Duration = Duration::from_secs(60);
 /// If peer has not responded to our ping request with pong during this interval => close connection
-const MAX_PING_RESPONSE_TIME_S: f64 = 60f64;
+const MAX_PING_RESPONSE_TIME_S: Duration = Duration::from_secs(60);
 
 /// Ping state
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum State {
 	/// Peer is sending us messages && we wait for `PING_INTERVAL_S` to pass before sending ping request
-	WaitingTimeout(f64),
+	WaitingTimeout(Instant),
 	/// Ping message is sent to the peer && we are waiting for pong response for `MAX_PING_RESPONSE_TIME_S`
-	WaitingPong(f64),
+	WaitingPong(Instant),
 }
 
 pub struct PingProtocol<T = RandomNonce, C = PeerContext> {
@@ -39,7 +40,7 @@ impl PingProtocol {
 		PingProtocol {
 			context,
 			nonce_generator: RandomNonce::default(),
-			state: State::WaitingTimeout(time::precise_time_s()),
+			state: State::WaitingTimeout(Instant::now()),
 			last_ping_nonce: None,
 		}
 	}
@@ -52,7 +53,7 @@ impl Protocol for PingProtocol {
 	}
 
 	fn maintain(&mut self) {
-		let now = time::precise_time_s();
+		let now = Instant::now();
 		match self.state {
 			State::WaitingTimeout(time) => {
 				// send ping request if enough time has passed since last message
@@ -70,7 +71,7 @@ impl Protocol for PingProtocol {
 					trace!(
 						"closing connection to peer {}: no messages for last {} seconds",
 						self.context.info().id,
-						now - time
+						(now - time).as_secs()
 					);
 					self.context.close();
 				}
@@ -80,7 +81,7 @@ impl Protocol for PingProtocol {
 
 	fn on_message(&mut self, command: &Command, payload: &Bytes) -> Result<(), Error> {
 		// we have received new message => do not close connection because of timeout
-		self.state = State::WaitingTimeout(time::precise_time_s());
+		self.state = State::WaitingTimeout(Instant::now());
 
 		if command == &Ping::command() {
 			let ping: Ping = deserialize_payload(payload, self.context.info().version)?;

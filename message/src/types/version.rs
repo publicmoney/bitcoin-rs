@@ -110,7 +110,7 @@ impl Version {
 pub struct V0 {
 	pub version: u32,
 	pub services: Services,
-	pub timestamp: i64,
+	pub timestamp: u64,
 	pub receiver: NetAddress,
 }
 

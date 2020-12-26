@@ -1,7 +1,5 @@
 //! Various chain-specific test dummies
 
-extern crate time;
-
 extern crate chain;
 extern crate primitives;
 extern crate script;
@@ -12,6 +10,7 @@ use chain::Block;
 pub mod block;
 pub mod chain_builder;
 pub mod invoke;
+pub mod time;
 
 pub use block::{block_builder, block_hash_builder, build_n_empty_blocks, build_n_empty_blocks_from, build_n_empty_blocks_from_genesis};
 pub use chain_builder::{ChainBuilder, TransactionBuilder};

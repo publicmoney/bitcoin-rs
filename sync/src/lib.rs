@@ -17,7 +17,6 @@ extern crate primitives;
 extern crate rand;
 extern crate script;
 extern crate serialization as ser;
-extern crate time;
 extern crate verification;
 
 mod blocks_writer;

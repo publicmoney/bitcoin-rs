@@ -21,7 +21,7 @@ use std::cmp::{max, min};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
-use time::precise_time_s;
+use std::time::{Duration, Instant};
 
 /// Approximate maximal number of blocks hashes in scheduled queue.
 const MAX_SCHEDULED_HASHES: BlockHeight = 4 * 1024;
@@ -36,11 +36,11 @@ const MAX_BLOCKS_IN_REQUEST: BlockHeight = 128;
 /// Number of blocks to receive since synchronization start to begin duplicating blocks requests
 const NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_BLOCKS: usize = 20;
 /// Number of seconds left before verification queue will be empty to count it as 'near empty queue'
-const NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_S: f64 = 20_f64;
+const NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_S: Duration = Duration::from_secs(20);
 /// Number of blocks to inspect when calculating average sync speed
 const SYNC_SPEED_BLOCKS_TO_INSPECT: usize = 512;
 /// Minimal time between duplicated blocks requests.
-const MIN_BLOCK_DUPLICATION_INTERVAL_S: f64 = 10_f64;
+const MIN_BLOCK_DUPLICATION_INTERVAL_S: Duration = Duration::from_secs(10);
 /// Maximal number of blocks in duplicate requests.
 const MAX_BLOCKS_IN_DUPLICATE_REQUEST: BlockHeight = 4;
 /// Minimal number of blocks in duplicate requests.
@@ -129,7 +129,7 @@ pub struct SynchronizationClientCore<T: TaskExecutor> {
 	/// Synchronization events listener
 	listener: Option<SyncListenerRef>,
 	/// Time of last duplicated blocks request.
-	last_dup_time: f64,
+	last_dup_time: Option<Instant>,
 }
 
 /// Verification sink for synchronization client core
@@ -142,7 +142,7 @@ pub struct CoreVerificationSink<T: TaskExecutor> {
 #[derive(Debug, Clone, Copy)]
 pub enum State {
 	/// We know that there are > 1 unknown blocks, unknown to us in the blockchain
-	Synchronizing(f64, BlockHeight),
+	Synchronizing(Instant, BlockHeight),
 	/// There is only one unknown block in the blockchain
 	NearlySaturated,
 	/// We have downloaded all blocks of the blockchain of which we have ever heard
@@ -671,40 +671,40 @@ where
 						if self.block_speed_meter.inspected_items_len() < NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_BLOCKS {
 							// the very beginning of synchronization
 							// => peers have not yet responded with a single requested blocks
-							60_f64
+							Duration::from_secs(60)
 						} else {
 							// blocks were are already received
 							// => bad situation
-							0_f64
+							Duration::from_secs(0)
 						}
 					} else if verification_speed < 0.01_f64 {
 						// verification speed is too slow
-						60_f64
+						Duration::from_secs(60)
 					} else {
 						// blocks / (blocks / second) -> second
-						verifying_hashes_len as f64 / verification_speed
+						Duration::from_secs((verifying_hashes_len as f64 / verification_speed) as u64)
 					};
 					// estimate time when all synchronization requests will complete
 					let synchronization_queue_will_be_full_in = if synchronization_speed < 0.01_f64 {
 						// synchronization speed is too slow
-						60_f64
+						Duration::from_secs(60)
 					} else {
 						// blocks / (blocks / second) -> second
-						requested_hashes_len as f64 / synchronization_speed
+						Duration::from_secs((requested_hashes_len as f64 / synchronization_speed) as u64)
 					};
 					// if verification queue will be empty before all synchronization requests will be completed
 					// + do not spam with duplicated blocks requests if blocks are too big && there are still blocks left for NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_S
 					// => duplicate blocks requests
-					let now = precise_time_s();
+					let now = Instant::now();
 					if synchronization_queue_will_be_full_in > verification_queue_will_be_empty_in
 						&& verification_queue_will_be_empty_in < NEAR_EMPTY_VERIFICATION_QUEUE_THRESHOLD_S
-						&& now - self.last_dup_time > MIN_BLOCK_DUPLICATION_INTERVAL_S
+						&& (self.last_dup_time.is_none() || now - self.last_dup_time.unwrap() > MIN_BLOCK_DUPLICATION_INTERVAL_S)
 					{
 						// do not duplicate too often
-						self.last_dup_time = now;
+						self.last_dup_time = Some(now);
 						// blocks / second * second -> blocks
 						let hashes_requests_to_duplicate_len = (synchronization_speed
-							* (synchronization_queue_will_be_full_in - verification_queue_will_be_empty_in))
+							* (synchronization_queue_will_be_full_in - verification_queue_will_be_empty_in).as_secs_f64())
 							as BlockHeight;
 						// do not ask for too many blocks
 						let hashes_requests_to_duplicate_len = min(MAX_BLOCKS_IN_DUPLICATE_REQUEST, hashes_requests_to_duplicate_len);
@@ -844,7 +844,7 @@ where
 			sync_speed_meter: AverageSpeedMeter::with_inspect_items(SYNC_SPEED_BLOCKS_TO_INSPECT),
 			config,
 			listener: None,
-			last_dup_time: 0f64,
+			last_dup_time: None,
 		}));
 
 		{
@@ -910,7 +910,7 @@ where
 	/// Print synchronization information
 	pub fn print_synchronization_information(&mut self) {
 		if let State::Synchronizing(timestamp, num_of_blocks) = self.state {
-			let new_timestamp = precise_time_s();
+			let new_timestamp = Instant::now();
 			let timestamp_diff = new_timestamp - timestamp;
 			let new_num_of_blocks = self.chain.best_storage_block().number;
 			let blocks_diff = if new_num_of_blocks > num_of_blocks {
@@ -918,12 +918,12 @@ where
 			} else {
 				0
 			};
-			if timestamp_diff >= 60.0 || blocks_diff >= 1000 {
-				self.state = State::Synchronizing(precise_time_s(), new_num_of_blocks);
-				let blocks_speed = blocks_diff as f64 / timestamp_diff;
+			if timestamp_diff >= Duration::from_secs(60) || blocks_diff >= 1000 {
+				self.state = State::Synchronizing(Instant::now(), new_num_of_blocks);
+				let blocks_speed = blocks_diff / timestamp_diff.as_secs() as u32;
 				info!(target: "sync", "Processed {} blocks in {:.2} seconds ({:.2} blk/s). Peers: {:?}. Chain: {:?}"
 					, blocks_diff
-					, timestamp_diff
+					, timestamp_diff.as_secs()
 					, blocks_speed
 					, self.peers_tasks.information()
 					, self.chain.information());
@@ -1125,7 +1125,7 @@ where
 		}
 
 		self.shared_state.update_synchronizing(true);
-		self.state = State::Synchronizing(precise_time_s(), self.chain.best_storage_block().number);
+		self.state = State::Synchronizing(Instant::now(), self.chain.best_storage_block().number);
 	}
 
 	/// Switch to nearly saturated state

@@ -14,8 +14,8 @@ use miner::BlockAssembler;
 use miner::BlockTemplate;
 use network::ConsensusParams;
 use parking_lot::{Condvar, Mutex};
+use primitives::time::{RealTime, Time};
 use std::sync::Arc;
-use time;
 
 /// Local synchronization node
 pub struct LocalNode<U: Server, V: Client> {
@@ -278,7 +278,7 @@ where
 			max_block_sigops: self.consensus.max_block_sigops as u32,
 		};
 		let memory_pool = &*self.memory_pool.read();
-		block_assembler.create_new_block(&self.storage, memory_pool, time::get_time().sec as u32, &self.consensus)
+		block_assembler.create_new_block(&self.storage, memory_pool, RealTime.now().as_secs() as u32, &self.consensus)
 	}
 
 	/// Install synchronization events listener

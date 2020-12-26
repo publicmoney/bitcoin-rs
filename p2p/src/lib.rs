@@ -1,6 +1,5 @@
 extern crate parking_lot;
 extern crate rand;
-extern crate time;
 extern crate tokio;
 #[macro_use]
 extern crate log;

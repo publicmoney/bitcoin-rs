@@ -5,7 +5,7 @@ use linked_hash_map::LinkedHashMap;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use time::precise_time_s;
+use std::time::Instant;
 
 /// Max peer failures # before excluding from sync process
 const MAX_PEER_FAILURES: usize = 4;
@@ -51,14 +51,14 @@ pub struct PeersTasks {
 #[derive(Debug, Clone)]
 pub struct HeadersRequest {
 	/// Time when request has been sent
-	pub timestamp: f64,
+	pub timestamp: Instant,
 }
 
 /// Pending blocks request
 #[derive(Debug, Clone)]
 pub struct BlocksRequest {
 	/// Time when request has been sent
-	pub timestamp: f64,
+	pub timestamp: Instant,
 	/// Hashes of blocks that have been requested
 	pub blocks: HashSet<SHA256D>,
 }
@@ -225,7 +225,7 @@ impl PeersTasks {
 		// if it hasn't been last requested block => just return
 		if !is_last_requested_block_received {
 			let mut peer_blocks_requests = self.blocks_requests.remove(&peer_index).expect("checked above; qed");
-			peer_blocks_requests.timestamp = precise_time_s();
+			peer_blocks_requests.timestamp = Instant::now();
 			self.blocks_requests.insert(peer_index, peer_blocks_requests);
 			return;
 		}
@@ -358,16 +358,14 @@ impl PeersTasks {
 
 impl HeadersRequest {
 	pub fn new() -> Self {
-		HeadersRequest {
-			timestamp: precise_time_s(),
-		}
+		HeadersRequest { timestamp: Instant::now() }
 	}
 }
 
 impl BlocksRequest {
 	pub fn new() -> Self {
 		BlocksRequest {
-			timestamp: precise_time_s(),
+			timestamp: Instant::now(),
 			blocks: HashSet::new(),
 		}
 	}

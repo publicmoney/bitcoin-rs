@@ -1,8 +1,8 @@
-use crate::util::time::{RealTime, Time};
 use crate::util::InternetProtocol;
 use csv;
 use message::common::{NetAddress, Services};
 use message::types::addr::AddressEntry;
+use primitives::time::{RealTime, Time};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -16,7 +16,7 @@ pub struct Node {
 	/// Node address.
 	addr: SocketAddr,
 	/// Timestamp of last interaction with a node.
-	time: i64,
+	time: u64,
 	/// Services supported by the node.
 	services: Services,
 	/// Is preferable node?
@@ -221,7 +221,7 @@ where
 {
 	/// Inserts new address and services pair into NodeTable.
 	pub fn insert(&mut self, addr: SocketAddr, services: Services) {
-		let now = self.time.get().sec;
+		let now = self.time.now().as_secs();
 		match self.by_addr.entry(addr) {
 			Entry::Occupied(mut entry) => {
 				let old = entry.get_mut();
@@ -280,14 +280,14 @@ where
 	/// Discards all nodes with timestamp newer than current time.
 	pub fn insert_many(&mut self, addresses: Vec<AddressEntry>) {
 		// discard all nodes with timestamp newer than current time.
-		let now = self.time.get().sec;
-		let iter = addresses.into_iter().filter(|addr| addr.timestamp as i64 <= now);
+		let now = self.time.now().as_secs();
+		let iter = addresses.into_iter().filter(|addr| addr.timestamp as u64 <= now);
 
 		// iterate over the rest
 		for addr in iter {
 			let node = Node {
 				addr: SocketAddr::new(addr.address.address.into(), addr.address.port.into()),
-				time: addr.timestamp as i64,
+				time: addr.timestamp as u64,
 				services: addr.address.services,
 				is_preferable: addr.address.services.includes(&self.preferable_services),
 				failures: 0,
@@ -378,7 +378,7 @@ where
 		if let Some(ref mut node) = self.by_addr.get_mut(addr) {
 			assert!(self.by_score.remove(&node.clone().into()));
 			assert!(self.by_time.remove(&node.clone().into()));
-			node.time = self.time.get().sec;
+			node.time = self.time.now().as_secs();
 			self.by_score.insert(node.clone().into());
 			self.by_time.insert(node.clone().into());
 		}
@@ -427,7 +427,7 @@ where
 		let err = || io::Error::new(io::ErrorKind::Other, "Load csv error");
 
 		for row in rdr.deserialize() {
-			let (addr, time, services, failures): (String, i64, u64, u32) = row.map_err(|_| err())?;
+			let (addr, time, services, failures): (String, u64, u64, u32) = row.map_err(|_| err())?;
 
 			let services = services.into();
 			let node = Node {
@@ -450,11 +450,12 @@ where
 #[cfg(test)]
 mod tests {
 	use super::NodeTable;
-	use crate::util::time::{IncrementalTime, ZeroTime};
+
 	use crate::InternetProtocol;
 	use message::common::Services;
 	use std::collections::HashSet;
 	use std::net::SocketAddr;
+	use test_data::time::{IncrementalTime, ZeroTime};
 
 	#[test]
 	fn test_node_table_insert() {

@@ -17,6 +17,7 @@ use crate::verify_header::HeaderVerifier;
 use crate::verify_transaction::MemoryPoolTransactionVerifier;
 use crate::Verify;
 use bitcrypto::SHA256D;
+use primitives::time::{RealTime, Time};
 
 pub struct BackwardsCompatibleChainVerifier {
 	store: SharedStore,
@@ -38,7 +39,7 @@ impl BackwardsCompatibleChainVerifier {
 			return Ok(());
 		}
 
-		let current_time = ::time::get_time().sec as u32;
+		let current_time = RealTime.now().as_secs() as u32;
 		// first run pre-verification
 		let chain_verifier = ChainVerifier::new(block, self.consensus.network, current_time);
 		chain_verifier.check()?;
@@ -134,7 +135,7 @@ impl BackwardsCompatibleChainVerifier {
 	) -> Result<(), Error> {
 		// let's do only preverifcation
 		// TODO: full verification
-		let current_time = ::time::get_time().sec as u32;
+		let current_time = RealTime.now().as_secs() as u32;
 		let header = IndexedBlockHeader::new(*hash, header.clone());
 		let header_verifier = HeaderVerifier::new(&header, self.consensus.network, current_time);
 		header_verifier.check()
