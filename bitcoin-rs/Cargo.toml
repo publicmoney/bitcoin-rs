@@ -12,7 +12,7 @@ log = "0.4"
 app_dirs = "1.2.1"
 libc = "0.2"
 clap = { version = "2", features = ["yaml"] }
-log4rs = { version = "0.12.0", features = ["background_rotation"] }
+log4rs = { version = "1.0", features = ["background_rotation"] }
 tokio = { version = "0.3.6", features = ["rt", "rt-multi-thread", "net", "time", "io-util", "sync", "stream", "test-util", "macros", "signal", "parking_lot"] }
 bitcrypto = { path = "../crypto" }
 message = { path = "../message" }

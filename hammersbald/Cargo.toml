@@ -14,8 +14,8 @@ path = "src/lib.rs"
 
 [dependencies]
 log = "0.4"
-rand = "0.7"
+rand = "0.8"
 byteorder = "1.2"
 lru = "0.6.1"
-bitcoin_hashes = "0.7.6"
+bitcoin_hashes = "0.9"
 parking_lot = "0.11"

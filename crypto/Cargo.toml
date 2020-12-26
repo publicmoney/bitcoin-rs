@@ -5,5 +5,5 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-bitcoin_hashes = { version = "0.7.6", features = ["std", "serde"] }
+bitcoin_hashes = { version = "0.9", features = ["std", "serde"] }
 heapsize = "0.4"

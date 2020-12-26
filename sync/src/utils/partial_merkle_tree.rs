@@ -233,16 +233,17 @@ mod tests {
 	use super::{build_partial_merkle_tree, parse_partial_merkle_tree};
 	use bitcrypto::SHA256D;
 	use chain::{merkle_root, Transaction};
+	use rand::prelude::StdRng;
+	use rand::RngCore;
 
 	#[test]
 	// test from core implementation (slow)
 	// https://github.com/bitcoin/bitcoin/blob/master/src/test/pmt_tests.cpp
 	fn test_build_merkle_block() {
 		use bit_vec::BitVec;
-		use rand::{Rng, SeedableRng, StdRng};
+		use rand::SeedableRng;
 
-		let rng_seed: &[_] = &[0, 0, 0, 0];
-		let mut rng: StdRng = SeedableRng::from_seed(rng_seed);
+		let mut rng: StdRng = SeedableRng::from_seed([0u8; 32]);
 
 		// for some transactions counts
 		let tx_counts: Vec<usize> = vec![1, 4, 7, 17, 56, 100, 127, 256, 312, 513, 1000, 4095];
@@ -259,7 +260,7 @@ mod tests {
 				let mut matches: BitVec = BitVec::with_capacity(tx_count);
 				let mut matched_hashes: Vec<SHA256D> = Vec::with_capacity(tx_count);
 				for i in 0usize..tx_count {
-					let is_match = (rng.gen::<u32>() & ((1 << (seed_tweak / 2)) - 1)) == 0;
+					let is_match = (rng.next_u32() & ((1 << (seed_tweak / 2)) - 1)) == 0;
 					matches.push(is_match);
 					if is_match {
 						matched_hashes.push(hashes[i].clone());
