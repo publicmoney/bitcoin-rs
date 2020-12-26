@@ -9,7 +9,7 @@ log = "0.4"
 futures = "0.1"
 linked-hash-map = "0.5.3"
 bit-vec = "0.6"
-murmur3 = "0.4"
+murmur3 = "0.5"
 rand = "0.8"
 byteorder = "1.0"
 
