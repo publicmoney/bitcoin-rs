@@ -9,13 +9,13 @@ use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 use crate::table_file::TableFile;
 
+use parking_lot::Mutex;
 use std::cmp::min;
 use std::io;
 use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
-use std::sync::Mutex;
 
 /// create a transient db
 pub fn transient() -> Result<Box<dyn HammersbaldAPI>, Error> {
@@ -57,7 +57,7 @@ impl Transient {
 
 impl PagedFile for Transient {
 	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
-		let mut inner = self.inner.lock().unwrap();
+		let mut inner = self.inner.lock();
 		let len = inner.seek(SeekFrom::End(0))?;
 		if pref.as_u64() < len {
 			inner.seek(SeekFrom::Start(pref.as_u64()))?;
@@ -69,12 +69,12 @@ impl PagedFile for Transient {
 	}
 
 	fn len(&self) -> Result<u64, Error> {
-		let inner = self.inner.lock().unwrap();
+		let inner = self.inner.lock();
 		Ok(inner.data.len() as u64)
 	}
 
 	fn truncate(&mut self, len: u64) -> Result<(), Error> {
-		let mut inner = self.inner.lock().unwrap();
+		let mut inner = self.inner.lock();
 		inner.data.truncate(len as usize);
 		Ok(())
 	}
@@ -88,7 +88,7 @@ impl PagedFile for Transient {
 	}
 
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
-		let mut inner = self.inner.lock().unwrap();
+		let mut inner = self.inner.lock();
 		if page.pref().as_u64() <= inner.data.len() as u64 {
 			inner.seek(SeekFrom::Start(page.pref().as_u64()))?;
 		}

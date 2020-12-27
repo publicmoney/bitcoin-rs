@@ -2,11 +2,9 @@ use crate::error::Error;
 use crate::page::{Page, PAGE_SIZE};
 use crate::paged_file::PagedFile;
 use crate::pref::PRef;
-
 use lru::LruCache;
-
-use std::cmp::max;
-use std::sync::{Arc, Mutex};
+use parking_lot::Mutex;
+use std::sync::Arc;
 
 pub struct CachedFile {
 	file: Box<dyn PagedFile>,
@@ -17,17 +15,16 @@ impl CachedFile {
 	/// create a read cached file with a page cache of given size
 	pub fn new(file: Box<dyn PagedFile>, cache_size_mb: usize) -> Result<CachedFile, Error> {
 		let pages = cache_size_mb * 1_000_000 / PAGE_SIZE;
-		let len = file.len()?;
 		Ok(CachedFile {
 			file,
-			cache: Mutex::new(Cache::new(len, pages)),
+			cache: Mutex::new(Cache::new(pages)),
 		})
 	}
 }
 
 impl PagedFile for CachedFile {
 	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
-		let mut cache = self.cache.lock().unwrap();
+		let mut cache = self.cache.lock();
 		if let Some(page) = cache.get(pref) {
 			return Ok(Some(page));
 		}
@@ -43,7 +40,7 @@ impl PagedFile for CachedFile {
 	}
 
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
-		self.cache.lock().unwrap().reset_len(new_len);
+		self.cache.lock().reset_len(new_len);
 		self.file.truncate(new_len)?;
 		Ok(())
 	}
@@ -57,27 +54,25 @@ impl PagedFile for CachedFile {
 	}
 
 	fn update_page(&mut self, page: Page) -> Result<u64, Error> {
-		let mut cache = self.cache.lock().unwrap();
+		let mut cache = self.cache.lock();
 		cache.update(page.clone());
 		self.file.update_page(page)
 	}
 
 	fn flush(&mut self) -> Result<(), Error> {
-		self.cache.lock().unwrap().clear();
+		self.cache.lock().clear();
 		self.file.flush()
 	}
 }
 
 pub struct Cache {
 	reads: LruCache<PRef, Arc<Page>>,
-	len: u64,
 }
 
 impl Cache {
-	pub fn new(len: u64, size: usize) -> Cache {
+	pub fn new(size: usize) -> Cache {
 		Cache {
 			reads: LruCache::new(size),
-			len,
 		}
 	}
 
@@ -93,8 +88,7 @@ impl Cache {
 		let pref = page.pref();
 		let page = Arc::new(page);
 		self.cache(pref, page);
-		self.len = max(self.len, pref.as_u64() + PAGE_SIZE as u64);
-		self.len
+		self.reads.len() as u64
 	}
 
 	pub fn get(&mut self, pref: PRef) -> Option<Page> {
@@ -106,7 +100,6 @@ impl Cache {
 	}
 
 	pub fn reset_len(&mut self, len: u64) {
-		self.len = len;
 		let to_delete: Vec<_> = self
 			.reads
 			.iter()

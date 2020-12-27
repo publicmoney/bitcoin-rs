@@ -1,6 +1,6 @@
 use crate::config::Config;
 use clap::ArgMatches;
-use storage::{BlockRef, Store};
+use storage::BlockRef;
 
 pub fn rollback(db_path: &String, cfg: &Config, matches: &ArgMatches) -> Result<(), String> {
 	let db = db::RawDatabase::persistent(db_path, cfg.db_cache).unwrap();

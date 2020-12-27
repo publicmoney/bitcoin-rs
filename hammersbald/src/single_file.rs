@@ -3,10 +3,10 @@ use crate::page::{Page, PAGE_SIZE};
 use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 
+use parking_lot::Mutex;
 use std::cmp::max;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::sync::Mutex;
 
 pub struct SingleFile {
 	path: String,
@@ -48,7 +48,7 @@ impl PagedFile for SingleFile {
 		}
 		let pos = pos - self.base;
 		if pos < self.len {
-			let mut file = self.file.lock().unwrap();
+			let mut file = self.file.lock();
 			file.seek(SeekFrom::Start(pos))?;
 			let mut buffer = [0u8; PAGE_SIZE];
 
@@ -69,11 +69,11 @@ impl PagedFile for SingleFile {
 
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
 		self.len = new_len;
-		Ok(self.file.lock().unwrap().set_len(new_len)?)
+		Ok(self.file.lock().set_len(new_len)?)
 	}
 
 	fn sync(&self) -> Result<(), Error> {
-		Ok(self.file.lock().unwrap().sync_data()?)
+		Ok(self.file.lock().sync_data()?)
 	}
 
 	fn shutdown(&mut self) -> Result<(), Error> {
@@ -87,7 +87,7 @@ impl PagedFile for SingleFile {
 		}
 		let pos = page_pos - self.base;
 
-		let mut file = self.file.lock().unwrap();
+		let mut file = self.file.lock();
 		file.seek(SeekFrom::Start(pos))?;
 		file.write_all(&page.into_buf())?;
 		self.len = max(self.len, pos + PAGE_SIZE as u64);
@@ -95,7 +95,7 @@ impl PagedFile for SingleFile {
 	}
 
 	fn flush(&mut self) -> Result<(), Error> {
-		Ok(self.file.lock().unwrap().flush()?)
+		Ok(self.file.lock().flush()?)
 	}
 }
 
