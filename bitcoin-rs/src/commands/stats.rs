@@ -1,8 +1,9 @@
-use storage::SharedStore;
+use crate::config::Config;
 
-pub fn stats(db: SharedStore) -> Result<(), String> {
+pub fn stats(db_path: &String, cfg: &Config) -> Result<(), String> {
+	let db = db::RawDatabase::persistent(db_path, cfg.db_cache).unwrap();
 	info!("Getting database statistics. This may take a while.");
-	db.stats();
+	db.stats().unwrap();
 	info!("Finished");
 	Ok(())
 }

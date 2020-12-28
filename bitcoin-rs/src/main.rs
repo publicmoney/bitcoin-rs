@@ -40,6 +40,13 @@ fn run() -> Result<(), String> {
 	logger::setup_log(&cfg)?;
 
 	let db_path = app_path(&cfg.data_dir, "db");
+
+	match matches.subcommand() {
+		("rollback", Some(rollback_matches)) => return commands::rollback(&db_path, &cfg, rollback_matches),
+		("stats", Some(_)) => return commands::stats(&db_path, &cfg),
+		_ => {}
+	};
+
 	let db = Arc::new(db::BlockChainDatabase::persistent(&db_path, cfg.db_cache, &cfg.network.genesis_block()).unwrap());
 
 	let threaded_rt: Runtime = runtime::Builder::new_multi_thread()
@@ -50,8 +57,6 @@ fn run() -> Result<(), String> {
 
 	match matches.subcommand() {
 		("import", Some(import_matches)) => commands::import(db.clone(), cfg, import_matches),
-		("stats", Some(_)) => commands::stats(db.clone()),
-		("rollback", Some(rollback_matches)) => commands::rollback(db.clone(), rollback_matches),
 		("verify", Some(_)) => commands::verify(db.clone(), cfg),
 		_ => {
 			let (local_node, p2p, rpc) = commands::start(&threaded_rt, db.clone(), cfg)?;

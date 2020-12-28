@@ -4,7 +4,7 @@ pub mod ham_adapter;
 mod ham_types;
 mod overlay_db;
 
-pub use blockchain_db::{BlockChainDatabase, ForkChainDatabase};
+pub use blockchain_db::{BlockChainDatabase, ForkChainDatabase, RawDatabase};
 
 extern crate parking_lot;
 #[macro_use]

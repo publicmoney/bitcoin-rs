@@ -14,6 +14,13 @@ use storage::{
 
 const MAX_FORK_ROUTE_PRESET: usize = 2048;
 
+pub struct RawDatabase<T>
+where
+	T: DbInterface,
+{
+	db: T,
+}
+
 pub struct BlockChainDatabase<T>
 where
 	T: DbInterface,
@@ -36,6 +43,26 @@ impl<'a, T: DbInterface> ForkChain for ForkChainDatabase<'a, T> {
 
 	fn flush(&self) -> Result<(), storage::Error> {
 		self.blockchain.db.flush()
+	}
+}
+
+impl RawDatabase<HamDb> {
+	pub fn persistent(db_path: &String, db_cache_size_mb: usize) -> Result<RawDatabase<HamDb>, storage::Error> {
+		Ok(RawDatabase {
+			db: HamDb::persistent(db_path, "blockchain", db_cache_size_mb)?,
+		})
+	}
+
+	pub fn truncate(&self, block_ref: &BlockRef) -> Result<(), storage::Error> {
+		self.db.truncate(block_ref)
+	}
+
+	pub fn stats(&self) -> Result<(), storage::Error> {
+		self.db.stats()
+	}
+
+	pub fn shutdown(&self) -> Result<(), storage::Error> {
+		self.db.shutdown()
 	}
 }
 
