@@ -4,7 +4,6 @@ use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 use lru::LruCache;
 use parking_lot::Mutex;
-use std::sync::Arc;
 
 pub struct CachedFile {
 	file: Box<dyn PagedFile>,
@@ -29,7 +28,7 @@ impl PagedFile for CachedFile {
 			return Ok(Some(page));
 		}
 		if let Some(page) = self.file.read_page(pref)? {
-			cache.cache(pref, Arc::new(page.clone()));
+			cache.cache(pref, page.clone());
 			return Ok(Some(page));
 		}
 		Ok(None)
@@ -66,7 +65,7 @@ impl PagedFile for CachedFile {
 }
 
 pub struct Cache {
-	reads: LruCache<PRef, Arc<Page>>,
+	reads: LruCache<PRef, Page>,
 }
 
 impl Cache {
@@ -76,7 +75,7 @@ impl Cache {
 		}
 	}
 
-	pub fn cache(&mut self, pref: PRef, page: Arc<Page>) {
+	pub fn cache(&mut self, pref: PRef, page: Page) {
 		self.reads.put(pref, page);
 	}
 
@@ -85,22 +84,19 @@ impl Cache {
 	}
 
 	pub fn update(&mut self, page: Page) -> u64 {
-		let pref = page.pref();
-		let page = Arc::new(page);
-		self.cache(pref, page);
+		self.cache(page.pref(), page);
 		self.reads.len() as u64
 	}
 
 	pub fn get(&mut self, pref: PRef) -> Option<Page> {
-		use std::ops::Deref;
-		if let Some(content) = self.reads.get_mut(&pref) {
-			return Some(content.clone().deref().clone());
+		if let Some(content) = self.reads.get(&pref) {
+			return Some(content.clone());
 		}
 		None
 	}
 
 	pub fn reset_len(&mut self, len: u64) {
-		let to_delete: Vec<_> = self
+		let to_delete: Vec<u64> = self
 			.reads
 			.iter()
 			.filter_map(|(o, _)| {

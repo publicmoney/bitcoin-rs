@@ -8,6 +8,7 @@ use chain::IndexedBlock;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use db::blockchain_db::BlockChainDatabase;
+use std::time::Duration;
 
 const TEST_DB: &'static str = "testdb/bench";
 
@@ -89,8 +90,7 @@ pub fn write_heavy(c: &mut Criterion) {
 
 criterion_group! {
 	name = benches;
-	// This can be any expression that returns a `Criterion` object.
-	config = Criterion::default().significance_level(0.1).sample_size(10);
+	config = Criterion::default().significance_level(0.1).sample_size(20).measurement_time(Duration::from_secs(20));
 	targets = write_heavy
 }
 criterion_main!(benches);

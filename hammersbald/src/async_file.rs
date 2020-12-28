@@ -50,30 +50,22 @@ impl AsyncFile {
 			}
 			let mut file = inner.file.lock();
 
-			for page in queue.iter() {
-				file.update_page(page.clone()).expect("error in async file writer");
+			for page in queue.drain(..) {
+				file.update_page(page).expect("error in async file writer");
 			}
-			queue.clear();
 			inner.flushed.notify_all();
 		}
 	}
 
-	fn read_in_queue(&self, pref: PRef) -> Result<Option<Page>, Error> {
-		let queue = self.inner.queue.lock();
-		let mut result = None;
-		// Get the latest update to the page.
-		for page in queue.iter() {
-			if page.pref() == pref.this_page() {
-				result = Some(page);
-			}
-		}
-		Ok(result.cloned())
+	// Get the latest update to the page.
+	fn read_in_queue(&self, pref: PRef) -> Option<Page> {
+		self.inner.queue.lock().iter().find(|page| page.pref() == pref.this_page()).cloned()
 	}
 }
 
 impl PagedFile for AsyncFile {
 	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
-		if let Some(page) = self.read_in_queue(pref)? {
+		if let Some(page) = self.read_in_queue(pref) {
 			return Ok(Some(page));
 		}
 		let file = self.inner.file.lock();
