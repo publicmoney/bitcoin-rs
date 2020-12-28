@@ -1,6 +1,5 @@
 use crate::{BlockHeader, Transaction};
-use bitcrypto::SHA256D;
-use hex::FromHex;
+use bitcrypto::{FromHex, SHA256D};
 use ser::deserialize;
 use serialization_derive::Serializable;
 
@@ -15,7 +14,8 @@ pub struct Block {
 
 impl From<&'static str> for Block {
 	fn from(s: &'static str) -> Self {
-		deserialize(&s.from_hex::<Vec<u8>>().unwrap() as &[u8]).unwrap()
+		let hex: Vec<u8> = FromHex::from_hex(s).unwrap();
+		deserialize(&*hex).unwrap()
 	}
 }
 

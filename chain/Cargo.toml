@@ -5,7 +5,6 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-rustc-hex = "2"
 heapsize = "0.4"
 rayon = "1.0"
 bitcrypto = { path = "../crypto" }

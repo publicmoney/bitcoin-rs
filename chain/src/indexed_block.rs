@@ -3,8 +3,7 @@ use crate::indexed_header::IndexedBlockHeader;
 use crate::indexed_transaction::IndexedTransaction;
 use crate::merkle_root::merkle_root;
 use crate::transaction::Transaction;
-use bitcrypto::SHA256D;
-use hex::FromHex;
+use bitcrypto::{FromHex, SHA256D};
 use ser::{deserialize, serialized_list_size, serialized_list_size_with_flags, Serializable, SERIALIZE_TRANSACTION_WITNESS};
 use std::cmp;
 
@@ -98,7 +97,8 @@ impl IndexedBlock {
 
 impl From<&'static str> for IndexedBlock {
 	fn from(s: &'static str) -> Self {
-		deserialize(&s.from_hex::<Vec<u8>>().unwrap() as &[u8]).unwrap()
+		let hex: Vec<u8> = FromHex::from_hex(s).unwrap();
+		deserialize(&*hex).unwrap()
 	}
 }
 

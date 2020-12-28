@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 rand = "0.6"
-rustc-hex = "2"
 lazy_static = "1.4.0"
 base58 = "0.1"
 bitcrypto = { path = "../crypto" }

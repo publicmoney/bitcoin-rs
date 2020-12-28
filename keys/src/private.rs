@@ -3,7 +3,7 @@
 use crate::network::Network;
 use crate::{CompactSignature, DisplayLayout, Error, Message, Secret, Signature, SECP256K1};
 use base58::{FromBase58, ToBase58};
-use hex::ToHex;
+use bitcrypto::ToHex;
 use primitives::checksum::Checksum;
 use secp256k1::key;
 use secp256k1::Message as SecpMessage;
@@ -111,7 +111,7 @@ impl DisplayLayout for Private {
 impl fmt::Debug for Private {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		writeln!(f, "network: {:?}", self.network)?;
-		writeln!(f, "secret: {}", self.secret.to_hex::<String>())?;
+		writeln!(f, "secret: {}", self.secret.to_hex())?;
 		writeln!(f, "compressed: {}", self.compressed)
 	}
 }

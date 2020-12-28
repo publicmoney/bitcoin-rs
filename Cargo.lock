@@ -236,7 +236,6 @@ dependencies = [
  "heapsize",
  "primitives",
  "rayon",
- "rustc-hex",
  "serialization",
  "serialization_derive",
 ]
@@ -905,7 +904,6 @@ dependencies = [
  "lazy_static",
  "primitives",
  "rand 0.6.5",
- "rustc-hex",
  "secp256k1",
 ]
 
@@ -1395,7 +1393,6 @@ dependencies = [
  "bitcrypto",
  "byteorder",
  "heapsize",
- "rustc-hex",
  "uint",
 ]
 
@@ -1674,7 +1671,6 @@ dependencies = [
  "network",
  "p2p",
  "primitives",
- "rustc-hex",
  "script",
  "serde",
  "serde_derive",

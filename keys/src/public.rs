@@ -1,6 +1,5 @@
 use crate::{AddressHash, CompactSignature, Error, Message, Signature, SECP256K1};
-use bitcrypto::dhash160;
-use hex::ToHex;
+use bitcrypto::{dhash160, ToHex};
 use secp256k1::key;
 use secp256k1::recovery::{RecoverableSignature, RecoveryId};
 use secp256k1::{Error as SecpError, Message as SecpMessage, Signature as SecpSignature};
@@ -90,14 +89,14 @@ impl PartialEq for Public {
 impl fmt::Debug for Public {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Public::Normal(ref bytes) => writeln!(f, "normal: {}", bytes.to_hex::<String>()),
-			Public::Compressed(ref bytes) => writeln!(f, "compressed: {}", bytes.to_hex::<String>()),
+			Public::Normal(ref bytes) => writeln!(f, "normal: {}", bytes.to_hex()),
+			Public::Compressed(ref bytes) => writeln!(f, "compressed: {}", bytes.to_hex()),
 		}
 	}
 }
 
 impl fmt::Display for Public {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		self.to_hex::<String>().fmt(f)
+		self.to_hex().fmt(f)
 	}
 }

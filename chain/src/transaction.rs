@@ -3,9 +3,8 @@
 
 use crate::bytes::Bytes;
 use crate::constants::{LOCKTIME_THRESHOLD, SEQUENCE_FINAL};
-use bitcrypto::{dhash256, Hash, SHA256D};
+use bitcrypto::{dhash256, FromHex, Hash, SHA256D};
 use heapsize::HeapSizeOf;
-use hex::FromHex;
 use ser::{deserialize, serialize, serialize_with_flags, SERIALIZE_TRANSACTION_WITNESS};
 use ser::{Deserializable, Error, Reader, Serializable, Stream};
 use std::io;
@@ -95,7 +94,8 @@ pub struct Transaction {
 
 impl From<&'static str> for Transaction {
 	fn from(s: &'static str) -> Self {
-		deserialize(&s.from_hex::<Vec<u8>>().unwrap() as &[u8]).unwrap()
+		let hex: Vec<u8> = FromHex::from_hex(s).unwrap();
+		deserialize(&*hex).unwrap()
 	}
 }
 

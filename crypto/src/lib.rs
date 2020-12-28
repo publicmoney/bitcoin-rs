@@ -6,7 +6,7 @@ extern crate heapsize;
 pub use bitcoin_hashes::core::str::FromStr;
 use bitcoin_hashes::hash160;
 pub use bitcoin_hashes::hex::Error as HexError;
-pub use bitcoin_hashes::hex::FromHex;
+pub use bitcoin_hashes::hex::{FromHex, ToHex};
 use bitcoin_hashes::siphash24;
 pub use bitcoin_hashes::Hash;
 pub use bitcoin_hashes::HashEngine;

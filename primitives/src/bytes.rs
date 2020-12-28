@@ -1,7 +1,7 @@
 //! Wrapper around `Vec<u8>`
 
+use bitcrypto::{FromHex, HexError, ToHex};
 use heapsize::HeapSizeOf;
-use hex::{FromHex, FromHexError, ToHex};
 use std::{fmt, io, marker, ops, str};
 
 /// Wrapper around `Vec<u8>`
@@ -65,10 +65,10 @@ impl From<&'static str> for Bytes {
 }
 
 impl str::FromStr for Bytes {
-	type Err = FromHexError;
+	type Err = HexError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		s.from_hex().map(Bytes)
+		FromHex::from_hex(s).map(Bytes)
 	}
 }
 
@@ -84,7 +84,7 @@ impl io::Write for Bytes {
 
 impl fmt::Debug for Bytes {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(&self.0.to_hex::<String>())
+		f.write_str(&self.0.to_hex())
 	}
 }
 

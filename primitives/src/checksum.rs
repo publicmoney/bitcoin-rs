@@ -1,6 +1,5 @@
 use crate::impl_array_wrapper;
-use bitcrypto::dhash256;
-use hex::{FromHex, FromHexError};
+use bitcrypto::{dhash256, FromHex, HexError};
 use std::convert::TryInto;
 
 impl_array_wrapper!(Checksum, 4);
@@ -17,17 +16,17 @@ impl Checksum {
 }
 
 impl std::str::FromStr for Checksum {
-	type Err = FromHexError;
+	type Err = HexError;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let vec: Vec<u8> = s.from_hex()?;
+		let vec: Vec<u8> = FromHex::from_hex(s)?;
 		match vec.len() {
 			4 => {
 				let mut result = Checksum::default();
 				result.copy_from_slice(&vec);
 				Ok(result)
 			}
-			_ => Err(FromHexError::InvalidHexLength),
+			_ => Err(HexError::InvalidLength(4, vec.len())),
 		}
 	}
 }

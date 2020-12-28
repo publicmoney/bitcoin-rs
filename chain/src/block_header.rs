@@ -1,6 +1,5 @@
 use crate::compact::Compact;
-use bitcrypto::{Hash, SHA256D};
-use hex::FromHex;
+use bitcrypto::{FromHex, Hash, SHA256D};
 use ser::{deserialize, serialize};
 use std::fmt;
 
@@ -37,7 +36,8 @@ impl fmt::Debug for BlockHeader {
 
 impl From<&'static str> for BlockHeader {
 	fn from(s: &'static str) -> Self {
-		deserialize(&s.from_hex::<Vec<u8>>().unwrap() as &[u8]).unwrap()
+		let hex: Vec<u8> = FromHex::from_hex(s).unwrap();
+		deserialize(&*hex).unwrap()
 	}
 }
 

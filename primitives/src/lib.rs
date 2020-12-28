@@ -1,6 +1,5 @@
 extern crate byteorder;
 extern crate heapsize;
-extern crate rustc_hex as hex;
 #[macro_use]
 extern crate uint;
 

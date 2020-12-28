@@ -1,9 +1,10 @@
-use hex::{FromHex, ToHex};
+use bitcrypto::{FromHex, ToHex};
 use primitives::bytes::Bytes as GlobalBytes;
 use serde::de::{Error, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-///! Serializable wrapper around vector of bytes
 use std::{fmt, ops};
+
+///! Serializable wrapper around vector of bytes
 
 /// Wrapper structure around vector of bytes.
 #[derive(Debug, PartialEq, Eq, Default, Hash, Clone)]
@@ -42,7 +43,7 @@ impl Serialize for Bytes {
 		S: Serializer,
 	{
 		let mut serialized = String::new();
-		serialized.push_str(self.0.to_hex::<String>().as_ref());
+		serialized.push_str(self.0.to_hex().as_ref());
 		serializer.serialize_str(serialized.as_ref())
 	}
 }
@@ -95,12 +96,11 @@ impl ops::Deref for Bytes {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use hex::FromHex;
 	use serde_json;
 
 	#[test]
 	fn test_bytes_serialize() {
-		let bytes = Bytes("0123456789abcdef".from_hex().unwrap());
+		let bytes = Bytes(FromHex::from_hex("0123456789abcdef").unwrap());
 		let serialized = serde_json::to_string(&bytes).unwrap();
 		assert_eq!(serialized, r#""0123456789abcdef""#);
 	}

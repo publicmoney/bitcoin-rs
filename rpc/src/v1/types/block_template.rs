@@ -111,15 +111,14 @@ impl From<chain::IndexedTransaction> for BlockTemplateTransaction {
 mod tests {
 	use super::super::bytes::Bytes;
 	use super::*;
-	use bitcrypto::{FromStr, SHA256D};
-	use hex::FromHex;
+	use bitcrypto::{FromHex, FromStr, SHA256D};
 	use serde_json;
 
 	#[test]
 	fn block_template_transaction_serialize() {
 		assert_eq!(
 			serde_json::to_string(&BlockTemplateTransaction {
-				data: Bytes("00010203".from_hex().unwrap()),
+				data: Bytes(FromHex::from_hex("00010203").unwrap()),
 				txid: None,
 				hash: None,
 				depends: None,
@@ -133,7 +132,7 @@ mod tests {
 		);
 		assert_eq!(
 			serde_json::to_string(&BlockTemplateTransaction {
-				data: Bytes("00010203".from_hex().unwrap()),
+				data: Bytes(FromHex::from_hex("00010203").unwrap()),
 				txid: Some(SHA256D::from_str("0100000000000000000000000000000000000000000000000000000000000000").unwrap()),
 				hash: Some(SHA256D::from_str("0200000000000000000000000000000000000000000000000000000000000000").unwrap()),
 				depends: Some(vec![1, 2]),
@@ -155,7 +154,7 @@ mod tests {
 			)
 			.unwrap(),
 			BlockTemplateTransaction {
-				data: Bytes("00010203".from_hex().unwrap()),
+				data: Bytes(FromHex::from_hex("00010203").unwrap()),
 				txid: None,
 				hash: None,
 				depends: None,
@@ -168,7 +167,7 @@ mod tests {
 		assert_eq!(
 			serde_json::from_str::<BlockTemplateTransaction>(r#"{"data":"00010203","txid":"0100000000000000000000000000000000000000000000000000000000000000","hash":"0200000000000000000000000000000000000000000000000000000000000000","depends":[1,2],"fee":100,"sigops":200,"weight":300,"required":true}"#).unwrap(),
 			BlockTemplateTransaction {
-				data: Bytes("00010203".from_hex().unwrap()),
+				data: Bytes(FromHex::from_hex("00010203").unwrap()),
 				txid: Some(SHA256D::from_str("0100000000000000000000000000000000000000000000000000000000000000").unwrap()),
 				hash: Some(SHA256D::from_str("0200000000000000000000000000000000000000000000000000000000000000").unwrap()),
 				depends: Some(vec![1, 2]),
@@ -214,7 +213,7 @@ mod tests {
 				vbrequired: Some(10),
 				previousblockhash: SHA256D::from_str("0a00000000000000000000000000000000000000000000000000000000000000").unwrap(),
 				transactions: vec![BlockTemplateTransaction {
-					data: Bytes("00010203".from_hex().unwrap()),
+					data: Bytes(FromHex::from_hex("00010203").unwrap()),
 					txid: None,
 					hash: None,
 					depends: None,
@@ -226,7 +225,7 @@ mod tests {
 				coinbaseaux: Some(vec![("c".to_owned(), "d".to_owned())].into_iter().collect()),
 				coinbasevalue: Some(30),
 				coinbasetxn: Some(BlockTemplateTransaction {
-					data: Bytes("555555".from_hex().unwrap()),
+					data: Bytes(FromHex::from_hex("555555").unwrap()),
 					txid: Some(SHA256D::from_str("2c00000000000000000000000000000000000000000000000000000000000000").unwrap()),
 					hash: Some(SHA256D::from_str("3700000000000000000000000000000000000000000000000000000000000000").unwrap()),
 					depends: Some(vec![1]),
@@ -285,7 +284,7 @@ mod tests {
 				vbrequired: Some(10),
 				previousblockhash: SHA256D::from_str("0a00000000000000000000000000000000000000000000000000000000000000").unwrap(),
 				transactions: vec![BlockTemplateTransaction {
-					data: Bytes("00010203".from_hex().unwrap()),
+					data: Bytes(FromHex::from_hex("00010203").unwrap()),
 					txid: None,
 					hash: None,
 					depends: None,
@@ -297,7 +296,7 @@ mod tests {
 				coinbaseaux: Some(vec![("c".to_owned(), "d".to_owned())].into_iter().collect()),
 				coinbasevalue: Some(30),
 				coinbasetxn: Some(BlockTemplateTransaction {
-					data: Bytes("555555".from_hex().unwrap()),
+					data: Bytes(FromHex::from_hex("555555").unwrap()),
 					txid: Some(SHA256D::from_str("2c00000000000000000000000000000000000000000000000000000000000000").unwrap()),
 					hash: Some(SHA256D::from_str("3700000000000000000000000000000000000000000000000000000000000000").unwrap()),
 					depends: Some(vec![1]),

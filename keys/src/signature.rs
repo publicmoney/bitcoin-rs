@@ -3,8 +3,7 @@
 //! http://bitcoin.stackexchange.com/q/12554/40688
 
 use crate::Error;
-use bitcrypto::FromHex;
-use hex::ToHex; // todo can we do without this crate and use bitcrypto hex?
+use bitcrypto::{FromHex, ToHex};
 use std::{fmt, ops, str};
 
 #[derive(PartialEq)]
@@ -12,13 +11,13 @@ pub struct Signature(Vec<u8>);
 
 impl fmt::Debug for Signature {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		self.0.to_hex::<String>().fmt(f)
+		self.0.to_hex().fmt(f)
 	}
 }
 
 impl fmt::Display for Signature {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		self.0.to_hex::<String>().fmt(f)
+		self.0.to_hex().fmt(f)
 	}
 }
 
@@ -73,13 +72,13 @@ pub struct CompactSignature(pub [u8; 65]);
 
 impl fmt::Debug for CompactSignature {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(&self.0.to_hex::<String>())
+		f.write_str(&self.0.to_hex())
 	}
 }
 
 impl fmt::Display for CompactSignature {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_str(&self.0.to_hex::<String>())
+		f.write_str(&self.0.to_hex())
 	}
 }
 

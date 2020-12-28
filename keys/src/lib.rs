@@ -1,7 +1,6 @@
 //! Bitcoin keys.
 
 extern crate rand;
-extern crate rustc_hex as hex;
 #[macro_use]
 extern crate lazy_static;
 extern crate base58;
