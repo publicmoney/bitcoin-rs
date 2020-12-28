@@ -7,11 +7,12 @@ use message::common::Services;
 use message::types::addr::AddressEntry;
 use message::{Message, Payload};
 use network::Network;
-use parking_lot::{Condvar, Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
 use rand::seq::SliceRandom;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use std::{error, net, time};
 use tokio::runtime::Handle;
 use tokio::{net::TcpListener, net::TcpStream, stream::StreamExt};
@@ -21,7 +22,7 @@ pub struct Context {
 	/// Handle to current Tokio runtime.
 	runtime_handle: Handle,
 	// Signal to shutdown p2p services.
-	shutdown_flag: Arc<(Mutex<bool>, Condvar)>,
+	shutdown_flag: Arc<Mutex<bool>>,
 	/// Connections.
 	connections: Connections,
 	/// Connection counter.
@@ -39,7 +40,7 @@ impl Context {
 	pub fn new(runtime_handle: Handle, local_sync_node: LocalSyncNodeRef, config: Config) -> Result<Self, Box<dyn error::Error>> {
 		let context = Context {
 			runtime_handle,
-			shutdown_flag: Arc::new((Mutex::new(false), Condvar::new())),
+			shutdown_flag: Arc::new(Mutex::new(false)),
 			connections: Default::default(),
 			connection_counter: ConnectionCounter::new(config.inbound_connections, config.outbound_connections),
 			node_table: RwLock::new(NodeTable::from_file(config.preferable_services, config.node_table_path.clone())?),
@@ -110,25 +111,21 @@ impl Context {
 
 	/// Every 10 seconds check if we have reached maximum number of outbound connections.
 	/// If not, connect to best peers.
-	pub fn autoconnect(context: Arc<Context>) {
-		tokio::spawn(async move {
-			loop {
-				let &(ref lock, ref cvar) = &*context.shutdown_flag;
-				let mut shutdown = lock.lock();
-				cvar.wait_for(&mut shutdown, std::time::Duration::from_secs(10));
-				if *shutdown {
-					break;
-				}
-				tokio::spawn(Self::autoconnect_future(context.clone()));
+	pub async fn autoconnect(context: Arc<Context>) {
+		loop {
+			if *context.shutdown_flag.lock() {
+				break;
 			}
-		});
+			tokio::spawn(Self::autoconnect_future(context.clone()));
+			tokio::time::sleep(Duration::from_secs(10)).await;
+		}
 	}
 
 	async fn autoconnect_future(context: Arc<Context>) {
 		let ic = context.connection_counter.inbound_connections();
 		let oc = context.connection_counter.outbound_connections();
-		info!("Inbound connections: ({}/{})", ic.0, ic.1);
-		info!("Outbound connections: ({}/{})", oc.0, oc.1);
+		debug!("Inbound connections: ({}/{})", ic.0, ic.1);
+		debug!("Outbound connections: ({}/{})", oc.0, oc.1);
 
 		for channel in context.connections.channels().values() {
 			channel.session().maintain();
@@ -421,10 +418,7 @@ impl P2P {
 	}
 
 	pub fn shutdown(&self) {
-		let &(ref lock, ref cvar) = &*self.context.shutdown_flag;
-		let mut shutdown = lock.lock();
-		*shutdown = true;
-		cvar.notify_one();
+		*self.context.shutdown_flag.lock() = true;
 
 		for channel in self.context.connections.remove_all() {
 			self.context.spawn(async move { channel.shutdown().await });
@@ -450,7 +444,7 @@ impl P2P {
 			}
 		}
 
-		Context::autoconnect(self.context.clone());
+		tokio::spawn(Context::autoconnect(self.context.clone()));
 
 		Context::listen(self.context.clone(), self.context.config.connection.clone()).await
 	}

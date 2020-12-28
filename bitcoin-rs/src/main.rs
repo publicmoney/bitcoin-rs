@@ -69,7 +69,7 @@ fn run() -> Result<(), String> {
 		}
 	}?;
 
-	threaded_rt.shutdown_timeout(Duration::from_secs(10));
+	threaded_rt.shutdown_timeout(Duration::from_secs(30));
 	db.as_store().shutdown();
 	Ok(())
 }
