@@ -7,19 +7,19 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::process::{Child, Command, ExitStatus, Stdio};
 
 pub struct NodeManager {
-	builder: NodeBuilder,
 	process: Option<Child>,
+	bin_path: String,
+	data_dir: String,
+	sub_command: Option<String>,
+	config: NetConfig,
 	connection: Option<Connection>,
 }
 
-pub struct NodeBuilder {
-	bin_path: String,
-	config: NetConfig,
-	sub_command: Option<String>,
-}
+impl NodeManager {
+	pub fn new_node(bin_path: &str, data_dir: &str) -> Self {
+		let data_dir = "testdb".to_string() + "/" + data_dir;
+		std::fs::remove_dir_all(&data_dir).unwrap_or_default();
 
-impl NodeBuilder {
-	pub fn new(bin_path: &str) -> Self {
 		let config = NetConfig {
 			protocol_version: PROTOCOL_VERSION,
 			protocol_minimum: PROTOCOL_MINIMUM,
@@ -30,43 +30,30 @@ impl NodeBuilder {
 			start_height: 0,
 			relay: false,
 		};
-		NodeBuilder {
-			bin_path: bin_path.to_string(),
-			config,
-			sub_command: None,
-		}
-	}
-
-	pub fn with_sub_command(&mut self, sub_command: String) -> &mut NodeBuilder {
-		self.sub_command = Some(sub_command);
-		self
-	}
-}
-
-impl NodeManager {
-	pub fn new_node(bin_path: &str) -> Self {
-		std::fs::remove_dir_all("testdb").unwrap_or_default();
 
 		NodeManager {
-			builder: NodeBuilder::new(bin_path),
 			process: None,
+			bin_path: bin_path.to_string(),
+			data_dir: data_dir.to_string(),
+			sub_command: None,
+			config,
 			connection: None,
 		}
 	}
 
-	pub fn builder(&mut self) -> &mut NodeBuilder {
-		&mut self.builder
+	pub fn with_sub_command(mut self, sub_command: &str) -> NodeManager {
+		self.sub_command = Some(sub_command.to_string());
+		self
 	}
 
-	pub fn start(&mut self) -> &mut NodeManager {
-		let mut bitcoin_rs_cmd = Command::new(&self.builder.bin_path);
+	pub fn start(mut self) -> NodeManager {
+		let mut bitcoin_rs_cmd = Command::new(&self.bin_path);
 
 		bitcoin_rs_cmd
-			.arg("--regtest")
-			.args(&["--data-dir", "testdb"])
+			.args(&["--regtest", "--data-dir", &self.data_dir])
 			.stdout(Stdio::null());
 
-		if let Some(sub_command) = &self.builder.sub_command {
+		if let Some(sub_command) = &self.sub_command {
 			bitcoin_rs_cmd.arg(sub_command);
 		};
 
@@ -76,14 +63,14 @@ impl NodeManager {
 		self
 	}
 
-	pub async fn connect_p2p(&mut self) -> &mut NodeManager {
-		let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.builder.config.network.port());
+	pub async fn connect_p2p(mut self) -> NodeManager {
+		let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.config.network.port());
 		for _ in 0..5 {
-			if let Ok(connection) = connect(&socket, &self.builder.config).await {
+			if let Ok(connection) = connect(&socket, &self.config).await {
 				self.connection = Some(connection);
 				return self;
 			}
-			std::thread::sleep(std::time::Duration::from_secs(1));
+			tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 		}
 		panic!("unable to connect to node")
 	}
@@ -93,7 +80,7 @@ impl NodeManager {
 		T: Payload,
 	{
 		if let Some(connection) = &self.connection {
-			let stream = serialize_payload(payload, self.builder.config.protocol_version).unwrap();
+			let stream = serialize_payload(payload, self.config.protocol_version).unwrap();
 			connection.stream.write_all(stream.as_ref()).await.unwrap();
 			Ok(())
 		} else {
@@ -103,15 +90,13 @@ impl NodeManager {
 
 	pub async fn read_message(&self) -> Result<(message::Command, Bytes), String> {
 		if let Some(connection) = &self.connection {
-			Ok(read_any_message(&connection.stream, self.builder.config.network.magic())
-				.await
-				.unwrap())
+			Ok(read_any_message(&connection.stream, self.config.network.magic()).await.unwrap())
 		} else {
 			Err("Not connected".to_string())
 		}
 	}
 
-	pub fn wait_for_exit(&mut self) -> Option<ExitStatus> {
+	pub fn wait_for_exit(mut self) -> Option<ExitStatus> {
 		if let Some(process) = self.process.as_mut() {
 			return process.wait().ok();
 		}

@@ -66,7 +66,7 @@ pub struct BlocksRequest {
 /// Peer trust level.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TrustLevel {
-	/// Suspicios peer (either it is fresh peer, or it has failed to respond to last requests).
+	/// Suspicious peer (either it is fresh peer, or it has failed to respond to last requests).
 	Suspicious,
 	/// This peer is responding to requests.
 	Trusted,
@@ -274,7 +274,7 @@ impl PeersTasks {
 		self.stats.get_mut(&peer_index).map(|br| br.speed.start());
 	}
 
-	/// Headers hashave been requested from peer.
+	/// Headers have been requested from peer.
 	pub fn on_headers_requested(&mut self, peer_index: PeerIndex) {
 		if !self.all.contains(&peer_index) {
 			self.unuseful_peer(peer_index);

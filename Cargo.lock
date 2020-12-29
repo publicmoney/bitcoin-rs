@@ -1170,6 +1170,7 @@ dependencies = [
  "message",
  "network",
  "p2p",
+ "tokio 0.3.6",
 ]
 
 [[package]]
