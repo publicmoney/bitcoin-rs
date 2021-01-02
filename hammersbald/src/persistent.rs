@@ -60,7 +60,7 @@ mod test {
 			db.batch().unwrap();
 		}
 
-		let db = persistent(path, "test", 1).unwrap();
+		let mut db = persistent(path, "test", 1).unwrap();
 		let (pref, result) = db.get_keyed(key).unwrap().unwrap();
 		assert_eq!(pref, expected_pref);
 		assert_eq!(value, result.as_slice());
@@ -74,11 +74,11 @@ mod test {
 		{
 			let mut db = persistent(path, "test", 1).unwrap();
 			db.put_keyed("a".as_bytes(), &[1]).unwrap();
-			db.put_keyed("b".as_bytes(), &[2]).unwrap();
+			let pref = db.put_keyed("b".as_bytes(), &[2]).unwrap();
 			db.put_keyed("c".as_bytes(), &[3]).unwrap();
 
 			db.batch().unwrap();
-			db.truncate("b".as_bytes()).unwrap();
+			db.truncate(pref).unwrap();
 			db.shutdown().unwrap();
 		}
 

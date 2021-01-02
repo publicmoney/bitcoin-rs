@@ -6,17 +6,36 @@ use log::info;
 use std::collections::{HashMap, HashSet};
 
 /// print some statistics on a db
-pub fn stats(db: &Hammersbald) {
+pub fn stats(db: &mut Hammersbald) {
 	let (step, log_mod, blen, tlen, dlen, llen, sip0, sip1) = db.params();
 	info!("File sizes: table: {}, data: {}, links: {}", tlen, dlen, llen);
 	info!("Hash table: buckets: {}, log_mod: {}, step: {}", blen, log_mod, step);
 
 	let mut pointers = HashSet::new();
-	for bucket in db.buckets() {
-		if bucket.stored.is_valid() {
-			pointers.insert(bucket.stored);
+	let mut roots = HashMap::new();
+	let mut n_slots = 0;
+	let mut used_buckets = 0;
+	for (pref, bucket) in db.buckets() {
+		if pref.is_valid() {
+			pointers.insert(pref);
+
+			if bucket.slots.len() > 0 {
+				used_buckets += 1;
+				n_slots += bucket.slots.len();
+			}
+			for slot in bucket.slots {
+				if slot.1.is_valid() {
+					roots.entry(slot.1).or_insert(Vec::new()).push(slot.0);
+				}
+			}
 		}
 	}
+	info!(
+		"Used buckets: {}. {:.1}% in use. Slots per bucket: {:.1}",
+		used_buckets,
+		100.0 * (used_buckets as f32 / blen as f32),
+		n_slots as f32 / used_buckets as f32
+	);
 
 	let mut n_links = 0;
 	for (pos, envelope) in db.link_envelopes() {
@@ -32,27 +51,6 @@ pub fn stats(db: &Hammersbald) {
 		panic!("{} roots point to non-existent links", pointers.len());
 	}
 
-	let mut roots = HashMap::new();
-	let mut n_slots = 0;
-	let mut used_buckets = 0;
-	for bucket in db.buckets() {
-		let slots = bucket.slots.unwrap_or_default();
-		if slots.len() > 0 {
-			used_buckets += 1;
-			n_slots += slots.len();
-		}
-		for slot in slots.iter() {
-			if slot.1.is_valid() {
-				roots.entry(slot.1).or_insert(Vec::new()).push(slot.0);
-			}
-		}
-	}
-	info!(
-		"Used buckets: {}. {:.1}% average filled. Slots per bucket: {:.1}",
-		used_buckets,
-		100.0 * (used_buckets as f32 / blen as f32),
-		n_slots as f32 / used_buckets as f32
-	);
 	info!(
 		"Data: indexed: {}, hash collisions {:.2} %",
 		n_slots,

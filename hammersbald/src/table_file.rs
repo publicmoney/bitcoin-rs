@@ -4,10 +4,10 @@ use crate::error::Error;
 use crate::mem_table::MemTable;
 use crate::page::{Page, PAGE_PAYLOAD_SIZE, PAGE_SIZE};
 use crate::paged_file::PagedFile;
-use crate::pref::PRef;
+use crate::pref::{PRef, PREF_SIZE};
 
 pub const FIRST_PAGE_HEAD: usize = 28;
-pub const BUCKET_SIZE: usize = 6;
+pub const BUCKET_SIZE: usize = PREF_SIZE;
 pub const BUCKETS_PER_PAGE: usize = PAGE_PAYLOAD_SIZE / BUCKET_SIZE;
 pub const BUCKETS_FIRST_PAGE: usize = (PAGE_PAYLOAD_SIZE - FIRST_PAGE_HEAD) / BUCKET_SIZE;
 

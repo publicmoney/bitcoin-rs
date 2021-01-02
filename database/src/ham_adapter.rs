@@ -6,7 +6,7 @@ use hammersbald::{persistent, transient, HammersbaldAPI};
 use parking_lot::RwLock;
 use serialization::{deserialize, serialize, Deserializable, Serializable};
 use std::sync::Arc;
-use storage::{BlockHeight, BlockMeta, BlockRef, Error, TransactionMeta};
+use storage::{BlockHeight, BlockMeta, Error, TransactionMeta};
 
 pub type PRef = u64;
 const BEST_PREF: PRef = 0;
@@ -34,7 +34,7 @@ impl HamDb {
 	where
 		T: Deserializable,
 	{
-		let (_, v) = self.hammersbald.read().get(pref).map_err(from_ham)?;
+		let (_, v) = self.hammersbald.write().get(pref).map_err(from_ham)?;
 		let result = deserialize::<&[u8], T>(&v).map_err(from_serial)?;
 		return Ok(Some(result));
 	}
@@ -44,7 +44,7 @@ impl HamDb {
 		K: Serializable,
 		T: Deserializable,
 	{
-		if let Some((pref, v)) = self.hammersbald.read().get_keyed(&serialize(key)).map_err(from_ham)? {
+		if let Some((pref, v)) = self.hammersbald.write().get_keyed(&serialize(key)).map_err(from_ham)? {
 			let result = deserialize::<&[u8], T>(&v).map_err(from_serial)?;
 			return Ok(Some((pref, result)));
 		}
@@ -56,7 +56,7 @@ impl HamDb {
 		K: Deserializable,
 		T: Deserializable,
 	{
-		let (k, v) = self.hammersbald.read().get(pref).map_err(from_ham)?;
+		let (k, v) = self.hammersbald.write().get(pref).map_err(from_ham)?;
 		let key = deserialize::<&[u8], K>(&k).map_err(from_serial)?;
 		let result = deserialize::<&[u8], T>(&v).map_err(from_serial)?;
 		Ok(Some((key, result)))
@@ -66,7 +66,7 @@ impl HamDb {
 	where
 		K: Deserializable,
 	{
-		deserialize::<&[u8], K>(&self.hammersbald.read().get(pref).map_err(from_ham)?.0).map_err(from_serial)
+		deserialize::<&[u8], K>(&self.hammersbald.write().get(pref).map_err(from_ham)?.0).map_err(from_serial)
 	}
 
 	fn put<T>(&self, data: &T) -> Result<PRef, storage::Error>
@@ -93,13 +93,6 @@ impl HamDb {
 	{
 		self.hammersbald.write().set(pref, &serialize(data)).map_err(from_ham)
 	}
-
-	fn truncate<T>(&self, data: &T) -> Result<(), storage::Error>
-	where
-		T: Serializable,
-	{
-		self.hammersbald.write().truncate(&serialize(data)).map_err(from_ham)
-	}
 }
 
 impl DbInterface for HamDb {
@@ -119,8 +112,10 @@ impl DbInterface for HamDb {
 			let db_tx_pref = self.put_keyed(&tx.hash, &db_tx)?;
 
 			for input in &tx.raw.inputs {
-				let input = DbInputKey::from(input);
-				self.put_keyed(&input, &db_tx_pref)?;
+				if !input.previous_output.is_null() {
+					let input = DbInputKey::from(input);
+					self.put_keyed(&input, &db_tx_pref)?;
+				}
 			}
 			for output in &tx.raw.outputs {
 				let key = DbOutputKey::from(output);
@@ -285,15 +280,15 @@ impl DbInterface for HamDb {
 	}
 
 	fn stats(&self) -> Result<(), Error> {
-		self.hammersbald.read().stats();
+		self.hammersbald.write().stats();
 		Ok(())
 	}
 
-	fn truncate(&self, block_ref: &BlockRef) -> Result<(), Error> {
-		match block_ref {
-			BlockRef::Number(number) => self.truncate(number),
-			BlockRef::Hash(hash) => self.truncate(hash),
+	fn truncate(&self, block_hash: &SHA256D) -> Result<(), Error> {
+		if let Some((_, db_block)) = self.get_by_key::<SHA256D, DbBlock>(block_hash)? {
+			self.hammersbald.write().truncate(db_block.header).map_err(from_ham)?;
 		}
+		Ok(())
 	}
 
 	fn size(&self) -> u64 {

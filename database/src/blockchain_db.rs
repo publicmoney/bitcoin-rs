@@ -54,7 +54,13 @@ impl RawDatabase<HamDb> {
 	}
 
 	pub fn truncate(&self, block_ref: &BlockRef) -> Result<(), storage::Error> {
-		self.db.truncate(block_ref)
+		let (hash, number) = match block_ref {
+			BlockRef::Number(n) => (self.db.block_hash(*n + 1)?, Some(*n)),
+			BlockRef::Hash(h) => (Some(*h), self.db.fetch_block_meta(h)?.map(|m| m.number + 1)),
+		};
+
+		self.db.truncate(&hash.unwrap())?;
+		self.db.set_best(number.unwrap())
 	}
 
 	pub fn stats(&self) -> Result<(), storage::Error> {
@@ -384,10 +390,6 @@ where
 		self.db.flush()
 	}
 
-	fn truncate(&self, block_ref: &BlockRef) -> Result<(), storage::Error> {
-		self.db.truncate(block_ref)
-	}
-
 	fn resolve_hash(&self, block_ref: BlockRef) -> Option<SHA256D> {
 		match block_ref {
 			BlockRef::Number(n) => self.block_hash(n),
@@ -555,10 +557,6 @@ where
 {
 	fn insert(&self, block: IndexedBlock) -> Result<(), storage::Error> {
 		BlockChainDatabase::insert(self, block)
-	}
-
-	fn truncate(&self, block_ref: &BlockRef) -> Result<(), storage::Error> {
-		BlockChainDatabase::truncate(self, block_ref)
 	}
 
 	fn canonize(&self, block_hash: &SHA256D) -> Result<(), storage::Error> {
