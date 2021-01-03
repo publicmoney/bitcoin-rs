@@ -1,4 +1,4 @@
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct NetworkInfo {
 	// Server version
 	pub version: usize,
@@ -28,7 +28,7 @@ pub struct NetworkInfo {
 	pub warnings: String,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Address {
 	// Network address
 	pub address: String,
@@ -38,7 +38,7 @@ pub struct Address {
 	pub score: usize,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Network {
 	// Network (ipv4, ipv6 or onion)
 	pub name: String,

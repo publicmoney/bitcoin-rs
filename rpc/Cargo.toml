@@ -13,6 +13,7 @@ serde_derive = "1.0"
 jsonrpc-core = "16.0"
 jsonrpc-derive = "16.0"
 jsonrpc-http-server = "16.0"
+jsonrpc-core-client = { version = "16.0", features = ["http"] }
 
 bitcrypto = { path = "../crypto" }
 sync = { path = "../sync" }
