@@ -108,7 +108,7 @@ dependencies = [
  "node-manager",
  "p2p",
  "primitives",
- "rpc",
+ "rpc-server",
  "storage",
  "sync",
  "test-data",
@@ -1248,7 +1248,7 @@ dependencies = [
  "message",
  "network",
  "p2p",
- "rpc",
+ "rpc-client",
  "tokio 0.3.6",
 ]
 
@@ -1782,14 +1782,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b28dfe3fe9badec5dbf0a79a9cccad2cfc2ab5484bdb3e44cbd1ae8b3ba2be06"
 
 [[package]]
-name = "rpc"
+name = "rpc-client"
+version = "0.1.0"
+dependencies = [
+ "jsonrpc-core-client",
+ "rpc-server",
+]
+
+[[package]]
+name = "rpc-server"
 version = "0.1.0"
 dependencies = [
  "bitcrypto",
  "chain",
  "db",
  "jsonrpc-core",
- "jsonrpc-core-client",
  "jsonrpc-derive",
  "jsonrpc-http-server",
  "keys",

@@ -23,7 +23,7 @@ db = { path = "../database" }
 verification = { path = "../verification" }
 sync = { path = "../sync" }
 import = { path = "../import" }
-rpc = { path = "../rpc" }
+rpc-server = { path = "../rpc/server" }
 primitives = { path = "../primitives" }
 memory = { path = "memory" }
 

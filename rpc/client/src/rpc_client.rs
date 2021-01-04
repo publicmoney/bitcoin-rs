@@ -1,6 +1,6 @@
-use crate::v1::types::{MemoryInfo, NetworkInfo};
 use jsonrpc_core_client::futures::Future;
 use jsonrpc_core_client::{RpcChannel, RpcResult, TypedClient};
+use rpc_server::v1::types::{MemoryInfo, NetworkInfo};
 
 #[derive(Clone)]
 pub struct RpcClient(TypedClient);

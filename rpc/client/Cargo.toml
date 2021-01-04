@@ -1,0 +1,8 @@
+[package]
+name = "rpc-client"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+jsonrpc-core-client = { version = "16.0", features = ["http"] }
+rpc-server = { path = "../server" }

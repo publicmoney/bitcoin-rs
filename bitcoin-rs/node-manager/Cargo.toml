@@ -8,4 +8,4 @@ tokio = "0.3"
 message = { path = "../../message" }
 network = { path = "../../network" }
 p2p = { path = "../../p2p" }
-rpc = { path = "../../rpc" }
+rpc-client = { path = "../../rpc/client" }
