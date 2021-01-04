@@ -1,26 +1,11 @@
+use crate::app_dir::app_path;
 use crate::config::Config;
 
-pub fn stats(db_path: &String, cfg: &Config) -> Result<(), String> {
-	let db = db::RawDatabase::persistent(db_path, cfg.db_cache).unwrap();
+pub fn stats(cfg: &Config) -> Result<(), String> {
+	let db = db::RawDatabase::persistent(&app_path(&cfg.data_dir, "db"), cfg.db_cache).unwrap();
 	info!("Getting database statistics. This may take a while.");
 	db.stats().unwrap();
+	db.as_store().shutdown();
 	info!("Finished");
 	Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-	use db::BlockChainDatabase;
-	use storage::Store;
-
-	#[test]
-	fn test_info() {
-		let store = BlockChainDatabase::init_test_chain(vec![
-			test_data::block_h0().into(),
-			test_data::block_h1().into(),
-			test_data::block_h2().into(),
-		]);
-
-		store.stats();
-	}
 }

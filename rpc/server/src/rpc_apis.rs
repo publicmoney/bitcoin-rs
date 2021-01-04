@@ -55,7 +55,8 @@ impl ApiSet {
 pub fn setup_rpc(mut handler: MetaIoHandler<()>, apis: ApiSet, deps: Dependencies) -> MetaIoHandler<()> {
 	for api in apis.list_apis() {
 		match api {
-			Api::Control => handler.extend_with(ControlClient::new(ControlClientCore::new(deps.memory.clone())).to_delegate()),
+			Api::Control => handler
+				.extend_with(ControlClient::new(ControlClientCore::new(deps.memory.clone(), deps.shutdown_signal.clone())).to_delegate()),
 			Api::Raw => handler.extend_with(
 				RawClient::new(RawClientCore::new(deps.network, deps.local_sync_node.clone(), deps.storage.clone())).to_delegate(),
 			),

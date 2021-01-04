@@ -3,17 +3,24 @@ use crate::block_notifier::BlockNotifier;
 use crate::config;
 use memory::Memory;
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
-use p2p::P2P;
-use rpc_server::Server;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use storage::SharedStore;
-use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers, LocalNodeRef};
-use tokio::runtime::Runtime;
+use std::time::Duration;
+use storage::CanonStore;
+use sync::{create_local_sync_node, create_sync_connection_factory, create_sync_peers};
 
 /// Some setup functions in here spawn new threads (which should be done off the main thread)
-/// At the moment only the p2p context runs on the Tokio runtime. RPC servier has its own Tokio runtime.
-pub fn start(runtime: &Runtime, db: SharedStore, cfg: config::Config) -> Result<(LocalNodeRef, P2P, Server), String> {
+/// At the moment only the p2p context runs on the Tokio runtime. RPC server has its own Tokio runtime.
+pub fn start(cfg: config::Config) -> Result<(), String> {
+	let db =
+		Arc::new(db::BlockChainDatabase::persistent(&&app_path(&cfg.data_dir, "db"), cfg.db_cache, &cfg.network.genesis_block()).unwrap());
+
+	let runtime = tokio::runtime::Builder::new_multi_thread()
+		.enable_io()
+		.enable_time()
+		.build()
+		.expect("Failure starting Tokio runtime");
+
 	let sync_peers = create_sync_peers();
 	let local_sync_node = create_local_sync_node(
 		cfg.consensus.clone(),
@@ -49,17 +56,34 @@ pub fn start(runtime: &Runtime, db: SharedStore, cfg: config::Config) -> Result<
 	let p2p_context = Arc::new(p2p::Context::new(runtime.handle().clone(), sync_connection_factory, p2p_cfg).map_err(|e| e.to_string())?);
 	let p2p = p2p::P2P::new(p2p_context.clone());
 
+	let shutdown_signal = Arc::new(tokio::sync::Notify::new());
+
 	let rpc_deps = rpc_server::Dependencies {
 		network: cfg.network,
-		storage: db,
+		storage: db.clone(),
 		local_sync_node: local_sync_node.clone(),
 		p2p_context,
 		memory: Arc::new(Memory::default()),
+		shutdown_signal: shutdown_signal.clone(),
 	};
 	let rpc_server = rpc_server::new_http(cfg.rpc_config, rpc_deps)?.unwrap();
 
 	let p2p2 = p2p.clone();
 	runtime.spawn(async move { p2p2.run().await });
 
-	Ok((local_sync_node, p2p, rpc_server))
+	runtime.block_on(async {
+		tokio::select! {
+			_ = tokio::signal::ctrl_c() => {},
+			_ = shutdown_signal.notified() => {}
+		}
+	});
+
+	info!("Shutting down, please wait...");
+	rpc_server.close();
+	p2p.shutdown();
+	local_sync_node.shutdown();
+	runtime.shutdown_timeout(Duration::from_secs(30));
+	db.as_store().shutdown();
+
+	Ok(())
 }

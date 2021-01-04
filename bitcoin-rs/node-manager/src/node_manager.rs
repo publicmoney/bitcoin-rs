@@ -7,6 +7,7 @@ use rpc_client::{http, RpcClient};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::rc::Rc;
+use tokio::time::{Duration, Instant};
 
 pub struct NodeManager {
 	process: Option<Child>,
@@ -130,14 +131,22 @@ impl NodeManager {
 		}
 	}
 
-	pub fn wait_for_exit(mut self) -> Option<ExitStatus> {
-		if let Some(process) = self.process.as_mut() {
-			return process.wait().ok();
+	pub async fn wait_for_exit(mut self, max_duration: Duration) -> Result<ExitStatus, String> {
+		let start = Instant::now();
+		if let Some(mut process) = self.process.take() {
+			while Instant::now().duration_since(start) < max_duration {
+				match process.try_wait() {
+					Ok(Some(status)) => return Ok(status),
+					Err(e) => return Err(e.to_string()),
+					_ => {}
+				}
+				tokio::time::sleep(Duration::from_secs(1)).await;
+			}
 		}
-		None
+		Err("Timed out waiting for exit".to_string())
 	}
 
-	pub fn stop(&mut self) {
+	pub fn kill(&mut self) {
 		if let Some(process) = self.process.as_mut() {
 			process.kill().unwrap_or_default();
 			process.wait().unwrap();
@@ -148,6 +157,6 @@ impl NodeManager {
 
 impl Drop for NodeManager {
 	fn drop(&mut self) {
-		self.stop()
+		self.kill()
 	}
 }

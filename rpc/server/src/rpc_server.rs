@@ -9,6 +9,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use storage;
 use sync;
+use tokio::sync::Notify;
 
 pub struct Dependencies {
 	pub network: Network,
@@ -16,6 +17,7 @@ pub struct Dependencies {
 	pub storage: storage::SharedStore,
 	pub p2p_context: Arc<p2p::Context>,
 	pub memory: Arc<Memory>,
+	pub shutdown_signal: Arc<Notify>,
 }
 
 #[derive(Default, Debug, PartialEq)]

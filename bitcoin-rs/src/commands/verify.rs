@@ -1,9 +1,11 @@
+use crate::app_dir::app_path;
 use crate::config::Config;
 use std::time::SystemTime;
-use storage::{BlockRef, SharedStore};
+use storage::{BlockProvider, BlockRef, CanonStore};
 use verification::ChainVerifier;
 
-pub fn verify(db: SharedStore, cfg: Config) -> Result<(), String> {
+pub fn verify(cfg: &Config) -> Result<(), String> {
+	let db = db::BlockChainDatabase::persistent(&app_path(&cfg.data_dir, "db"), cfg.db_cache, &cfg.network.genesis_block()).unwrap();
 	let genesis_hash = *cfg.network.genesis_block().hash();
 	match db.block(BlockRef::Number(0)) {
 		Some(genesis_block) => {
@@ -43,26 +45,8 @@ pub fn verify(db: SharedStore, cfg: Config) -> Result<(), String> {
 		}
 	}
 
+	db.as_store().shutdown();
 	info!("Chain verification from genesis to block {} completed successfully", best.number);
 
 	Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-	use super::verify;
-	use crate::config::Config;
-	use db::BlockChainDatabase;
-	use std::sync::Arc;
-
-	#[test]
-	fn test_verify() {
-		let store = BlockChainDatabase::init_test_chain(vec![
-			test_data::block_h0().into(),
-			test_data::block_h1().into(),
-			test_data::block_h2().into(),
-		]);
-
-		assert_eq!(Ok(()), verify(Arc::new(store), Config::default()))
-	}
 }

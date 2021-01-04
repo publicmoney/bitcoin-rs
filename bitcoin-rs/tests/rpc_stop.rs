@@ -1,12 +1,13 @@
-extern crate node_manager;
 use node_manager::node;
 use node_manager::NodeManager;
-use tokio::time::Duration;
+use std::time::Duration;
 
 #[tokio::test]
-async fn test_feat_verify() {
+async fn test_rpc_stop() {
 	let mut bitcoin_rs = node!();
-	bitcoin_rs.with_sub_command("verify").start();
+	bitcoin_rs.start().connect_rpc().await;
+
+	bitcoin_rs.rpc().stop().await.unwrap();
 
 	let exit_status = bitcoin_rs.wait_for_exit(Duration::from_secs(3)).await.unwrap();
 	assert!(exit_status.success());

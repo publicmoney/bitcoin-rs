@@ -13,13 +13,6 @@ mod commands;
 mod config;
 mod logger;
 
-use crate::app_dir::app_path;
-use std::sync::Arc;
-use storage::CanonStore;
-use tokio::runtime;
-use tokio::runtime::Runtime;
-use tokio::time::Duration;
-
 #[global_allocator]
 static GLOBAL: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
@@ -39,37 +32,11 @@ fn run() -> Result<(), String> {
 
 	logger::setup_log(&cfg)?;
 
-	let db_path = app_path(&cfg.data_dir, "db");
-
 	match matches.subcommand() {
-		("rollback", Some(rollback_matches)) => return commands::rollback(&db_path, &cfg, rollback_matches),
-		("stats", Some(_)) => return commands::stats(&db_path, &cfg),
-		_ => {}
-	};
-
-	let db = Arc::new(db::BlockChainDatabase::persistent(&db_path, cfg.db_cache, &cfg.network.genesis_block()).unwrap());
-
-	let threaded_rt: Runtime = runtime::Builder::new_multi_thread()
-		.enable_io()
-		.enable_time()
-		.build()
-		.expect("Failure starting Tokio runtime");
-
-	match matches.subcommand() {
-		("import", Some(import_matches)) => commands::import(db.clone(), cfg, import_matches),
-		("verify", Some(_)) => commands::verify(db.clone(), cfg),
-		_ => {
-			let (local_node, p2p, rpc) = commands::start(&threaded_rt, db.clone(), cfg)?;
-			threaded_rt.block_on(tokio::signal::ctrl_c()).expect("Runtime error");
-			info!("Shutting down, please wait...");
-			rpc.close();
-			p2p.shutdown();
-			local_node.shutdown();
-			Ok(())
-		}
-	}?;
-
-	threaded_rt.shutdown_timeout(Duration::from_secs(30));
-	db.as_store().shutdown();
-	Ok(())
+		("rollback", Some(rollback_matches)) => commands::rollback(&cfg, rollback_matches),
+		("stats", Some(_)) => commands::stats(&cfg),
+		("import", Some(import_matches)) => commands::import(&cfg, import_matches),
+		("verify", Some(_)) => commands::verify(&cfg),
+		_ => commands::start(cfg),
+	}
 }

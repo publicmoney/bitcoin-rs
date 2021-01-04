@@ -23,6 +23,6 @@ pub mod rpc_apis;
 pub mod rpc_server;
 pub mod v1;
 
+pub use crate::rpc_server::{new_http, Dependencies, HttpConfiguration};
 pub use jsonrpc_core::{Compatibility, Error, MetaIoHandler};
 pub use jsonrpc_http_server::Server;
-pub use rpc_server::{new_http, Dependencies, HttpConfiguration};

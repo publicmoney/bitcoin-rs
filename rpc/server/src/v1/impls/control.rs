@@ -3,6 +3,7 @@ use crate::v1::types::MemoryInfo;
 use jsonrpc_core::Error;
 use memory::Memory;
 use std::sync::Arc;
+use tokio::sync::Notify;
 
 pub struct ControlClient<T: ControlClientCoreApi> {
 	core: T,
@@ -10,15 +11,17 @@ pub struct ControlClient<T: ControlClientCoreApi> {
 
 pub trait ControlClientCoreApi: Send + Sync + 'static {
 	fn get_memory_info(&self) -> MemoryInfo;
+	fn stop(&self);
 }
 
 pub struct ControlClientCore {
 	memory: Arc<Memory>,
+	shutdown_signal: Arc<Notify>,
 }
 
 impl ControlClientCore {
-	pub fn new(memory: Arc<Memory>) -> Self {
-		ControlClientCore { memory }
+	pub fn new(memory: Arc<Memory>, shutdown_signal: Arc<Notify>) -> Self {
+		ControlClientCore { memory, shutdown_signal }
 	}
 }
 
@@ -31,6 +34,10 @@ impl ControlClientCoreApi for ControlClientCore {
 			free: stats.resident - stats.active,
 			total: stats.resident,
 		}
+	}
+
+	fn stop(&self) {
+		self.shutdown_signal.notify_one();
 	}
 }
 
@@ -50,6 +57,10 @@ where
 	fn get_memory_info(&self) -> Result<MemoryInfo, Error> {
 		Ok(self.core.get_memory_info().into())
 	}
+
+	fn stop(&self) -> Result<(), Error> {
+		Ok(self.core.stop())
+	}
 }
 
 #[cfg(test)]
@@ -67,6 +78,10 @@ pub mod tests {
 				free: 0,
 				total: 0,
 			}
+		}
+
+		fn stop(&self) {
+			unimplemented!()
 		}
 	}
 
