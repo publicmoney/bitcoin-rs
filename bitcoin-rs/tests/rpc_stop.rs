@@ -9,6 +9,6 @@ async fn test_rpc_stop() {
 
 	bitcoin_rs.rpc().stop().await.unwrap();
 
-	let exit_status = bitcoin_rs.wait_for_exit(Duration::from_secs(3)).await.unwrap();
+	let exit_status = bitcoin_rs.wait_for_exit(Duration::from_secs(10)).await.unwrap();
 	assert!(exit_status.success());
 }
