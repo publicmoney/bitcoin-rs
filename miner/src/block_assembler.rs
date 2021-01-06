@@ -1,36 +1,14 @@
+use crate::block_template::BlockTemplate;
 use crate::memory_pool::{Entry, MemoryPool, OrderingStrategy};
 use bitcrypto::SHA256D;
 use chain::{IndexedTransaction, OutPoint, TransactionOutput};
 use network::ConsensusParams;
-use primitives::compact::Compact;
 use std::collections::HashSet;
 use storage::{SharedStore, TransactionOutputProvider};
 use verification::{block_reward_satoshi, transaction_sigops, work_required};
 
 const BLOCK_VERSION: u32 = 0x20000000;
 const BLOCK_HEADER_SIZE: u32 = 4 + 32 + 32 + 4 + 4 + 4;
-
-/// Block template as described in [BIP0022](https://github.com/bitcoin/bips/blob/master/bip-0022.mediawiki#block-template-request)
-pub struct BlockTemplate {
-	/// Version
-	pub version: u32,
-	/// The hash of previous block
-	pub previous_header_hash: SHA256D,
-	/// The current time as seen by the server
-	pub time: u32,
-	/// The compressed difficulty
-	pub bits: Compact,
-	/// Block height
-	pub height: u32,
-	/// Block transactions (excluding coinbase)
-	pub transactions: Vec<IndexedTransaction>,
-	/// Total funds available for the coinbase (in Satoshis)
-	pub coinbase_value: u64,
-	/// Number of bytes allowed in the block
-	pub size_limit: u32,
-	/// Number of sigops allowed in the block
-	pub sigop_limit: u32,
-}
 
 /// Block size and number of signatures opcodes is limited
 /// This structure should be used for storing this values.
@@ -308,7 +286,8 @@ mod tests {
 	extern crate test_data;
 
 	use self::test_data::{ChainBuilder, TransactionBuilder};
-	use super::{BlockAssembler, BlockTemplate, NextStep, SizePolicy};
+	use super::{BlockAssembler, NextStep, SizePolicy};
+	use crate::block_template::BlockTemplate;
 	use crate::fee::{FeeCalculator, NonZeroFeeCalculator};
 	use crate::memory_pool::MemoryPool;
 	use bitcrypto::SHA256D;

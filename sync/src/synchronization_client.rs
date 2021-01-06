@@ -130,6 +130,7 @@ pub trait Client: Send + Sync + 'static {
 	fn on_transaction(&self, peer_index: PeerIndex, transaction: IndexedTransaction);
 	fn on_notfound(&self, peer_index: PeerIndex, message: types::NotFound);
 	fn after_peer_nearly_blocks_verified(&self, peer_index: PeerIndex, future: EmptyBoxFuture);
+	fn accept_block(&self, block: IndexedBlock);
 	fn accept_transaction(&self, transaction: IndexedTransaction, sink: Box<dyn TransactionVerificationSink>) -> Result<(), String>;
 	fn install_sync_listener(&self, listener: SyncListenerRef);
 	fn shutdown(&self);
@@ -192,6 +193,24 @@ where
 
 		// in case if verification was synchronous
 		// => try to switch to saturated state OR execute sync tasks
+		let mut client = self.core.lock();
+		if !client.try_switch_to_saturated_state() {
+			client.execute_synchronization_tasks(None, None);
+		}
+	}
+
+	fn accept_block(&self, block: IndexedBlock) {
+		{
+			let _verification_lock = self.verification_lock.lock();
+			let blocks_to_verify = self.core.lock().accept_block(block);
+
+			if let Some(mut blocks_to_verify) = blocks_to_verify {
+				while let Some(block) = blocks_to_verify.pop_front() {
+					self.verifier.verify_block(block);
+				}
+			}
+		}
+
 		let mut client = self.core.lock();
 		if !client.try_switch_to_saturated_state() {
 			client.execute_synchronization_tasks(None, None);

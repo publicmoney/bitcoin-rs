@@ -9,9 +9,10 @@ use crate::types::{
 use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use futures::{finished, lazy};
+use keys::AddressHash;
 use message::types;
-use miner::BlockAssembler;
-use miner::BlockTemplate;
+use miner::block_template::BlockTemplate;
+use miner::{mine_block, BlockAssembler};
 use network::ConsensusParams;
 use parking_lot::{Condvar, Mutex};
 use primitives::time::{RealTime, Time};
@@ -259,6 +260,12 @@ where
 		self.peers.misbehaving(peer_index, "Got unrequested 'blocktxn' message");
 	}
 
+	/// Verify new block
+	pub fn accept_block(&self, block: IndexedBlock) {
+		trace!(target: "sync", "Received new block. Block hash: {}", block.header.hash);
+		self.client.accept_block(block);
+	}
+
 	/// Verify and then schedule new transaction
 	pub fn accept_transaction(&self, transaction: IndexedTransaction) -> Result<SHA256D, String> {
 		let sink_data = Arc::new(TransactionAcceptSinkData::default());
@@ -279,6 +286,18 @@ where
 		};
 		let memory_pool = &*self.memory_pool.read();
 		block_assembler.create_new_block(&self.storage, memory_pool, RealTime.now().as_secs() as u32, &self.consensus)
+	}
+
+	pub fn generate_block(&self, to_address: Option<AddressHash>, max_tries: usize) -> Option<SHA256D> {
+		let block_template = self.get_block_template();
+		if let Some(block) = mine_block(block_template, to_address, max_tries) {
+			let block_hash = block.hash().clone();
+			info!("Generated block: {}", block_hash);
+			self.accept_block(block);
+			Some(block_hash)
+		} else {
+			None
+		}
 	}
 
 	/// Install synchronization events listener

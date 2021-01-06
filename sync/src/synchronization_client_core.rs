@@ -71,6 +71,7 @@ pub trait ClientCore {
 	fn on_transaction(&mut self, peer_index: PeerIndex, transaction: IndexedTransaction) -> Option<VecDeque<IndexedTransaction>>;
 	fn on_notfound(&mut self, peer_index: PeerIndex, message: types::NotFound);
 	fn after_peer_nearly_blocks_verified(&mut self, peer_index: PeerIndex, future: EmptyBoxFuture);
+	fn accept_block(&mut self, block: IndexedBlock) -> Option<VecDeque<IndexedBlock>>;
 	fn accept_transaction(
 		&mut self,
 		transaction: IndexedTransaction,
@@ -492,7 +493,71 @@ where
 				}
 			}
 		}
+		result
+	}
 
+	fn accept_block(&mut self, block: IndexedBlock) -> Option<VecDeque<IndexedBlock>> {
+		// prepare list of blocks to verify + make all required changes to the chain
+		let mut result: Option<VecDeque<IndexedBlock>> = None;
+		let block_state = self.chain.block_state(&block.header.hash);
+		match block_state {
+			BlockState::Verifying | BlockState::Stored => {
+				warn!(target: "sync", "Block has already been verified {}", block.header.hash);
+			}
+			BlockState::Unknown | BlockState::Scheduled | BlockState::Requested | BlockState::DeadEnd => {
+				// check parent block state
+				let parent_block_state = self.chain.block_state(&block.header.raw.previous_header_hash);
+				match parent_block_state {
+					BlockState::Unknown | BlockState::DeadEnd => {
+						if self.state.is_synchronizing() {
+							// when synchronizing, we tend to receive all blocks in-order
+							trace!(
+								target: "sync",
+								"Ignoring block {} because its parent is unknown and we are synchronizing",
+								block.header.hash
+							);
+							// remove block from current queue
+							self.chain.forget_block(&block.header.hash);
+							// remove orphaned blocks
+							let removed_blocks_hashes: Vec<_> = self
+								.orphaned_blocks_pool
+								.remove_blocks_for_parent(block.hash())
+								.into_iter()
+								.map(|b| b.header.hash)
+								.collect();
+							self.chain.forget_blocks_leave_header(&removed_blocks_hashes);
+						} else {
+							// remove this block from the queue
+							self.chain.forget_block_leave_header(&block.header.hash);
+							// remember this block as unknown
+							if !self.orphaned_blocks_pool.contains_unknown_block(&block.header.hash) {
+								self.orphaned_blocks_pool.insert_unknown_block(block);
+							}
+						}
+					}
+					BlockState::Verifying | BlockState::Stored => {
+						// update synchronization speed
+						self.sync_speed_meter.checkpoint();
+						// schedule verification
+						let mut blocks_to_verify: VecDeque<IndexedBlock> = VecDeque::new();
+						blocks_to_verify.extend(self.orphaned_blocks_pool.remove_blocks_for_parent(&block.header.hash));
+						blocks_to_verify.push_front(block);
+						// forget blocks we are going to process
+						let blocks_hashes_to_forget: Vec<_> = blocks_to_verify.iter().map(|b| *b.hash()).collect();
+						self.chain.forget_blocks_leave_header(&blocks_hashes_to_forget);
+						// remember that we are verifying these blocks
+						let blocks_headers_to_verify: Vec<_> = blocks_to_verify.iter().map(|b| b.header.clone()).collect();
+						self.chain.verify_blocks(blocks_headers_to_verify);
+
+						result = Some(blocks_to_verify);
+					}
+					BlockState::Requested | BlockState::Scheduled => {
+						// remember as orphan block
+						self.orphaned_blocks_pool.insert_orphaned_block(block);
+					}
+				}
+			}
+		}
 		result
 	}
 

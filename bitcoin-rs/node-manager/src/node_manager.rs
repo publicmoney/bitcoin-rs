@@ -86,7 +86,7 @@ impl NodeManager {
 			.unwrap();
 		self.rpc = Some(Rc::new(client));
 		for _ in 0..5 {
-			if let Ok(_) = self.rpc().get_memory_info().await {
+			if let Ok(_) = self.rpc().memory_info().await {
 				return self;
 			}
 			tokio::time::sleep(std::time::Duration::from_secs(1)).await;
@@ -133,21 +133,26 @@ impl NodeManager {
 
 	pub async fn wait_for_exit(mut self, max_duration: Duration) -> Result<ExitStatus, String> {
 		let start = Instant::now();
-		if let Some(mut process) = self.process.take() {
+		if let Some(process) = self.process.as_mut() {
 			while Instant::now().duration_since(start) < max_duration {
 				match process.try_wait() {
-					Ok(Some(status)) => return Ok(status),
+					Ok(Some(status)) => {
+						self.process = None;
+						return Ok(status);
+					}
 					Err(e) => return Err(e.to_string()),
 					_ => {}
 				}
 				tokio::time::sleep(Duration::from_secs(1)).await;
 			}
+			Err("Timed out waiting for exit.".to_string())
+		} else {
+			Err("Process already terminated.".to_string())
 		}
-		Err("Timed out waiting for exit".to_string())
 	}
 
 	pub fn kill(&mut self) {
-		if let Some(process) = self.process.as_mut() {
+		if let Some(mut process) = self.process.take() {
 			process.kill().unwrap_or_default();
 			process.wait().unwrap();
 			self.process = None

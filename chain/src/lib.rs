@@ -5,6 +5,17 @@ extern crate serialization as ser;
 #[macro_use]
 extern crate serialization_derive;
 
+pub use block::Block;
+pub use block_header::BlockHeader;
+pub use indexed_block::IndexedBlock;
+pub use indexed_header::IndexedBlockHeader;
+pub use indexed_transaction::IndexedTransaction;
+pub use merkle_root::{merkle_node_hash, merkle_root};
+pub use primitives::{bytes, compact, hash};
+pub use read_and_hash::{HashedData, ReadAndHash};
+pub use short_transaction_id::ShortTransactionID;
+pub use transaction::{OutPoint, Transaction, TransactionInput, TransactionOutput};
+
 pub mod constants;
 
 mod block;
@@ -17,16 +28,3 @@ mod merkle_root;
 mod read_and_hash;
 mod short_transaction_id;
 mod transaction;
-
-pub use primitives::{bytes, compact, hash};
-
-pub use block::Block;
-pub use block_header::BlockHeader;
-pub use merkle_root::{merkle_node_hash, merkle_root};
-pub use transaction::{OutPoint, Transaction, TransactionInput, TransactionOutput};
-
-pub use indexed_block::IndexedBlock;
-pub use indexed_header::IndexedBlockHeader;
-pub use indexed_transaction::IndexedTransaction;
-pub use read_and_hash::{HashedData, ReadAndHash};
-pub use short_transaction_id::ShortTransactionID;

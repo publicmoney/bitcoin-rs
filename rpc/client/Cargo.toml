@@ -5,4 +5,6 @@ edition = "2018"
 
 [dependencies]
 jsonrpc-core-client = { version = "16.0", features = ["http"] }
+bitcrypto = { path = "../../crypto" }
+keys = { path = "../../keys" }
 rpc-server = { path = "../server" }

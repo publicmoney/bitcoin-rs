@@ -1785,7 +1785,9 @@ checksum = "b28dfe3fe9badec5dbf0a79a9cccad2cfc2ab5484bdb3e44cbd1ae8b3ba2be06"
 name = "rpc-client"
 version = "0.1.0"
 dependencies = [
+ "bitcrypto",
  "jsonrpc-core-client",
+ "keys",
  "rpc-server",
 ]
 
@@ -2094,6 +2096,7 @@ dependencies = [
  "chain",
  "db",
  "futures 0.1.29",
+ "keys",
  "linked-hash-map",
  "log",
  "message",
