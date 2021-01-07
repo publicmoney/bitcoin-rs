@@ -12,6 +12,7 @@ pub fn stats(db: &mut Hammersbald) {
 	info!("Hash table: buckets: {}, log_mod: {}, step: {}", blen, log_mod, step);
 
 	let mut pointers = HashSet::new();
+	let mut hashes = HashSet::new();
 	let mut roots = HashMap::new();
 	let mut n_slots = 0;
 	let mut used_buckets = 0;
@@ -26,6 +27,7 @@ pub fn stats(db: &mut Hammersbald) {
 			for slot in bucket.slots {
 				if slot.1.is_valid() {
 					roots.entry(slot.1).or_insert(Vec::new()).push(slot.0);
+					hashes.insert(slot.0);
 				}
 			}
 		}
@@ -51,11 +53,7 @@ pub fn stats(db: &mut Hammersbald) {
 		panic!("{} roots point to non-existent links", pointers.len());
 	}
 
-	info!(
-		"Data: indexed: {}, hash collisions {:.2} %",
-		n_slots,
-		(1.0 - (roots.len() as f32) / (n_slots as f32)) * 100.0
-	);
+	info!("Data: indexed: {}, hash collisions: {:.2}", n_slots, n_slots - hashes.len());
 
 	let mut indexed_garbage = 0;
 	let mut referred = 0;

@@ -23,6 +23,7 @@ fn main() {
 	if let Err(err) = run() {
 		println!("{}", err);
 	}
+	info!("Shutdown")
 }
 
 fn run() -> Result<(), String> {

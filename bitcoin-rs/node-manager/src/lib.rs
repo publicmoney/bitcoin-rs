@@ -1,6 +1,6 @@
 mod node_manager;
 
-pub use crate::node_manager::NodeManager;
+pub use crate::node_manager::{NodeManager, SubCommand};
 
 #[macro_export]
 macro_rules! node {

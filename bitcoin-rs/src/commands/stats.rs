@@ -6,6 +6,6 @@ pub fn stats(cfg: &Config) -> Result<(), String> {
 	info!("Getting database statistics. This may take a while.");
 	db.stats().unwrap();
 	db.shutdown().unwrap();
-	info!("Finished");
+	info!("Finished stats");
 	Ok(())
 }

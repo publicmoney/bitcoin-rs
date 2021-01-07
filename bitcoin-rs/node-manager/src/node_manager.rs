@@ -9,11 +9,27 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::rc::Rc;
 use tokio::time::{Duration, Instant};
 
+pub enum SubCommand {
+	Rollback(u32),
+	Stats,
+	Verify,
+}
+
+impl SubCommand {
+	fn args(&self) -> Vec<String> {
+		match self {
+			SubCommand::Rollback(n) => vec!["rollback".to_string(), n.to_string()],
+			SubCommand::Stats => vec!["stats".to_string()],
+			SubCommand::Verify => vec!["verify".to_string()],
+		}
+	}
+}
+
 pub struct NodeManager {
 	process: Option<Child>,
 	bin_path: String,
 	data_dir: String,
-	sub_command: Option<String>,
+	sub_command: Option<SubCommand>,
 	config: NetConfig,
 	connection: Option<Connection>,
 	rpc_port: String,
@@ -58,8 +74,8 @@ impl NodeManager {
 		}
 	}
 
-	pub fn with_sub_command(&mut self, sub_command: &str) -> &mut NodeManager {
-		self.sub_command = Some(sub_command.to_string());
+	pub fn with_sub_command(&mut self, sub_command: SubCommand) -> &mut NodeManager {
+		self.sub_command = Some(sub_command);
 		self
 	}
 
@@ -71,7 +87,8 @@ impl NodeManager {
 			.stdout(Stdio::null());
 
 		if let Some(sub_command) = &self.sub_command {
-			bitcoin_rs_cmd.arg(sub_command);
+			bitcoin_rs_cmd.args(sub_command.args());
+			self.sub_command = None;
 		};
 
 		let bitcoin_rs = bitcoin_rs_cmd.spawn().expect("Error starting node");
@@ -131,7 +148,7 @@ impl NodeManager {
 		}
 	}
 
-	pub async fn wait_for_exit(mut self, max_duration: Duration) -> Result<ExitStatus, String> {
+	pub async fn wait_for_exit(&mut self, max_duration: Duration) -> Result<ExitStatus, String> {
 		let start = Instant::now();
 		if let Some(process) = self.process.as_mut() {
 			while Instant::now().duration_since(start) < max_duration {

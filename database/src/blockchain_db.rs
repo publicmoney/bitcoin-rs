@@ -1,5 +1,5 @@
 use crate::db_interface::DbInterface;
-use crate::ham_adapter::HamDb;
+use crate::ham_db::HamDb;
 use crate::overlay_db::OverlayDatabase;
 use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction, OutPoint, TransactionOutput};
@@ -576,7 +576,7 @@ where
 mod tests {
 	use super::SHA256D;
 	use crate::blockchain_db::BlockChainDatabase;
-	use crate::ham_adapter::HamDb;
+	use crate::ham_db::HamDb;
 	use chain::IndexedBlock;
 	use storage::{AsSubstore, BlockMeta, BlockProvider, BlockRef, TransactionMetaProvider};
 	use test_data::{block_h0, block_h1, block_h2};
