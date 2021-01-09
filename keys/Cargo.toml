@@ -5,9 +5,8 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-rand = "0.6"
 lazy_static = "1.4.0"
 base58 = "0.1"
 bitcrypto = { path = "../crypto" }
-secp256k1 = { version = "0.19", features = ["recovery", "rand", "endomorphism"] }
+secp256k1 = { version = "0.20", features = ["recovery", "rand", "rand-std"] }
 primitives = { path = "../primitives" }
