@@ -5,10 +5,13 @@ use std::io;
 use std::io::Cursor;
 #[cfg(test)]
 use std::io::ErrorKind;
+#[cfg(test)]
+use std::io::Write;
 use std::net::SocketAddr;
 use std::sync::Arc;
 #[cfg(not(test))]
 use tokio::io::AsyncReadExt;
+#[cfg(not(test))]
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
@@ -89,7 +92,7 @@ impl SharedTcpStream {
 
 	pub async fn write_all(&self, buf: &[u8]) -> Result<(), io::Error> {
 		let mut write = self.write.lock().await;
-		write.write(buf).await?;
+		write.write(buf)?;
 		Ok(())
 	}
 
