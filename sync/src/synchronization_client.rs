@@ -1,7 +1,7 @@
 use crate::synchronization_client_core::{ClientCore, Information, SynchronizationClientCore};
 use crate::synchronization_executor::TaskExecutor;
 use crate::synchronization_verifier::{TransactionVerificationSink, Verifier};
-use crate::types::{ClientCoreRef, EmptyBoxFuture, PeerIndex, SyncListenerRef, SynchronizationStateRef};
+use crate::types::{ClientCoreRef, PeerIndex, SyncListenerRef, SynchronizationStateRef, UnitFuture};
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
 use message::types;
 use parking_lot::Mutex;
@@ -129,7 +129,7 @@ pub trait Client: Send + Sync + 'static {
 	fn on_block(&self, peer_index: PeerIndex, block: IndexedBlock);
 	fn on_transaction(&self, peer_index: PeerIndex, transaction: IndexedTransaction);
 	fn on_notfound(&self, peer_index: PeerIndex, message: types::NotFound);
-	fn after_peer_nearly_blocks_verified(&self, peer_index: PeerIndex, future: EmptyBoxFuture);
+	fn after_peer_nearly_blocks_verified(&self, peer_index: PeerIndex, future: UnitFuture);
 	fn accept_block(&self, block: IndexedBlock);
 	fn accept_transaction(&self, transaction: IndexedTransaction, sink: Box<dyn TransactionVerificationSink>) -> Result<(), String>;
 	fn install_sync_listener(&self, listener: SyncListenerRef);
@@ -239,7 +239,7 @@ where
 		self.core.lock().on_notfound(peer_index, message);
 	}
 
-	fn after_peer_nearly_blocks_verified(&self, peer_index: PeerIndex, future: EmptyBoxFuture) {
+	fn after_peer_nearly_blocks_verified(&self, peer_index: PeerIndex, future: UnitFuture) {
 		self.core.lock().after_peer_nearly_blocks_verified(peer_index, future);
 	}
 

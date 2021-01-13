@@ -7,7 +7,6 @@ edition = "2018"
 [dependencies]
 tokio = { version = "0.3.6", features = ["rt", "net", "time", "io-util", "sync", "stream", "test-util", "macros", "parking_lot"] }
 parking_lot = "0.11"
-futures = "0.3"
 rand = "0.8"
 log = "0.4"
 csv = "1"

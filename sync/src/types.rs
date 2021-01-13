@@ -13,6 +13,7 @@ use std::sync::Arc;
 use storage;
 
 pub use crate::utils::BlockHeight;
+use std::pin::Pin;
 
 /// Network request id
 pub type RequestId = u32;
@@ -21,7 +22,7 @@ pub type RequestId = u32;
 pub type PeerIndex = usize;
 
 // No-error, no-result future
-pub type EmptyBoxFuture = Box<dyn Future<Item = (), Error = ()> + Send>;
+pub type UnitFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 /// Reference to storage
 pub type StorageRef = storage::SharedStore;

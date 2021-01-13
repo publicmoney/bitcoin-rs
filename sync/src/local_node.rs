@@ -8,7 +8,7 @@ use crate::types::{
 };
 use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
-use futures::{finished, lazy};
+use futures::future::lazy;
 use keys::AddressHash;
 use message::types;
 use miner::block_template::BlockTemplate;
@@ -161,12 +161,11 @@ where
 		// => do not serve getheaders until we have fully process his blocks + wait until headers are served before returning
 		let server = Arc::downgrade(&self.server);
 		let server_task = ServerTask::GetHeaders(peer_index, message, id);
-		let lazy_server_task = lazy(move || {
+		let lazy_server_task = lazy(move |_| {
 			server.upgrade().map(|s| s.execute(server_task));
-			finished::<(), ()>(())
 		});
 		self.client
-			.after_peer_nearly_blocks_verified(peer_index, Box::new(lazy_server_task));
+			.after_peer_nearly_blocks_verified(peer_index, Box::pin(lazy_server_task));
 	}
 
 	/// When peer is requesting for memory pool contents

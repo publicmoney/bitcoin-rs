@@ -6,13 +6,12 @@ use crate::synchronization_peers_tasks::Information as PeersTasksInformation;
 use crate::synchronization_peers_tasks::PeersTasks;
 use crate::synchronization_verifier::{BlockVerificationSink, TransactionVerificationSink, VerificationSink, VerificationTask};
 use crate::types::{
-	AverageSpeedMeterRef, BlockHeight, ClientCoreRef, EmptyBoxFuture, PeerIndex, PeersRef, SyncListenerRef, SynchronizationStateRef,
+	AverageSpeedMeterRef, BlockHeight, ClientCoreRef, PeerIndex, PeersRef, SyncListenerRef, SynchronizationStateRef, UnitFuture,
 };
 use crate::utils::{AverageSpeedMeter, HashPosition, MessageBlockHeadersProvider, OrphanBlocksPool, OrphanTransactionsPool};
 use crate::verification::BackwardsCompatibleChainVerifier as ChainVerifier;
 use bitcrypto::SHA256D;
 use chain::{IndexedBlock, IndexedBlockHeader, IndexedTransaction};
-use futures::Future;
 use message::common::{InventoryType, InventoryVector};
 use message::types;
 use miner::transaction_fee_rate;
@@ -70,7 +69,7 @@ pub trait ClientCore {
 	fn on_block(&mut self, peer_index: PeerIndex, block: IndexedBlock) -> Option<VecDeque<IndexedBlock>>;
 	fn on_transaction(&mut self, peer_index: PeerIndex, transaction: IndexedTransaction) -> Option<VecDeque<IndexedTransaction>>;
 	fn on_notfound(&mut self, peer_index: PeerIndex, message: types::NotFound);
-	fn after_peer_nearly_blocks_verified(&mut self, peer_index: PeerIndex, future: EmptyBoxFuture);
+	fn after_peer_nearly_blocks_verified(&mut self, peer_index: PeerIndex, future: UnitFuture);
 	fn accept_block(&mut self, block: IndexedBlock) -> Option<VecDeque<IndexedBlock>>;
 	fn accept_transaction(
 		&mut self,
@@ -116,7 +115,7 @@ pub struct SynchronizationClientCore<T: TaskExecutor> {
 	/// Verifying blocks by peer
 	verifying_blocks_by_peer: HashMap<SHA256D, PeerIndex>,
 	/// Verifying blocks futures
-	verifying_blocks_futures: HashMap<PeerIndex, (HashSet<SHA256D>, Vec<EmptyBoxFuture>)>,
+	verifying_blocks_futures: HashMap<PeerIndex, (HashSet<SHA256D>, Vec<UnitFuture>)>,
 	/// Verifying transactions futures
 	verifying_transactions_sinks: HashMap<SHA256D, Box<dyn TransactionVerificationSink>>,
 	/// Hashes of items we do not want to relay after verification is completed
@@ -611,10 +610,10 @@ where
 
 	/// Execute after last block from this peer in NearlySaturated state is verified.
 	/// If there are no verifying blocks from this peer or we are not in the NearlySaturated state => execute immediately.
-	fn after_peer_nearly_blocks_verified(&mut self, peer_index: PeerIndex, future: EmptyBoxFuture) {
+	fn after_peer_nearly_blocks_verified(&mut self, peer_index: PeerIndex, future: UnitFuture) {
 		// if we are currently synchronizing => no need to wait
 		if self.state.is_synchronizing() {
-			future.wait().expect("no-error future");
+			futures::executor::block_on(future);
 			return;
 		}
 
@@ -623,7 +622,7 @@ where
 			Entry::Occupied(mut entry) => {
 				entry.get_mut().1.push(future);
 			}
-			_ => future.wait().expect("no-error future"),
+			_ => futures::executor::block_on(future),
 		}
 	}
 
@@ -1405,7 +1404,7 @@ where
 					let is_last_block = waiting.is_empty();
 					if is_last_block {
 						for future in futures.drain(..) {
-							future.wait().expect("no-error future");
+							futures::executor::block_on(future);
 						}
 					}
 					is_last_block
