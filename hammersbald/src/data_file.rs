@@ -25,10 +25,6 @@ impl DataFile {
 		}
 	}
 
-	pub fn set_pos(&mut self, pos: PRef) {
-		self.appender.set_pos(pos);
-	}
-
 	/// return an iterator of all payloads
 	pub fn envelopes(&self) -> EnvelopeIterator {
 		EnvelopeIterator::new(&self.appender)

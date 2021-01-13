@@ -21,6 +21,8 @@ pub trait BlockChain {
 	/// Decanonizes best block
 	fn decanonize(&self) -> Result<SHA256D, Error>;
 
+	fn flush(&self) -> Result<(), Error>;
+
 	/// Checks block origin
 	fn block_origin(&self, header: &IndexedBlockHeader) -> Result<BlockOrigin, Error>;
 }

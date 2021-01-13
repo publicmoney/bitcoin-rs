@@ -34,10 +34,6 @@ impl PagedFileAppender {
 		PagedFileAppender { file, pos }
 	}
 
-	pub fn set_pos(&mut self, pos: PRef) {
-		self.pos = pos;
-	}
-
 	pub fn position(&self) -> PRef {
 		self.pos
 	}

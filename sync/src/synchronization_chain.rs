@@ -349,7 +349,7 @@ impl Chain {
 			storage::BlockOrigin::CanonChain { .. } => {
 				self.storage.insert(block.clone())?;
 				self.storage.canonize(block.hash())?;
-
+				self.storage.flush()?;
 				// remember new best block hash
 				self.best_storage_block = self.storage.as_store().best_block();
 
@@ -456,7 +456,7 @@ impl Chain {
 			storage::BlockOrigin::SideChain(_origin) => {
 				let block_hash = block.hash().clone();
 				self.storage.insert(block)?;
-
+				self.storage.flush()?;
 				// remove inserted block + handle possible reorganization in headers chain
 				// TODO: mk, not sure if it's needed here at all
 				self.headers_chain

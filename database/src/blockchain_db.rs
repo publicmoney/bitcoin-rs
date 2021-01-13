@@ -226,7 +226,7 @@ where
 		let new_best_block = match self.db.fetch_block(block_hash)? {
 			Some(b) => b,
 			None => {
-				error!(target: "db", "Block is not found during canonization: {}", block_hash);
+				error!("Block is not found during canonization: {}", block_hash);
 				return Err(storage::Error::CannotCanonize);
 			}
 		};
@@ -315,11 +315,6 @@ where
 			hash: *block_hash,
 			number: best_block_meta.number,
 		};
-
-		if best_height.number % 100 == 0 {
-			self.db.flush()?;
-		}
-
 		Ok(())
 	}
 
@@ -330,7 +325,7 @@ where
 		let best_block = match self.db.fetch_block(&best_height.hash)? {
 			Some(block) => block,
 			_ => {
-				error!(target: "db", "Block is not found during decanonization: {}", best_height.hash);
+				error!("Block is not found during decanonization: {}", best_height.hash);
 				return Err(storage::Error::CannotDecanonize);
 			}
 		};
@@ -340,7 +335,10 @@ where
 			number: if best_height.number > 0 { best_height.number - 1 } else { 0 },
 		};
 
-		debug!(target: "db", "decanonize, new best: {:?}", new_best_block);
+		debug!(
+			"Decanonized block. Best number: {}, hash: {}",
+			new_best_block.number, new_best_block.hash
+		);
 
 		self.db.set_best(new_best_block.number)?;
 
@@ -361,10 +359,8 @@ where
 							entry.insert(unused_tx);
 						} else {
 							error!(
-								target: "db",
 								"Cannot find tx meta during decanonization of tx {}/{}",
-								input.previous_output.hash,
-								input.previous_output.index,
+								input.previous_output.hash, input.previous_output.index,
 							);
 							return Err(storage::Error::CannotDecanonize);
 						}
@@ -378,7 +374,6 @@ where
 		}
 
 		*best = new_best_block;
-
 		Ok(best_height.hash)
 	}
 
@@ -539,9 +534,8 @@ where
 {
 	fn transaction_output(&self, prevout: &OutPoint, _transaction_index: usize) -> Option<TransactionOutput> {
 		// return previous transaction outputs only for canon chain transactions
-		self.transaction_meta(&prevout.hash)
-			.and_then(|_| self.transaction(&prevout.hash))
-			.and_then(|tx| tx.raw.outputs.into_iter().nth(prevout.index as usize))
+		self.transaction(&prevout.hash)
+			.and_then(|tx| tx.raw.outputs.get(prevout.index as usize).cloned())
 	}
 
 	fn is_spent(&self, prevout: &OutPoint) -> bool {
@@ -565,6 +559,10 @@ where
 
 	fn decanonize(&self) -> Result<SHA256D, storage::Error> {
 		BlockChainDatabase::decanonize(self)
+	}
+
+	fn flush(&self) -> Result<(), Error> {
+		BlockChainDatabase::flush(self)
 	}
 
 	fn block_origin(&self, header: &IndexedBlockHeader) -> Result<BlockOrigin, storage::Error> {

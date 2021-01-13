@@ -18,7 +18,7 @@ use std::fmt;
 pub const BUCKET_FILL_TARGET: usize = 64;
 const INIT_BUCKETS: usize = 512;
 const INIT_LOGMOD: usize = 8;
-const BUCKET_CACHE_MAX_SIZE: usize = 10000;
+const BUCKET_CACHE_MAX_SIZE: usize = 100000;
 
 pub struct MemTable {
 	step: usize,
@@ -101,7 +101,7 @@ impl MemTable {
 
 	pub fn recover(&mut self) -> Result<(), Error> {
 		let (data_len, table_len, link_len) = self.log_file.recover()?;
-		self.data_file.set_pos(PRef::from(data_len));
+		self.data_file.truncate(data_len)?;
 		self.table_file.truncate(table_len)?;
 		self.link_file.truncate(link_len)?;
 		Ok(())
@@ -135,14 +135,12 @@ impl MemTable {
 		{
 			let mut buckets = self.buckets.write();
 			if let Some(pref) = self.link_prefs.get(bucket_number) {
-				if buckets.peek(&bucket_number).is_none() {
-					if pref.is_valid() {
-						if let Ok(env) = self.link_file.get_envelope(*pref) {
-							if env.len() > 0 {
-								if let Ok(Payload::Link(link)) = env.payload() {
-									let bucket = Bucket { slots: link.slots() };
-									buckets.put(bucket_number, bucket);
-								}
+				if pref.is_valid() && buckets.peek(&bucket_number).is_none() {
+					if let Ok(env) = self.link_file.get_envelope(*pref) {
+						if env.len() > 0 {
+							if let Ok(Payload::Link(link)) = env.payload() {
+								let bucket = Bucket { slots: link.slots() };
+								buckets.put(bucket_number, bucket);
 							}
 						}
 					}
