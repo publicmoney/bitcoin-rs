@@ -301,11 +301,10 @@ where
 	}
 
 	fn block(&self, hash: SHA256D, verbose: Option<bool>) -> Result<GetBlockResponse, Error> {
-		let global_hash: SHA256D = hash.clone().into();
 		if verbose.unwrap_or_default() {
-			self.core.verbose_block(global_hash).map(|block| GetBlockResponse::Verbose(block))
+			self.core.verbose_block(hash).map(|block| GetBlockResponse::Verbose(block))
 		} else {
-			self.core.raw_block(global_hash).map(|block| GetBlockResponse::Raw(block))
+			self.core.raw_block(hash).map(|block| GetBlockResponse::Raw(block))
 		}
 		.ok_or(block_not_found(hash))
 	}

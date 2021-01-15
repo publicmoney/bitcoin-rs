@@ -51,10 +51,15 @@ impl SynchronizationState {
 	}
 
 	pub fn synchronization_progress(&self) -> f32 {
-		let blocks_remaining =
-			self.best_block_from_peer.load(Ordering::SeqCst) as f32 - self.best_storage_block_height.load(Ordering::SeqCst) as f32;
+		let (blocks_remaining, overflow) = self
+			.best_block_from_peer
+			.load(Ordering::SeqCst)
+			.overflowing_sub(self.best_storage_block_height.load(Ordering::SeqCst));
+		if overflow {
+			return 0.0;
+		}
 		let blocks_per_second = self.block_speed_meter.speed() as f32;
-		let seconds_remaining = blocks_remaining / blocks_per_second;
+		let seconds_remaining = blocks_remaining as f32 / blocks_per_second;
 		let total_seconds = self.best_block_from_peer.load(Ordering::SeqCst) as f32 / blocks_per_second as f32;
 		((1.0 - (seconds_remaining / total_seconds)) * 1000.0).round() / 1000.0
 	}

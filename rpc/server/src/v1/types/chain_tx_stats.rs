@@ -1,4 +1,4 @@
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct ChainTxStats {
 	// The timestamp for the final block in the window in UNIX format.
 	pub time: usize,

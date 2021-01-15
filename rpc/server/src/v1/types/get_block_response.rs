@@ -4,7 +4,8 @@ use bitcrypto::SHA256D;
 use serde::{Serialize, Serializer};
 
 /// Response to getblock RPC request
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
 pub enum GetBlockResponse {
 	/// When asking for short response
 	Raw(RawBlock),
@@ -35,7 +36,7 @@ pub struct VerboseBlock {
 	pub version_hex: String,
 	/// Merkle root of this block
 	pub merkleroot: SHA256D,
-	/// Transactions ids
+	/// Transaction ids
 	pub tx: Vec<SHA256D>,
 	/// Block time in seconds since epoch (Jan 1 1970 GMT)
 	pub time: u32,
