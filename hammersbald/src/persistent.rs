@@ -9,7 +9,7 @@ use crate::rolled_file::RolledFile;
 use crate::table_file::TableFile;
 
 const TABLE_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
-const DATA_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
+const DATA_FILE_SIZE: u64 = 262_1440 * PAGE_SIZE as u64;
 const LOG_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
 
 /// Implements persistent storage
