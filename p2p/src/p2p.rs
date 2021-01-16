@@ -154,12 +154,12 @@ impl Context {
 	}
 
 	/// Connect to socket.
-	async fn connect_future<T>(context: Arc<Context>, socket: net::SocketAddr, config: NetConfig)
+	async fn connect_future<T>(context: Arc<Context>, socket: net::SocketAddr)
 	where
 		T: SessionFactory,
 	{
 		trace!("Trying to connect to: {}", socket);
-		match connect(&socket, &config).await {
+		match connect(&socket, &context.config.connection).await {
 			Ok(connection) => {
 				// successful handshake
 				trace!("Connected to {}", connection.address);
@@ -203,8 +203,7 @@ impl Context {
 		T: SessionFactory + 'static,
 	{
 		context.connection_counter.note_new_outbound_connection();
-		let config = context.config.clone();
-		tokio::spawn(Context::connect_future::<T>(context.clone(), socket, config.connection.clone()));
+		context.runtime_handle.spawn(Context::connect_future::<T>(context.clone(), socket));
 	}
 
 	pub fn connect_normal(context: Arc<Context>, socket: net::SocketAddr) {

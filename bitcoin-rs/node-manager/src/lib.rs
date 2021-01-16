@@ -9,6 +9,15 @@ macro_rules! node {
 			env!("CARGO_BIN_EXE_bitcoin-rs"),
 			env!("CARGO_CRATE_NAME"),
 			env!("CARGO_MANIFEST_DIR"),
+				0,
+			)
+	};
+	($n:literal) => {
+		NodeManager::new_test_node(
+			env!("CARGO_BIN_EXE_bitcoin-rs"),
+			env!("CARGO_CRATE_NAME"),
+			env!("CARGO_MANIFEST_DIR"),
+			$n,
 			)
 	};
 }

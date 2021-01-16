@@ -16,68 +16,68 @@ impl From<&PeerInfo> for Peer {
 	}
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Peer {
 	// Peer index
-	id: usize,
+	pub id: usize,
 	// The IP address and port of the peer
-	addr: String,
+	pub addr: String,
 	// Bind address of the connection to the peer
-	addrbind: String,
+	pub addrbind: String,
 	// Local address as reported by the peer
-	addrlocal: String,
+	pub addrlocal: String,
 	// The services offered
-	services: String,
+	pub services: String,
 	// Whether peer has asked us to relay transactions to it
-	relaytxes: bool,
+	pub relaytxes: bool,
 	// The time in seconds since epoch (Jan 1 1970 GMT) of the last send
-	lastsend: u32,
+	pub lastsend: u32,
 	// The time in seconds since epoch (Jan 1 1970 GMT) of the last receive
-	lastrecv: u32,
+	pub lastrecv: u32,
 	// The total bytes sent
-	bytessent: u32,
+	pub bytessent: u32,
 	// The total bytes received
-	bytesrecv: u32,
+	pub bytesrecv: u32,
 	// The connection time in seconds since epoch (Jan 1 1970 GMT)
-	conntime: u32,
+	pub conntime: u32,
 	// The time offset in seconds
-	timeoffset: u32,
+	pub timeoffset: u32,
 	// ping time (if available)
-	pingtime: u32,
+	pub pingtime: u32,
 	// minimum observed ping time (if any at all)
-	minping: u32,
+	pub minping: u32,
 	// ping wait (if non-zero)
-	pingwait: u32,
+	pub pingwait: u32,
 	// The peer version, such as 70001
-	version: u32,
+	pub version: u32,
 	// The string version
-	subver: String,
+	pub subver: String,
 	// Inbound (true) or Outbound (false)
-	inbound: bool,
+	pub inbound: bool,
 	// Whether connection was due to addnode/-connect or if it was an automatic/inbound connection
-	addnode: bool,
+	pub addnode: bool,
 	// The starting height (block) of the peer
-	startingheight: u32,
+	pub startingheight: u32,
 	// The ban score
-	banscore: u32,
+	pub banscore: u32,
 	// The last header we have in common with this peer
-	synced_headers: u32,
+	pub synced_headers: u32,
 	// The last block we have in common with this peer
-	synced_blocks: u32,
+	pub synced_blocks: u32,
 	// The heights of blocks we're currently asking from this peer
-	inflight: Vec<u32>,
+	pub inflight: Vec<u32>,
 	// Whether the peer is whitelisted
-	minfeefilter: u32,
+	pub minfeefilter: u32,
 	// The minimum fee rate for transactions this peer accepts
-	whitelisted: bool,
+	pub whitelisted: bool,
 	// Bytes sent per message. If message is not in list bytes sent is zero.
-	bytessent_per_msg: Vec<BytesPerMessage>,
+	pub bytessent_per_msg: Vec<BytesPerMessage>,
 	// Bytes received per message. If message is not in list bytes sent is zero.
-	bytesrecv_per_msg: Vec<BytesPerMessage>,
+	pub bytesrecv_per_msg: Vec<BytesPerMessage>,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct BytesPerMessage {
-	msg: String, // Message type
-	n: u32,      // Number of bytes sent
+	pub msg: String, // Message type
+	pub n: u32,      // Number of bytes sent
 }

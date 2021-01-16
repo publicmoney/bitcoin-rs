@@ -3,8 +3,7 @@ use message::{serialize_payload, Payload};
 use network::network::{PROTOCOL_MINIMUM, PROTOCOL_VERSION};
 use network::Network;
 use p2p::{connect, read_any_message, Connection, NetConfig};
-use rpc_client::{http, RpcClient};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use rpc_client::{http, AddNodeOperation, RpcClient};
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::rc::Rc;
 use tokio::time::{Duration, Instant};
@@ -37,25 +36,25 @@ pub struct NodeManager {
 }
 
 impl NodeManager {
-	pub fn new_test_node(bin_path: &str, node_name: &str, manifest_dir: &str) -> Self {
+	pub fn new_test_node(bin_path: &str, crate_name: &str, manifest_dir: &str, node_index: usize) -> Self {
 		let position = std::fs::read_dir(format!("{}/tests", manifest_dir))
 			.unwrap()
-			.position(|f| f.unwrap().file_name().to_str().unwrap() == format!("{}.rs", node_name))
+			.position(|f| f.unwrap().file_name().to_str().unwrap() == format!("{}.rs", crate_name))
 			.unwrap();
 
-		let port = 10000 + position;
-		NodeManager::new_node(bin_path, node_name, port)
+		let port = 10000 + (position * 1000) + node_index;
+		NodeManager::new_node(bin_path, crate_name, port, port + 100)
 	}
 
-	pub fn new_node(bin_path: &str, data_dir: &str, rpc_port: usize) -> Self {
-		let data_dir = format!("testdb/{}", data_dir);
+	pub fn new_node(bin_path: &str, data_dir: &str, p2p_port: usize, rpc_port: usize) -> Self {
+		let data_dir = format!("testdb/{}_{}", data_dir, p2p_port % 10);
 		std::fs::remove_dir_all(&data_dir).unwrap_or_default();
 
 		let config = NetConfig {
 			protocol_version: PROTOCOL_VERSION,
 			protocol_minimum: PROTOCOL_MINIMUM,
 			network: Network::Regtest,
-			local_address: "0.0.0.0:3000".parse().unwrap(),
+			local_address: format!("0.0.0.0:{}", p2p_port).parse().unwrap(),
 			services: Default::default(),
 			user_agent: "bitcoin-rs-test".to_string(),
 			start_height: 0,
@@ -83,7 +82,15 @@ impl NodeManager {
 		let mut bitcoin_rs_cmd = Command::new(&self.bin_path);
 
 		bitcoin_rs_cmd
-			.args(&["--regtest", "--data-dir", &self.data_dir, "--jsonrpc-port", &self.rpc_port])
+			.args(&[
+				"--regtest",
+				"--data-dir",
+				&self.data_dir,
+				"--port",
+				&self.config.local_address.port().to_string(),
+				"--jsonrpc-port",
+				&self.rpc_port,
+			])
 			.stdout(Stdio::null());
 
 		if let Some(sub_command) = &self.sub_command {
@@ -106,7 +113,7 @@ impl NodeManager {
 			if let Ok(_) = self.rpc().memory_info().await {
 				return self;
 			}
-			tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+			tokio::time::sleep(Duration::from_secs(1)).await;
 		}
 		panic!("RPC connection failed")
 	}
@@ -116,15 +123,29 @@ impl NodeManager {
 	}
 
 	pub async fn connect_p2p(&mut self) -> &mut NodeManager {
-		let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.config.network.port());
 		for _ in 0..5 {
-			if let Ok(connection) = connect(&socket, &self.config).await {
+			if let Ok(connection) = connect(&self.config.local_address, &self.config).await {
 				self.connection = Some(connection);
 				return self;
 			}
-			tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+			tokio::time::sleep(Duration::from_secs(1)).await;
 		}
 		panic!("P2P connection failed")
+	}
+
+	pub async fn connect_node(&mut self, other_node: &NodeManager) -> &mut NodeManager {
+		let mut connections = 0;
+		let mut tries = 0;
+		while connections < 1 && tries < 3 {
+			self.rpc()
+				.add_node(other_node.config.local_address, AddNodeOperation::OneTry)
+				.await
+				.unwrap();
+			connections = self.rpc().connection_count().await.unwrap();
+			tries += 1;
+			tokio::time::sleep(Duration::from_secs(1)).await;
+		}
+		self
 	}
 
 	pub async fn send_message<T>(&self, payload: &T) -> Result<(), String>

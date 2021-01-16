@@ -3,8 +3,10 @@ use jsonrpc_core_client::futures::Future;
 use jsonrpc_core_client::{RpcChannel, RpcResult, TypedClient};
 use keys::AddressHash;
 use rpc_server::v1::types::{
-	BlockchainInfo, ChainTxStats, GetBlockResponse, GetTxOutResponse, GetTxOutSetInfoResponse, MemoryInfo, NetworkInfo,
+	AddNodeOperation, BlockchainInfo, ChainTxStats, GetBlockResponse, GetTxOutResponse, GetTxOutSetInfoResponse, MemoryInfo, NetworkInfo,
+	NodeInfo, Peer,
 };
+use std::net::{IpAddr, SocketAddr};
 
 #[derive(Clone)]
 pub struct RpcClient(TypedClient);
@@ -86,5 +88,21 @@ impl RpcClient {
 	/// Network
 	pub fn network_info(&self) -> impl Future<Output = RpcResult<NetworkInfo>> {
 		self.0.call_method("getnetworkinfo", "NetworkInfo", ())
+	}
+
+	pub fn add_node(&self, node: SocketAddr, operation: AddNodeOperation) -> impl Future<Output = RpcResult<()>> {
+		self.0.call_method("addnode", "()", (node, operation))
+	}
+
+	pub fn node_info(&self, dns: bool, node_addr: Option<IpAddr>) -> impl Future<Output = RpcResult<Vec<NodeInfo>>> {
+		self.0.call_method("getaddednodeinfo", "Vec<NodeInfo>", (dns, node_addr))
+	}
+
+	pub fn connection_count(&self) -> impl Future<Output = RpcResult<usize>> {
+		self.0.call_method("getconnectioncount", "usize", ())
+	}
+
+	pub fn peer_info(&self) -> impl Future<Output = RpcResult<Vec<Peer>>> {
+		self.0.call_method("getpeerinfo", "Vec<Peer>", ())
 	}
 }

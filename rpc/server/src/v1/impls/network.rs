@@ -41,7 +41,6 @@ where
 	}
 
 	fn node_info(&self, _dns: bool, node_addr: Option<String>) -> Result<Vec<NodeInfo>, Error> {
-		let node_addr: Option<String> = node_addr.into();
 		Ok(match node_addr {
 			None => self.api.nodes_info(),
 			Some(node_addr) => {
