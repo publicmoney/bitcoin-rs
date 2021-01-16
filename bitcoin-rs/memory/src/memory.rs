@@ -1,9 +1,19 @@
 extern crate jemalloc_ctl;
 
 use jemalloc_ctl::{epoch, stats};
+use std::time::{Duration, Instant};
 
-#[derive(Default)]
-pub struct Memory {}
+pub struct Memory {
+	start_time: Instant,
+}
+
+impl Memory {
+	pub fn new() -> Self {
+		Memory {
+			start_time: Instant::now(),
+		}
+	}
+}
 
 impl Memory {
 	pub fn get_memory_usage(&self) -> Statistics {
@@ -18,6 +28,10 @@ impl Memory {
 			resident,
 			retained,
 		}
+	}
+
+	pub fn uptime(&self) -> Duration {
+		self.start_time.elapsed()
 	}
 }
 

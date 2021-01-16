@@ -3,6 +3,7 @@ use crate::v1::types::MemoryInfo;
 use jsonrpc_core::Error;
 use memory::Memory;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Notify;
 
 pub struct ControlClient<T: ControlClientCoreApi> {
@@ -11,6 +12,7 @@ pub struct ControlClient<T: ControlClientCoreApi> {
 
 pub trait ControlClientCoreApi: Send + Sync + 'static {
 	fn get_memory_info(&self) -> MemoryInfo;
+	fn uptime(&self) -> Duration;
 	fn stop(&self);
 }
 
@@ -36,6 +38,10 @@ impl ControlClientCoreApi for ControlClientCore {
 		}
 	}
 
+	fn uptime(&self) -> Duration {
+		self.memory.uptime()
+	}
+
 	fn stop(&self) {
 		self.shutdown_signal.notify_one();
 	}
@@ -58,6 +64,10 @@ where
 		Ok(self.core.get_memory_info().into())
 	}
 
+	fn uptime(&self) -> Result<u64, Error> {
+		Ok(self.core.uptime().as_secs())
+	}
+
 	fn stop(&self) -> Result<(), Error> {
 		Ok(self.core.stop())
 	}
@@ -78,6 +88,10 @@ pub mod tests {
 				free: 0,
 				total: 0,
 			}
+		}
+
+		fn uptime(&self) -> Duration {
+			unimplemented!()
 		}
 
 		fn stop(&self) {

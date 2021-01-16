@@ -66,6 +66,10 @@ impl RpcClient {
 		self.0.call_method("getmemoryinfo", "MemoryInfo", ())
 	}
 
+	pub fn uptime(&self) -> impl Future<Output = RpcResult<u64>> {
+		self.0.call_method("uptime", "u64", ())
+	}
+
 	pub fn stop(&self) -> impl Future<Output = RpcResult<()>> {
 		self.0.call_method("stop", "()", ())
 	}

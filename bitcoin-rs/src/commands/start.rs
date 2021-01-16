@@ -63,7 +63,7 @@ pub fn start(cfg: config::Config) -> Result<(), String> {
 		storage: db.clone(),
 		local_sync_node: local_sync_node.clone(),
 		p2p_context,
-		memory: Arc::new(Memory::default()),
+		memory: Arc::new(Memory::new()),
 		shutdown_signal: shutdown_signal.clone(),
 	};
 	let rpc_server = rpc_server::new_http(cfg.rpc_config, rpc_deps)?.unwrap();

@@ -12,6 +12,10 @@ async fn test_rpc_control() {
 	assert!(memory_info.total > 0);
 	assert!(memory_info.used > 0);
 
+	tokio::time::sleep(Duration::from_millis(100)).await;
+	let uptime = bitcoin_rs.rpc().uptime().await.unwrap();
+	assert!(uptime > 0);
+
 	bitcoin_rs.rpc().stop().await.unwrap();
 
 	let exit_status = bitcoin_rs.wait_for_exit(Duration::from_secs(10)).await.unwrap();
