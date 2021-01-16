@@ -5,7 +5,6 @@ use bitcrypto::SHA256D;
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GetTxOutResponse {
 	/// Hash of the block this transaction output is included into.
-	/// Why it's called 'best'? Who knows
 	pub bestblock: SHA256D,
 	/// Number of confirmations of this transaction
 	pub confirmations: u32,

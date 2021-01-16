@@ -34,11 +34,16 @@ async fn test_rpc_blockchain() {
 	let difficulty = bitcoin_rs.rpc().difficulty().await.unwrap();
 	assert!(difficulty > 0.0);
 
-	let block = match bitcoin_rs.rpc().block(hashes.last().cloned().unwrap(), Some(true)).await.unwrap() {
+	let block = match bitcoin_rs.rpc().block(block_hash, Some(true)).await.unwrap() {
 		GetBlockResponse::Verbose(block) => block,
 		_ => panic!("wrong response type"),
 	};
-	assert_eq!(hashes.last().cloned().unwrap(), block.hash);
+	assert_eq!(block_hash, block.hash);
+
+	let tx = bitcoin_rs.rpc().transaction_out(*block.tx.get(0).unwrap(), 0, None).await.unwrap();
+	assert_eq!(50.0, tx.value);
+	assert_eq!(1, tx.confirmations);
+	assert!(tx.coinbase);
 
 	let tx_out_set_info = bitcoin_rs.rpc().transaction_out_set_info().await.unwrap();
 	assert_eq!(3, tx_out_set_info.height);
