@@ -40,7 +40,7 @@ pub fn verify(cfg: &Config) -> Result<(), String> {
 			None => return Err(format!("Missing block {}", block_number)),
 		}
 
-		if block_number % 1000 == 0 {
+		if block_number > 0 && block_number % 1000 == 0 {
 			info!("Verified {} blocks", block_number);
 		}
 	}

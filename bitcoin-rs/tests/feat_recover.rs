@@ -8,7 +8,7 @@ async fn test_feat_recover() {
 	// Generate some blocks
 	let mut bitcoin_rs = node!();
 	bitcoin_rs.start().connect_rpc().await;
-	bitcoin_rs.rpc().generate(3, None).await.unwrap();
+	bitcoin_rs.rpc().generate(1, None).await.unwrap();
 
 	// Clean shutdown via RPC
 	bitcoin_rs.rpc().stop().await.unwrap();
@@ -17,10 +17,11 @@ async fn test_feat_recover() {
 
 	// Check node can be started again
 	bitcoin_rs.start().connect_rpc().await;
-	assert_eq!(3, bitcoin_rs.rpc().block_count().await.unwrap());
+	assert_eq!(1, bitcoin_rs.rpc().block_count().await.unwrap());
 
 	// Kill the node and check it can be started again
 	bitcoin_rs.kill();
 	bitcoin_rs.start().connect_rpc().await;
-	assert_eq!(3, bitcoin_rs.rpc().block_count().await.unwrap());
+	bitcoin_rs.rpc().generate(1, None).await.unwrap();
+	assert_eq!(2, bitcoin_rs.rpc().block_count().await.unwrap());
 }

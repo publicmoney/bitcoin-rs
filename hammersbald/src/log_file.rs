@@ -24,13 +24,15 @@ impl LogFile {
 	}
 
 	pub fn recover(&self) -> Result<(u64, u64, u64), Error> {
-		if let Some(page) = self.read_page(PRef::from(0))? {
-			let data_len = page.read_pref(0).as_u64();
-			let table_len = page.read_pref(PREF_SIZE).as_u64();
-			let link_len = page.read_pref(PREF_SIZE * 2).as_u64();
-			return Ok((data_len, table_len, link_len));
-		}
-		Ok((0, 0, 0))
+		self.read_page(PRef::from(0))?.map_or_else(
+			|| Ok((0, 0, 0)),
+			|page| {
+				let data_len = page.read_pref(0).as_u64();
+				let table_len = page.read_pref(PREF_SIZE).as_u64();
+				let link_len = page.read_pref(PREF_SIZE * 2).as_u64();
+				Ok((data_len, table_len, link_len))
+			},
+		)
 	}
 }
 

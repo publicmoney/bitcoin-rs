@@ -1,5 +1,5 @@
 use crate::error::Error;
-use crate::page::{Page, PAGE_SIZE};
+use crate::page::{Page, PAGE_PAYLOAD_SIZE, PAGE_SIZE};
 use crate::paged_file::PagedFile;
 use crate::pref::PRef;
 
@@ -48,16 +48,10 @@ impl PagedFile for SingleFile {
 		}
 		let pos = pos - self.base;
 		if pos < self.len {
+			let mut buffer = [0u8; PAGE_SIZE];
 			let mut file = self.file.lock();
 			file.seek(SeekFrom::Start(pos))?;
-			let mut buffer = [0u8; PAGE_SIZE];
-
-			let len = if pos + PAGE_SIZE as u64 > self.len {
-				self.len as usize % PAGE_SIZE
-			} else {
-				PAGE_SIZE
-			};
-			file.read_exact(&mut buffer[..len])?;
+			file.read_exact(&mut buffer)?;
 			return Ok(Some(Page::from_buf(buffer)));
 		}
 		Ok(None)
@@ -68,8 +62,17 @@ impl PagedFile for SingleFile {
 	}
 
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
-		self.len = new_len;
-		Ok(self.file.lock().set_len(new_len)?)
+		if new_len < self.len {
+			let pref = PRef::from(new_len);
+			if let Some(mut page) = self.read_page(pref.this_page())? {
+				self.file.lock().set_len(pref.this_page().next_page().as_u64())?;
+				let buf = [0u8; PAGE_PAYLOAD_SIZE];
+				page.write(pref.in_page_pos(), &buf[..PAGE_PAYLOAD_SIZE - pref.in_page_pos()]);
+				self.update_page(page)?;
+				self.len = new_len;
+			};
+		}
+		Ok(())
 	}
 
 	fn sync(&self) -> Result<(), Error> {
@@ -126,11 +129,13 @@ mod tests {
 
 		single_file.sync().unwrap();
 		single_file.flush().unwrap();
+		single_file.truncate(PAGE_SIZE as u64 + 100).unwrap();
 
-		assert_eq!(PAGE_SIZE as u64 * 2, single_file.len);
+		assert_eq!(PAGE_SIZE as u64 + 100, single_file.len);
 
 		page_one.write_u64(0, 3);
 		single_file.update_page(page_one.clone()).unwrap();
+		single_file.update_page(page_two.clone()).unwrap();
 
 		assert_eq!(PAGE_SIZE as u64 * 2, single_file.len);
 

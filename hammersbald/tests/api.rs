@@ -18,7 +18,7 @@ fn test_two_batches_indexed() {
 
 	{
 		let mut db = persistent(path, "test", 1).unwrap();
-		for _ in 0..100 {
+		for _ in 0..50 {
 			rng.fill_bytes(&mut key);
 			rng.fill_bytes(&mut data);
 			let pref = db.put_keyed(&key, &data).unwrap();
@@ -26,7 +26,7 @@ fn test_two_batches_indexed() {
 		}
 		db.batch().unwrap();
 
-		for _ in 0..100 {
+		for _ in 0..50 {
 			rng.fill_bytes(&mut key);
 			rng.fill_bytes(&mut data);
 			let pref = db.put_keyed(&key, &data).unwrap();
@@ -44,6 +44,14 @@ fn test_two_batches_indexed() {
 	{
 		// Now reopen database and check again.
 		let mut db = persistent(path, "test", 1).unwrap();
+
+		for _ in 0..10 {
+			rng.fill_bytes(&mut key);
+			rng.fill_bytes(&mut data);
+			let pref = db.put_keyed(&key, &data).unwrap();
+			check.insert(key, (pref, data));
+		}
+		db.batch().unwrap();
 
 		for (k, (pref, v)) in check.iter() {
 			assert_eq!(db.get(pref.clone()).unwrap(), (k.to_vec(), v.to_vec()));

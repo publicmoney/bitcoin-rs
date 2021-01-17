@@ -227,7 +227,7 @@ mod tests {
 		rolled_file.truncate(1000).unwrap();
 
 		assert_eq!(
-			1000,
+			PAGE_SIZE as u64,
 			fs::File::open("testdb/rolled-truncate/test.0.bc")
 				.unwrap()
 				.metadata()
