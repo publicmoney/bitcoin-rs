@@ -974,20 +974,16 @@ where
 	/// Print synchronization information
 	pub fn print_synchronization_information(&mut self) {
 		if let State::Synchronizing(timestamp, num_of_blocks) = self.state {
-			let new_timestamp = Instant::now();
-			let timestamp_diff = new_timestamp - timestamp;
+			let timestamp_diff = (Instant::now() - timestamp).as_secs();
 			let new_num_of_blocks = self.chain.best_storage_block().number;
-			let blocks_diff = if new_num_of_blocks > num_of_blocks {
-				new_num_of_blocks - num_of_blocks
-			} else {
-				0
-			};
-			if timestamp_diff >= Duration::from_secs(60) || blocks_diff >= 1000 {
+			let blocks_diff = new_num_of_blocks.checked_sub(num_of_blocks).unwrap_or(0);
+
+			if timestamp_diff >= 60 || blocks_diff >= 1000 {
 				self.state = State::Synchronizing(Instant::now(), new_num_of_blocks);
-				let blocks_speed = blocks_diff / timestamp_diff.as_secs() as u32;
+				let blocks_speed = blocks_diff.checked_div(timestamp_diff as u32).unwrap_or(blocks_diff);
 				info!(target: "sync", "Processed {} blocks in {:.2} seconds ({:.2} blk/s). Peers: {:?}. Chain: {:?}"
 					, blocks_diff
-					, timestamp_diff.as_secs()
+					, timestamp_diff
 					, blocks_speed
 					, self.peers_tasks.information()
 					, self.chain.information());
