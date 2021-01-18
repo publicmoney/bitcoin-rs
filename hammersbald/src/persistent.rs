@@ -34,7 +34,7 @@ pub fn persistent(path: &str, name: &str, cache_size_mb: usize) -> Result<Box<dy
 	)?))?));
 
 	let table = TableFile::new(Box::new(CachedFile::new(
-		Box::new(RolledFile::new(path, name, "tb", TABLE_FILE_SIZE)?),
+		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "tb", TABLE_FILE_SIZE)?))?),
 		cache_size_mb,
 	)?))?;
 

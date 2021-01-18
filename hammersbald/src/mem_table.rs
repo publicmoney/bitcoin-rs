@@ -131,7 +131,7 @@ impl MemTable {
 	}
 
 	fn resolve_bucket(&mut self, bucket_number: usize) -> Result<(), Error> {
-		let mut to_flush = vec![];
+		let mut to_flush = HashMap::new();
 		{
 			let mut buckets = self.buckets.write();
 			if let Some(pref) = self.link_prefs.get(bucket_number) {
@@ -150,14 +150,15 @@ impl MemTable {
 				buckets.put(bucket_number, Bucket::default());
 			}
 			while buckets.len() > BUCKET_CACHE_MAX_SIZE {
-				let (num, _) = buckets.pop_lru().unwrap();
-				if self.dirty.get(num) {
-					to_flush.push(num);
+				if let Some((num, bucket)) = buckets.pop_lru() {
+					if self.dirty.get(num) {
+						to_flush.insert(num, bucket);
+					}
 				}
 			}
 		}
-		for num in to_flush {
-			self.flush_bucket(num)?;
+		for (num, bucket) in to_flush {
+			self.flush_bucket(num, Some(&bucket))?;
 		}
 		Ok(())
 	}
@@ -176,44 +177,44 @@ impl MemTable {
 		if self.dirty.is_dirty() {
 			let dirty_iterator = DirtyIterator::new(&self.dirty);
 			let dirty: Vec<usize> = dirty_iterator.enumerate().filter(|a| a.1).map(|a| a.0).collect();
-			for bucket_number in dirty {
-				self.flush_bucket(bucket_number)?;
+			for num in dirty {
+				self.flush_bucket(num, None)?;
 			}
 		}
-		self.dirty.clear();
 		Ok(())
 	}
 
-	fn flush_bucket(&mut self, bucket_number: usize) -> Result<(), Error> {
-		if let Some(link_pref) = self.link_prefs.get(bucket_number).cloned() {
-			let mut buckets = self.buckets.write();
-			if let Some(bucket) = buckets.get_mut(&bucket_number) {
-				let bucket_pref = TableFile::table_offset(bucket_number);
-				let mut page = self
-					.table_file
-					.read_page(bucket_pref.this_page())?
-					.unwrap_or_else(|| Self::invalid_offsets_page(bucket_pref.this_page()));
+	fn flush_bucket(&mut self, bucket_number: usize, bucket: Option<&Bucket>) -> Result<(), Error> {
+		let buckets = self.buckets.read();
+		if let Some(bucket) = bucket.or(buckets.peek(&bucket_number)) {
+			let link_pref = self
+				.link_prefs
+				.get(bucket_number)
+				.cloned()
+				.ok_or(Error::Corrupted(format!("Bucket links {} not found", bucket_number)))?;
+			let bucket_pref = TableFile::table_offset(bucket_number);
+			let mut page = self
+				.table_file
+				.read_page(bucket_pref.this_page())?
+				.unwrap_or_else(|| Self::invalid_offsets_page(bucket_pref.this_page()));
 
-				let link = if bucket.slots.len() > 0 {
-					let links = Link::from_slots(&bucket.slots);
-					let payload = Link::deserialize(links.as_slice()).to_payload();
-					if link_pref == PRef::invalid() {
-						self.link_file.append(payload)?
-					} else {
-						self.link_file.update(link_pref, payload)?;
-						link_pref
-					}
+			let link = if !bucket.slots.is_empty() {
+				let links = Link::from_slots(&bucket.slots);
+				let payload = Link::deserialize(links.as_slice()).to_payload();
+				if link_pref == PRef::invalid() {
+					self.link_file.append(payload)?
 				} else {
-					PRef::invalid()
-				};
-				self.link_prefs[bucket_number] = link;
-				page.write_pref(bucket_pref.in_page_pos(), link);
-				self.table_file.update_page(page)?;
-				self.dirty.unset(bucket_number);
-			}
-		} else {
-			return Err(Error::Corrupted(format!("Bucket {} not found", bucket_number)));
+					self.link_file.update(link_pref, payload)?;
+					link_pref
+				}
+			} else {
+				PRef::invalid()
+			};
+			self.link_prefs[bucket_number] = link;
+			page.write_pref(bucket_pref.in_page_pos(), link);
+			self.table_file.update_page(page)?;
 		}
+		self.dirty.unset(bucket_number);
 		Ok(())
 	}
 
@@ -514,12 +515,6 @@ impl Dirty {
 
 	pub fn get(&self, n: usize) -> bool {
 		(self.bits[n >> 6] & (1 << (n & 0x3f))) != 0
-	}
-
-	pub fn clear(&mut self) {
-		for s in &mut self.bits {
-			*s = 0;
-		}
 	}
 
 	pub fn is_dirty(&self) -> bool {
