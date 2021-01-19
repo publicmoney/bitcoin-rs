@@ -27,11 +27,16 @@ pub trait PagedFile: Send + Sync {
 pub struct PagedFileAppender {
 	file: Box<dyn PagedFile>,
 	pos: PRef,
+	current_page: Option<Page>,
 }
 
 impl PagedFileAppender {
 	pub fn new(file: Box<dyn PagedFile>, pos: PRef) -> PagedFileAppender {
-		PagedFileAppender { file, pos }
+		PagedFileAppender {
+			file,
+			pos,
+			current_page: None,
+		}
 	}
 
 	pub fn position(&self) -> PRef {
@@ -50,9 +55,13 @@ impl PagedFileAppender {
 		while wrote < buf.len() {
 			let page_pref = new_pos.this_page();
 
-			let mut page = self
-				.read_page(page_pref)?
-				.unwrap_or_else(|| Page::new_page_with_position(page_pref));
+			let mut page = if self.current_page.as_ref().filter(|page| page.pref() == page_pref).is_some() {
+				self.current_page.take().unwrap()
+			} else {
+				self.file
+					.read_page(page_pref)?
+					.unwrap_or_else(|| Page::new_page_with_position(page_pref))
+			};
 
 			let in_page_pos = new_pos.in_page_pos();
 			let space = min(PAGE_PAYLOAD_SIZE - in_page_pos, buf.len() - wrote);
@@ -61,10 +70,14 @@ impl PagedFileAppender {
 			wrote += space;
 			new_pos += space as u64;
 
-			self.update_page(page)?;
-
 			if new_pos.in_page_pos() == PAGE_PAYLOAD_SIZE {
 				new_pos += PREF_SIZE as u64;
+			}
+
+			if self.current_page.is_none() && new_pos > self.pos && new_pos.in_page_pos() != 0 {
+				self.current_page = Some(page);
+			} else {
+				self.update_page(page)?;
 			}
 		}
 		Ok(new_pos)
@@ -75,7 +88,12 @@ impl PagedFileAppender {
 		let mut read = 0;
 
 		while read < buf.len() {
-			if let Some(ref page) = self.read_page(pos.this_page())? {
+			if let Some(page) = self
+				.current_page
+				.as_ref()
+				.filter(|page| pos.this_page() == page.pref())
+				.or(self.file.read_page(pos.this_page())?.as_ref())
+			{
 				let have = min(PAGE_PAYLOAD_SIZE - pos.in_page_pos(), buf.len() - read);
 				page.read(pos.in_page_pos(), &mut buf[read..read + have]);
 				read += have;
@@ -93,6 +111,11 @@ impl PagedFileAppender {
 
 impl PagedFile for PagedFileAppender {
 	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
+		if let Some(ref page) = self.current_page {
+			if pref.this_page() == page.pref() {
+				return Ok(Some(page.clone()));
+			}
+		}
 		self.file.read_page(pref)
 	}
 
@@ -118,6 +141,11 @@ impl PagedFile for PagedFileAppender {
 	}
 
 	fn flush(&mut self) -> Result<(), Error> {
+		if let Some(page) = &self.current_page {
+			if self.pos.in_page_pos() > 0 {
+				self.file.update_page(page.clone())?;
+			}
+		}
 		Ok(self.file.flush()?)
 	}
 }

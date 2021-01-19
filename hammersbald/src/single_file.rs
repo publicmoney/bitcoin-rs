@@ -44,7 +44,7 @@ impl PagedFile for SingleFile {
 	fn read_page(&self, pref: PRef) -> Result<Option<Page>, Error> {
 		let pos = pref.as_u64();
 		if pos < self.base || pos >= self.base + self.file_size {
-			return Err(Error::Corrupted("read from wrong file".to_string()));
+			return Err(Error::Corrupted(format!("read from wrong file {}", self.path).to_string()));
 		}
 		let pos = pos - self.base;
 		if pos < self.len {
@@ -64,7 +64,7 @@ impl PagedFile for SingleFile {
 	fn truncate(&mut self, new_len: u64) -> Result<(), Error> {
 		if new_len < self.len {
 			let pref = PRef::from(new_len);
-			if let Some(mut page) = self.read_page(pref.this_page())? {
+			if let Some(mut page) = self.read_page(pref.this_page() + self.base)? {
 				self.file.lock().set_len(pref.this_page().next_page().as_u64())?;
 				let buf = [0u8; PAGE_PAYLOAD_SIZE];
 				page.write(pref.in_page_pos(), &buf[..PAGE_PAYLOAD_SIZE - pref.in_page_pos()]);

@@ -32,10 +32,7 @@ pub fn persistent(path: &str, name: &str, cache_size_mb: usize) -> Result<Box<dy
 		cache_size_mb,
 	)?))?;
 
-	let log = LogFile::new(Box::new(AsyncFile::new(
-		Box::new(RolledFile::new(path, name, "lg", LOG_FILE_SIZE)?),
-		"log",
-	)?));
+	let log = LogFile::new(Box::new(RolledFile::new(path, name, "lg", LOG_FILE_SIZE)?));
 
 	let table = TableFile::new(Box::new(CachedFile::new(
 		Box::new(AsyncFile::new(
