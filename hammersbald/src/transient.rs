@@ -41,14 +41,17 @@ impl Transient {
 	}
 
 	pub fn new_db(cached_data_pages: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
-		let log = LogFile::new(Box::new(AsyncFile::new(Box::new(Transient::new()))?));
-		let table = TableFile::new(Box::new(CachedFile::new(Box::new(Transient::new()), cached_data_pages)?))?;
+		let log = LogFile::new(Box::new(AsyncFile::new(Box::new(Transient::new()), "log")?));
+		let table = TableFile::new(Box::new(AsyncFile::new(
+			Box::new(CachedFile::new(Box::new(Transient::new()), cached_data_pages)?),
+			"table",
+		)?))?;
 		let data = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(Transient::new()))?),
+			Box::new(AsyncFile::new(Box::new(Transient::new()), "data")?),
 			cached_data_pages,
 		)?))?;
 		let link = DataFile::new(Box::new(CachedFile::new(
-			Box::new(AsyncFile::new(Box::new(Transient::new()))?),
+			Box::new(AsyncFile::new(Box::new(Transient::new()), "link")?),
 			cached_data_pages,
 		)?))?;
 		Ok(Box::new(Hammersbald::new("", log, table, data, link)?))

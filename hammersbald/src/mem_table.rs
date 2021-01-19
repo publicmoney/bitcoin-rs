@@ -190,7 +190,6 @@ impl MemTable {
 			let link_pref = self
 				.link_prefs
 				.get(bucket_number)
-				.cloned()
 				.ok_or(Error::Corrupted(format!("Bucket links {} not found", bucket_number)))?;
 			let bucket_pref = TableFile::table_offset(bucket_number);
 			let mut page = self
@@ -201,11 +200,11 @@ impl MemTable {
 			let link = if !bucket.slots.is_empty() {
 				let links = Link::from_slots(&bucket.slots);
 				let payload = Link::deserialize(links.as_slice()).to_payload();
-				if link_pref == PRef::invalid() {
+				if *link_pref == PRef::invalid() {
 					self.link_file.append(payload)?
 				} else {
-					self.link_file.update(link_pref, payload)?;
-					link_pref
+					self.link_file.update(*link_pref, payload)?;
+					*link_pref
 				}
 			} else {
 				PRef::invalid()

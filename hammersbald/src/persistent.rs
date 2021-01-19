@@ -17,24 +17,31 @@ pub fn persistent(path: &str, name: &str, cache_size_mb: usize) -> Result<Box<dy
 	std::fs::create_dir_all(path).unwrap();
 
 	let data = DataFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "bc", DATA_FILE_SIZE)?))?),
+		Box::new(AsyncFile::new(
+			Box::new(RolledFile::new(path, name, "bc", DATA_FILE_SIZE)?),
+			"data",
+		)?),
 		cache_size_mb,
 	)?))?;
 
 	let link = DataFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "bl", DATA_FILE_SIZE)?))?),
+		Box::new(AsyncFile::new(
+			Box::new(RolledFile::new(path, name, "bl", DATA_FILE_SIZE)?),
+			"link",
+		)?),
 		cache_size_mb,
 	)?))?;
 
-	let log = LogFile::new(Box::new(AsyncFile::new(Box::new(RolledFile::new(
-		path,
-		name,
-		"lg",
-		LOG_FILE_SIZE,
-	)?))?));
+	let log = LogFile::new(Box::new(AsyncFile::new(
+		Box::new(RolledFile::new(path, name, "lg", LOG_FILE_SIZE)?),
+		"log",
+	)?));
 
 	let table = TableFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "tb", TABLE_FILE_SIZE)?))?),
+		Box::new(AsyncFile::new(
+			Box::new(RolledFile::new(path, name, "tb", TABLE_FILE_SIZE)?),
+			"table",
+		)?),
 		cache_size_mb,
 	)?))?;
 
