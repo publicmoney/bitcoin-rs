@@ -104,7 +104,6 @@ impl DbInterface for HamDb {
 
 		for tx in &block.transactions {
 			let tx_meta = TransactionMeta::new(0, tx.raw.outputs.len());
-			debug!("Inserting transaction meta: {} {:?}", tx.hash, tx_meta);
 			let meta_pref = self.put(&tx_meta)?;
 			debug!("Inserting transaction: {} {:?}", tx.hash, tx.raw);
 			let tx_pref = self.put(&tx.raw)?;
@@ -113,8 +112,8 @@ impl DbInterface for HamDb {
 
 			for input in &tx.raw.inputs {
 				if !input.previous_output.is_null() {
-					let input = DbInputKey::from(input);
-					self.put_keyed(&input, &db_tx_pref)?;
+					let key = DbInputKey::from(input);
+					self.put_keyed(&key, &db_tx_pref)?;
 				}
 			}
 			for output in &tx.raw.outputs {

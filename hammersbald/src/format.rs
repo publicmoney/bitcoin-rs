@@ -1,6 +1,7 @@
 use crate::error::Error;
 use crate::pref::PRef;
 
+use crate::bucket::{Bucket, BUCKET_LENGTH};
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
 /// Content envelope wrapping in data file
@@ -166,36 +167,35 @@ impl<'e> IndexedData<'e> {
 
 /// A link to data
 pub struct Link<'e> {
-	/// slots
 	links: &'e [u8],
 }
 
 impl<'e> Link<'e> {
 	/// serialize slots
-	pub fn from_slots(slots: &[(u32, PRef)]) -> Vec<u8> {
+	pub fn from_bucket(bucket: &Bucket) -> Vec<u8> {
 		// Make the vec max size it will need to be so that it can be updated and not get overwritten. (PAGE_PAYLOAD_SIZE - envelope size (4))
 		let mut links = vec![0u8; 4086];
-		if slots.len() > 408 {
+		if bucket.len() > BUCKET_LENGTH {
 			panic!("Database error: index space");
 		}
-		for (i, slot) in slots.iter().enumerate() {
-			BigEndian::write_u32(&mut links[i * 10..i * 10 + 4], slot.0);
+		for (i, slot) in bucket.iter().enumerate() {
+			BigEndian::write_u32(&mut links[i * 10..i * 10 + 4], *slot.0);
 			BigEndian::write_u48(&mut links[i * 10 + 4..i * 10 + 10], slot.1.as_u64());
 		}
 		links
 	}
 
-	/// get slots
-	pub fn slots(&self) -> Vec<(u32, PRef)> {
-		let mut slots = vec![];
+	/// Get Bucket
+	pub fn bucket(&self) -> Bucket {
+		let mut bucket = Bucket::new();
 		for i in 0..self.links.len() / 10 {
 			let hash = BigEndian::read_u32(&self.links[i * 10..i * 10 + 4]);
 			let pref = PRef::from(BigEndian::read_u48(&self.links[i * 10 + 4..i * 10 + 10]));
 			if hash > 0 && pref != PRef::invalid() {
-				slots.push((hash, pref));
+				bucket.insert(hash, pref);
 			}
 		}
-		slots
+		bucket
 	}
 
 	/// serialize for storage

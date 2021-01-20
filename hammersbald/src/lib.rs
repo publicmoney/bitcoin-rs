@@ -4,6 +4,7 @@ extern crate lru;
 extern crate rand;
 
 mod async_file;
+mod bucket;
 mod cached_file;
 mod data_file;
 mod error;

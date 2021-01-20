@@ -14,17 +14,17 @@ pub fn stats(db: &mut Hammersbald) {
 	let mut pointers = HashSet::new();
 	let mut hashes = HashSet::new();
 	let mut roots = HashMap::new();
-	let mut n_slots = 0;
+	let mut n_links = 0;
 	let mut used_buckets = 0;
 	for (pref, bucket) in db.buckets() {
 		if pref.is_valid() {
 			pointers.insert(pref);
 
-			if bucket.slots.len() > 0 {
+			if bucket.len() > 0 {
 				used_buckets += 1;
-				n_slots += bucket.slots.len();
+				n_links += bucket.len();
 			}
-			for slot in bucket.slots {
+			for slot in bucket.into_iter() {
 				if slot.1.is_valid() {
 					roots.entry(slot.1).or_insert(Vec::new()).push(slot.0);
 					hashes.insert(slot.0);
@@ -33,10 +33,10 @@ pub fn stats(db: &mut Hammersbald) {
 		}
 	}
 	info!(
-		"Used buckets: {}. {:.1}% in use. Slots per bucket: {:.1}",
+		"Used buckets: {}. {:.1}% in use. Links per bucket: {:.1}",
 		used_buckets,
 		100.0 * (used_buckets as f32 / blen as f32),
-		n_slots as f32 / used_buckets as f32
+		n_links as f32 / used_buckets as f32
 	);
 
 	let mut n_links = 0;
@@ -53,7 +53,7 @@ pub fn stats(db: &mut Hammersbald) {
 		panic!("{} roots point to non-existent links", pointers.len());
 	}
 
-	info!("Data: indexed: {}, hash collisions: {:.2}", n_slots, n_slots - hashes.len());
+	info!("Data: indexed: {}, hash collisions: {:.2}", n_links, n_links - hashes.len());
 
 	let mut indexed_garbage = 0;
 	let mut referred = 0;

@@ -1,12 +1,13 @@
 use crate::data_file::{DataFile, EnvelopeIterator};
 use crate::format::{Envelope, Payload};
 use crate::log_file::LogFile;
-use crate::mem_table::{Bucket, MemTable};
+use crate::mem_table::MemTable;
 use crate::pref::PRef;
 use crate::stats;
 use crate::table_file::TableFile;
 use crate::Error;
 
+use crate::bucket::Bucket;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::{
 	io,

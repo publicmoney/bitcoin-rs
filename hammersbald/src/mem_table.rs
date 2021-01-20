@@ -10,6 +10,7 @@ use crate::table_file::{TableFile, BUCKETS_FIRST_PAGE, BUCKETS_PER_PAGE, BUCKET_
 use bitcoin_hashes::siphash24;
 use rand::{thread_rng, RngCore};
 
+use crate::bucket::Bucket;
 use lru::LruCache;
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -139,7 +140,7 @@ impl MemTable {
 					if let Ok(env) = self.link_file.get_envelope(*pref) {
 						if env.len() > 0 {
 							if let Ok(Payload::Link(link)) = env.payload() {
-								let bucket = Bucket { slots: link.slots() };
+								let bucket = link.bucket();
 								buckets.put(bucket_number, bucket);
 							}
 						}
@@ -197,8 +198,8 @@ impl MemTable {
 				.read_page(bucket_pref.this_page())?
 				.unwrap_or_else(|| Self::invalid_offsets_page(bucket_pref.this_page()));
 
-			let link = if !bucket.slots.is_empty() {
-				let links = Link::from_slots(&bucket.slots);
+			let link = if !bucket.is_empty() {
+				let links = Link::from_bucket(&bucket);
 				let payload = Link::deserialize(links.as_slice()).to_payload();
 				if *link_pref == PRef::invalid() {
 					self.link_file.append(payload)?
@@ -297,34 +298,28 @@ impl MemTable {
 	}
 
 	fn remove_duplicate(&mut self, key: &[u8], hash: u32, bucket_number: usize) -> Result<bool, Error> {
-		let mut remove = None;
 		self.resolve_bucket(bucket_number)?;
 
 		if let Some(bucket) = self.buckets.write().get_mut(&bucket_number) {
-			for (n, (_, pref)) in bucket.slots.iter().enumerate().filter(|s| (s.1).0 == hash) {
+			if let Some(pref) = bucket.get(&hash) {
 				let envelope = self.data_file.get_envelope(*pref)?;
 				if let Payload::Indexed(indexed) = envelope.payload()? {
 					if indexed.key == key {
-						remove = Some(n);
-						break;
+						bucket.remove(&hash);
+						self.dirty.set(bucket_number);
+						return Ok(true);
 					}
 				}
 			}
-			if let Some(r) = remove {
-				bucket.slots.remove(r);
-			}
 		}
-		if remove.is_some() {
-			self.dirty.set(bucket_number);
-		}
-		Ok(remove.is_some())
+		Ok(false)
 	}
 
 	fn store_to_bucket(&mut self, bucket_number: usize, hash: u32, pref: PRef) -> Result<(), Error> {
 		self.resolve_bucket(bucket_number)?;
 
 		if let Some(bucket) = self.buckets.write().get_mut(&bucket_number) {
-			bucket.slots.push((hash, pref));
+			bucket.insert(hash, pref);
 		} else {
 			return Err(Error::Corrupted(
 				format!("memtable does not have the bucket {}", bucket_number).to_string(),
@@ -341,13 +336,13 @@ impl MemTable {
 		self.resolve_bucket(bucket_number)?;
 
 		if let Some(b) = self.buckets.write().get(&bucket_number) {
-			for (hash, pref) in b.slots.iter() {
+			for (hash, pref) in b.iter() {
 				let new_bucket = (hash & (!0u32 >> (32 - self.log_mod - 1))) as usize; // hash % 2^(log_mod + 1)
 				if new_bucket != bucket_number {
 					moves.entry(new_bucket).or_insert(Vec::new()).push((*hash, *pref));
 					rewrite = true;
 				} else {
-					new_bucket_store.slots.push((*hash, *pref));
+					new_bucket_store.insert(*hash, *pref);
 				}
 			}
 		} else {
@@ -372,11 +367,7 @@ impl MemTable {
 		let bucket_number = self.bucket_for_hash(hash);
 		self.resolve_bucket(bucket_number)?;
 		if let Some(bucket) = self.buckets.write().get_mut(&bucket_number) {
-			for (h, data) in bucket.slots.iter_mut() {
-				if *h == hash {
-					*data = pref
-				}
-			}
+			bucket.insert(hash, pref);
 		}
 		self.dirty.set(bucket_number);
 		Ok(())
@@ -388,23 +379,21 @@ impl MemTable {
 		let bucket_number = self.bucket_for_hash(hash);
 		self.resolve_bucket(bucket_number)?;
 		if let Some(bucket) = self.buckets.write().get(&bucket_number) {
-			for (h, data) in bucket.slots.iter() {
-				if *h == hash {
-					// If the database has been truncated then there may be keys that do not have data anymore.
-					if data.as_u64() > self.data_file.len()? {
-						return Ok(None);
+			if let Some(pref) = bucket.get(&hash) {
+				// If the database has been truncated then there may be keys that do not have data anymore.
+				if pref.as_u64() > self.data_file.len()? {
+					return Ok(None);
+				}
+				let envelope = self.data_file.get_envelope(*pref)?;
+				if envelope.len() == 0 {
+					return Ok(None);
+				}
+				if let Payload::Indexed(indexed) = envelope.payload()? {
+					if indexed.key == key {
+						return Ok(Some((*pref, indexed.data.data.to_vec())));
 					}
-					let envelope = self.data_file.get_envelope(*data)?;
-					if envelope.len() == 0 {
-						return Ok(None);
-					}
-					if let Payload::Indexed(indexed) = envelope.payload()? {
-						if indexed.key == key {
-							return Ok(Some((*data, indexed.data.data.to_vec())));
-						}
-					} else {
-						return Err(Error::Corrupted("pref should point to indexed data".to_string()));
-					}
+				} else {
+					return Err(Error::Corrupted("pref should point to indexed data".to_string()));
 				}
 			}
 		} else {
@@ -413,21 +402,26 @@ impl MemTable {
 		Ok(None)
 	}
 
-	pub fn truncate(&mut self, pref: PRef) -> Result<(), Error> {
-		self.data_file.truncate(pref.as_u64())?;
+	pub fn truncate(&mut self, to_pref: PRef) -> Result<(), Error> {
+		self.data_file.truncate(to_pref.as_u64())?;
 
 		let mut to_update = vec![];
 		let mut highest_used_bucket = 0;
 		for (bucket_number, (link_pref, bucket)) in self.buckets().enumerate() {
-			if !bucket.slots.is_empty() {
-				let keep: Vec<(u32, PRef)> = bucket.slots.iter().filter(|(_, p)| p < &pref).cloned().collect();
+			if !bucket.is_empty() {
+				let mut keep = Bucket::new();
+				for (hash, pref) in bucket.into_iter() {
+					if pref < to_pref {
+						keep.insert(hash, pref);
+					}
+				}
 				to_update.push((link_pref, keep));
 				highest_used_bucket = bucket_number;
 			}
 		}
 
 		for (pref, keep) in to_update.iter() {
-			let links = Link::from_slots(&keep);
+			let links = Link::from_bucket(keep);
 			let payload = Link::deserialize(links.as_slice()).to_payload();
 			self.link_file.update(*pref, payload)?;
 		}
@@ -455,11 +449,6 @@ impl MemTable {
 	fn hash(&self, key: &[u8]) -> u32 {
 		siphash24::Hash::hash_to_u64_with_keys(self.sip0, self.sip1, key) as u32
 	}
-}
-
-#[derive(Clone, Default)]
-pub struct Bucket {
-	pub slots: Vec<(u32, PRef)>,
 }
 
 pub struct BucketIterator<'a> {
