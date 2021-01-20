@@ -8,37 +8,33 @@ use crate::page::PAGE_SIZE;
 use crate::rolled_file::RolledFile;
 use crate::table_file::TableFile;
 
-const TABLE_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
-const DATA_FILE_SIZE: u64 = 262_1440 * PAGE_SIZE as u64;
-const LOG_FILE_SIZE: u64 = 262_144 * PAGE_SIZE as u64;
+// Small files for tests, large files for real.
+const fn file_size() -> u64 {
+	(if option_env!("CARGO_PRIMARY_PACKAGE").is_none() {
+		2 * PAGE_SIZE
+	} else {
+		262_1440 * PAGE_SIZE
+	}) as u64
+}
 
 /// Implements persistent storage
 pub fn persistent(path: &str, name: &str, cache_size_mb: usize) -> Result<Box<dyn HammersbaldAPI>, Error> {
 	std::fs::create_dir_all(path).unwrap();
 
 	let data = DataFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(
-			Box::new(RolledFile::new(path, name, "bc", DATA_FILE_SIZE)?),
-			"data",
-		)?),
+		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "bc", file_size())?), "data")?),
 		cache_size_mb,
 	)?))?;
 
 	let link = DataFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(
-			Box::new(RolledFile::new(path, name, "bl", DATA_FILE_SIZE)?),
-			"link",
-		)?),
+		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "bl", file_size())?), "link")?),
 		cache_size_mb,
 	)?))?;
 
-	let log = LogFile::new(Box::new(RolledFile::new(path, name, "lg", LOG_FILE_SIZE)?));
+	let log = LogFile::new(Box::new(RolledFile::new(path, name, "lg", PAGE_SIZE as u64)?));
 
 	let table = TableFile::new(Box::new(CachedFile::new(
-		Box::new(AsyncFile::new(
-			Box::new(RolledFile::new(path, name, "tb", TABLE_FILE_SIZE)?),
-			"table",
-		)?),
+		Box::new(AsyncFile::new(Box::new(RolledFile::new(path, name, "tb", file_size())?), "table")?),
 		cache_size_mb,
 	)?))?;
 
