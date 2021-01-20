@@ -27,9 +27,13 @@ pub trait HammersbaldAPI: Send + Sync {
 	/// stop background writer
 	fn shutdown(&mut self) -> Result<(), Error>;
 
-	/// store data accessible with key
+	/// Write new keyed data, if key already exists, it will be updated to point to the new data location.
 	/// returns a persistent reference to stored data
 	fn put_keyed(&mut self, key: &[u8], data: &[u8]) -> Result<u64, Error>;
+
+	/// Checks for existing key and updates data if it's the same length as before - slower than put_keyed.
+	/// returns a persistent reference to stored data
+	fn update_keyed(&mut self, key: &[u8], data: &[u8]) -> Result<u64, Error>;
 
 	/// retrieve data with key
 	/// returns Some(persistent reference, data) or None
@@ -183,6 +187,12 @@ impl HammersbaldAPI for Hammersbald {
 				return Err(Error::KeyTooLong);
 			}
 		}
+		let data_offset = self.mem.append_data(key, data)?;
+		self.mem.put(key, data_offset)?;
+		Ok(data_offset.as_u64())
+	}
+
+	fn update_keyed(&mut self, key: &[u8], data: &[u8]) -> Result<u64, Error> {
 		if let Some((pref, current_data)) = self.mem.get(key)? {
 			if current_data.len() == data.len() {
 				self.mem.set(pref, data)?;
@@ -193,9 +203,7 @@ impl HammersbaldAPI for Hammersbald {
 				Ok(data_offset.as_u64())
 			}
 		} else {
-			let data_offset = self.mem.append_data(key, data)?;
-			self.mem.put(key, data_offset)?;
-			Ok(data_offset.as_u64())
+			self.put_keyed(key, data)
 		}
 	}
 
@@ -204,8 +212,7 @@ impl HammersbaldAPI for Hammersbald {
 	}
 
 	fn put(&mut self, data: &[u8]) -> Result<u64, Error> {
-		let data_offset = self.mem.append_referred(data)?;
-		Ok(data_offset.as_u64())
+		self.mem.append_referred(data).map(|p| p.as_u64())
 	}
 
 	fn get(&mut self, pref: u64) -> Result<(Vec<u8>, Vec<u8>), Error> {
@@ -217,8 +224,7 @@ impl HammersbaldAPI for Hammersbald {
 	}
 
 	fn set(&mut self, pref: u64, data: &[u8]) -> Result<u64, Error> {
-		let data_offset = self.mem.set(pref.into(), data)?;
-		Ok(data_offset.as_u64())
+		self.mem.set(pref.into(), data).map(|p| p.as_u64())
 	}
 
 	fn forget(&mut self, key: &[u8]) -> Result<(), Error> {

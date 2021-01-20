@@ -148,14 +148,14 @@ fn test_put_then_set() {
 }
 
 #[test]
-fn test_put_keyed_same_length() {
+fn test_update_keyed_same_length() {
 	let mut db = transient().unwrap();
 	let key = "abc";
 	let value = [1, 2, 3];
 	let new_value = [4, 5, 6];
 
-	let pref1 = db.put_keyed(key.as_ref(), &value).unwrap();
-	let pref2 = db.put_keyed(key.as_ref(), &new_value).unwrap();
+	let pref1 = db.update_keyed(key.as_ref(), &value).unwrap();
+	let pref2 = db.update_keyed(key.as_ref(), &new_value).unwrap();
 
 	assert_eq!(pref1, pref2);
 	assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value);
@@ -164,14 +164,14 @@ fn test_put_keyed_same_length() {
 }
 
 #[test]
-fn test_put_keyed_different_length() {
+fn test_update_keyed_different_length() {
 	let mut db = transient().unwrap();
 	let key = "abc";
 	let value = [1, 2, 3];
 	let new_value = [4, 5, 6, 7];
 
-	let pref1 = db.put_keyed(key.as_ref(), &value).unwrap();
-	let pref2 = db.put_keyed(key.as_ref(), &new_value).unwrap();
+	let pref1 = db.update_keyed(key.as_ref(), &value).unwrap();
+	let pref2 = db.update_keyed(key.as_ref(), &new_value).unwrap();
 
 	assert_ne!(pref1, pref2);
 	assert_eq!(db.get_keyed(key.as_ref()).unwrap().unwrap().1, new_value);
