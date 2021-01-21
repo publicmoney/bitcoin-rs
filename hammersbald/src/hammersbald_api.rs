@@ -167,7 +167,7 @@ impl Hammersbald {
 	}
 
 	/// get db params
-	pub fn params(&self) -> (usize, u32, usize, u64, u64, u64, u64, u64) {
+	pub fn params(&self) -> (usize, u64, usize, u64, u64, u64, u64, u64) {
 		self.mem.params()
 	}
 }

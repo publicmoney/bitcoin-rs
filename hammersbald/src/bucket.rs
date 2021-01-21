@@ -1,14 +1,13 @@
 use crate::pref::PRef;
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::hash::{BuildHasherDefault, Hasher};
 
-// Max number of slots to be stored in the bucket
-pub const BUCKET_LENGTH: usize = 408;
+// Max number of slots that will fit in the bucket
+pub const BUCKET_LENGTH: usize = 291;
 
 #[derive(Clone, Default)]
 pub struct Bucket {
-	slots: HashMap<u32, PRef, BuildHasherDefault<PreHashed>>,
+	slots: HashMap<u64, PRef, BuildHasherDefault<PreHashed>>,
 }
 
 impl Bucket {
@@ -18,15 +17,15 @@ impl Bucket {
 		}
 	}
 
-	pub fn insert(&mut self, hash: u32, pref: PRef) -> Option<PRef> {
+	pub fn insert(&mut self, hash: u64, pref: PRef) -> Option<PRef> {
 		self.slots.insert(hash, pref)
 	}
 
-	pub fn get(&self, hash: &u32) -> Option<&PRef> {
+	pub fn get(&self, hash: &u64) -> Option<&PRef> {
 		self.slots.get(hash)
 	}
 
-	pub fn remove(&mut self, hash: &u32) -> Option<PRef> {
+	pub fn remove(&mut self, hash: &u64) -> Option<PRef> {
 		self.slots.remove(hash)
 	}
 
@@ -38,29 +37,29 @@ impl Bucket {
 		self.slots.len()
 	}
 
-	pub fn iter(&self) -> impl Iterator<Item = (&u32, &PRef)> {
+	pub fn iter(&self) -> impl Iterator<Item = (&u64, &PRef)> {
 		self.slots.iter()
 	}
 
-	pub fn into_iter(self) -> impl IntoIterator<Item = (u32, PRef)> {
+	pub fn into_iter(self) -> impl IntoIterator<Item = (u64, PRef)> {
 		self.slots.into_iter()
 	}
 }
 
 // We hash the key outside of the HashMap so this hasher is just a no-op.
 #[derive(Default)]
-pub struct PreHashed(u32);
+pub struct PreHashed(u64);
 
 impl Hasher for PreHashed {
 	fn finish(&self) -> u64 {
-		self.0 as u64
+		self.0
 	}
 
-	fn write(&mut self, bytes: &[u8]) {
-		self.0 = u32::from_ne_bytes(bytes.try_into().unwrap())
+	fn write(&mut self, _bytes: &[u8]) {
+		unreachable!()
 	}
 
-	fn write_u32(&mut self, i: u32) {
+	fn write_u64(&mut self, i: u64) {
 		self.0 = i
 	}
 }

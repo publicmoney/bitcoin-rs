@@ -83,8 +83,8 @@ pub fn stats(db: &mut Hammersbald) {
 	}
 }
 
-fn hash(key: &[u8], sip0: u64, sip1: u64) -> u32 {
-	siphash24::Hash::hash_to_u64_with_keys(sip0, sip1, key) as u32
+fn hash(key: &[u8], sip0: u64, sip1: u64) -> u64 {
+	siphash24::Hash::hash_to_u64_with_keys(sip0, sip1, key) as u64
 }
 
 #[test]

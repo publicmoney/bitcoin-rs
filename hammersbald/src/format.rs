@@ -179,8 +179,8 @@ impl<'e> Link<'e> {
 			panic!("Database error: index space");
 		}
 		for (i, slot) in bucket.iter().enumerate() {
-			BigEndian::write_u32(&mut links[i * 10..i * 10 + 4], *slot.0);
-			BigEndian::write_u48(&mut links[i * 10 + 4..i * 10 + 10], slot.1.as_u64());
+			BigEndian::write_u64(&mut links[i * 14..i * 14 + 8], *slot.0);
+			BigEndian::write_u48(&mut links[i * 14 + 8..i * 14 + 14], slot.1.as_u64());
 		}
 		links
 	}
@@ -188,9 +188,9 @@ impl<'e> Link<'e> {
 	/// Get Bucket
 	pub fn bucket(&self) -> Bucket {
 		let mut bucket = Bucket::new();
-		for i in 0..self.links.len() / 10 {
-			let hash = BigEndian::read_u32(&self.links[i * 10..i * 10 + 4]);
-			let pref = PRef::from(BigEndian::read_u48(&self.links[i * 10 + 4..i * 10 + 10]));
+		for i in 0..self.links.len() / 14 {
+			let hash = BigEndian::read_u64(&self.links[i * 14..i * 14 + 8]);
+			let pref = PRef::from(BigEndian::read_u48(&self.links[i * 14 + 8..i * 14 + 14]));
 			if hash > 0 && pref != PRef::invalid() {
 				bucket.insert(hash, pref);
 			}
